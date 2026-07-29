@@ -150,19 +150,25 @@ target is a *different* one called `SumatraPDF-static`
 can be stale.
 
 **Generated resources.** Two files under `.work/` are compiled into the exe and
-are not in git, so a fresh clone has to produce them once before the first
-build, or the resource compiler stops with `RC2135: file not found`:
+are not in git. The built-in manual has to be produced once before the first
+build of a fresh clone, or the resource compiler stops with `RC2135: file not
+found`:
 
 ```
 bun cmd/gen-docs.ts
+```
+
+That writes `.work/manual.dat`. The other file is `.work/translations.txt`,
+which a pre-build step packs into `.work/translations.txt.lzsa`. That step
+creates an empty `translations.txt` if none is there, so the build works
+without any extra command and the UI is English-only. To fill it in:
+
+```
 bun cmd/trans-dl.ts
 ```
 
-`gen-docs.ts` writes `.work/manual.dat`, the built-in manual. `trans-dl.ts`
-writes `.work/translations.txt`, which a pre-build step packs into
-`.work/translations.txt.lzsa`. Without the upstream maintainer's
-`TRANS_UPLOAD_SECRET` it makes no network calls at all and writes an empty
-translations file, so the build's UI is English-only — the normal outcome for
+Without the upstream maintainer's `TRANS_UPLOAD_SECRET` that script makes no
+network calls at all and writes the same empty file — the normal outcome for
 anyone who isn't the maintainer. Don't set that variable to get around it: with
 it set, the script uploads this fork's strings to apptranslator.org.
 
