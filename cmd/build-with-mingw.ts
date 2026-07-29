@@ -275,6 +275,7 @@ const sumatraFiles: FileGroup[] = [
       "AvifReader.*",
       "AppSettings.*",
       "AppTools.*",
+      "AudiobookCharacters.*",
       "Caption.*",
       "Canvas.*",
       "CanvasAboutUI.*",
