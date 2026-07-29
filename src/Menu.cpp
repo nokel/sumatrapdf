@@ -495,6 +495,10 @@ static MenuDef menuDefSettings[] = {
         CmdOptions,
     },
     {
+        _TRN("Advanced &Settings..."),
+        CmdAdvancedSettings,
+    },
+    {
         _TRN("&Advanced Options..."),
         CmdAdvancedOptions,
     },
@@ -1726,6 +1730,8 @@ void MenuUpdateDisplayMode(MainWindow* win) {
 
     CheckMenuRadioItem(win->menu, CmdViewLayoutFirst, CmdViewLayoutLast, id, MF_BYCOMMAND);
     MenuSetChecked(win->menu, CmdToggleContinuousView, IsContinuous(displayMode));
+    // "Use Chatterbox voices" lives in the Read Aloud > Voices submenu, which
+    // ticks it as it's built (BuildReadAloudVoiceMenuItems)
 
     DisplayModel* dm = win->AsFixed();
     if (dm && win->CurrentTab()) {

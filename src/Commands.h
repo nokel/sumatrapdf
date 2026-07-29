@@ -263,7 +263,9 @@ enum {
     CmdTocCollapseSameLevel = 452,
     CmdToggleFavoritesSort = 453,
     CmdZoomFitHeight = 454,
-    CmdNone = 455,
+    CmdToggleAudiobookVoices = 455,
+    CmdAudiobookCharacters = 456,
+    CmdNone = 457,
 
     /* range for file history */
     CmdFileHistoryFirst,

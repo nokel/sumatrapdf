@@ -19,6 +19,8 @@
 #include "base/Archive.h"
 #include "base/Timer.h"
 #include "base/LzmaSimpleArchive.h"
+#include "base/Http.h"
+#include "AudiobookCharacters.h"
 
 #include "wingui/UIModels.h"
 #include "wingui/Layout.h"
@@ -5202,7 +5204,8 @@ static bool IsUiLayoutEq(UILayout* s1, UILayout* s2) {
            s1->isToolbarVisible == s2->isToolbarVisible && s1->tocVisible == s2->tocVisible &&
            s1->showFavorites == s2->showFavorites && s1->favoritesAsTab == s2->favoritesAsTab &&
            s1->showMenuBarRebar == s2->showMenuBarRebar && s1->aiChatVisible == s2->aiChatVisible &&
-           s1->aiChatDx == s2->aiChatDx;
+           s1->aiChatDx == s2->aiChatDx && s1->audiobookVisible == s2->audiobookVisible &&
+           s1->audiobookDx == s2->audiobookDx;
 }
 
 static bool RelayoutFrame(MainWindow* win, bool updateToolbars, int sidebarDx) {
@@ -5229,6 +5232,8 @@ static bool RelayoutFrame(MainWindow* win, bool updateToolbars, int sidebarDx) {
     curState.showMenuBarRebar = IsShowingMenuBarRebar(win);
     curState.aiChatVisible = win->uiState.aiChatVisible;
     curState.aiChatDx = win->aiChatDx;
+    curState.audiobookVisible = win->uiState.audiobookVisible;
+    curState.audiobookDx = win->audiobookDx;
 
     // skip redundant relayouts when all layout-affecting state is unchanged
     if (IsUiLayoutEq(&curState, &win->uiState.layout) && updateToolbars && sidebarDx == -1) {
@@ -5258,6 +5263,10 @@ static bool RelayoutFrame(MainWindow* win, bool updateToolbars, int sidebarDx) {
         if (win->hwndAiChatBox) {
             HwndSetVisibility(win->hwndAiChatBox, ui.aiChatVisible);
             HwndSetVisibility(win->aiChatSplitter->hwnd, ui.aiChatVisible);
+        }
+        if (win->hwndAudiobookBox) {
+            HwndSetVisibility(win->hwndAudiobookBox, ui.audiobookVisible);
+            HwndSetVisibility(win->audiobookSplitter->hwnd, ui.audiobookVisible);
         }
     }
 
@@ -5477,6 +5486,26 @@ static bool RelayoutFrame(MainWindow* win, bool updateToolbars, int sidebarDx) {
         rc.dx -= toc.dx + kSplitterDx;
     }
 
+    // the Audiobook Characters panel: docked left, after the toc/favorites
+    // sidebar, so it sits between them and the document
+    if (win->uiState.audiobookVisible && win->hwndAudiobookBox) {
+        int abDx = win->audiobookDx;
+        if (abDx <= 0) {
+            abDx = DpiScale(win->hwndFrame, 260);
+        }
+        abDx = limitValue(abDx, kSidebarMinDx, rc.dx / 2);
+        win->audiobookDx = abDx;
+
+        Rect rPanel(rc.x, rc.y, abDx, rc.dy);
+        dh.MoveWindow(win->hwndAudiobookBox, rPanel);
+
+        Rect rSplit(rc.x + abDx, rc.y, kSplitterDx, rc.dy);
+        dh.MoveWindow(win->audiobookSplitter->hwnd, rSplit);
+
+        rc.x += abDx + kSplitterDx;
+        rc.dx -= abDx + kSplitterDx;
+    }
+
     if (win->uiState.aiChatVisible && win->hwndAiChatBox) {
         int aiChatDx = win->aiChatDx;
         if (aiChatDx <= 0) {
@@ -5512,6 +5541,13 @@ static bool RelayoutFrame(MainWindow* win, bool updateToolbars, int sidebarDx) {
     }
     if (win->uiState.aiChatVisible && win->hwndAiChatBox) {
         RelayoutAIChatPanel(win);
+    }
+    if (win->uiState.audiobookVisible && win->hwndAudiobookBox) {
+        RelayoutAudiobookPanel(win);
+        // erase, like the toc/favorites boxes: the strip we now occupy was the
+        // document a moment ago, and without this its pixels stay behind
+        RedrawWindow(win->hwndAudiobookBox, nullptr, nullptr, RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN);
+        InvalidateRect(win->audiobookSplitter->hwnd, nullptr, TRUE);
     }
     if (tocVisible || favVisible) {
         InvalidateRect(win->sidebarSplitter->hwnd, nullptr, TRUE);
@@ -8077,6 +8113,478 @@ static bool ShouldToggle(CustomCommand* cmd, bool curState) {
     return GetCommandBoolArg(cmd, kCmdArgState, !curState) != curState;
 }
 
+// ---- locate the Chatterbox install (folder with audiobook\engine.py) ------
+static bool AudiobookDirValid(Str dir) {
+    if (len(dir) == 0) {
+        return false;
+    }
+    return file::Exists(fmt("%s\\audiobook\\engine.py", dir));
+}
+
+static int gAudiobookScanBudget = 0;
+
+// dirs never worth descending into when hunting for the install: hidden
+// (.git/.venv-amd), and huge/irrelevant system trees that would burn the
+// scan budget before we reach Documents (AppData is the big one).
+static bool AudiobookSkipDir(Str name) {
+    if (len(name) == 0 || name.s[0] == '.') {
+        return true;
+    }
+    static const char* skip[] = {"AppData",      "Application Data", "Windows",       "node_modules",
+                                 "$Recycle.Bin", "ProgramData",      "Program Files", "Program Files (x86)"};
+    for (const char* s : skip) {
+        if (str::EqI(name, Str(s))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// bounded depth-first search for a folder containing audiobook\engine.py
+static TempStr AudiobookScanRec(Str dir, int depth) {
+    if (depth < 0 || gAudiobookScanBudget <= 0) {
+        return {};
+    }
+    if (AudiobookDirValid(dir)) {
+        return str::DupTemp(dir);
+    }
+    DirIter di(dir);
+    di.includeFiles = false;
+    di.includeDirs = true;
+    di.recurse = false;
+    for (DirIterEntry* de : di) {
+        if (--gAudiobookScanBudget <= 0) {
+            break;
+        }
+        if (!IsDirectory(de) || AudiobookSkipDir(de->name)) {
+            continue;
+        }
+        TempStr found = AudiobookScanRec(de->filePath, depth - 1);
+        if (len(found) > 0) {
+            return found;
+        }
+    }
+    return {};
+}
+
+// The Chatterbox folder: the saved setting if still valid, else common
+// locations under Documents, else a bounded scan of the root of every fixed
+// drive. The models are gigabytes, so they live on a real disk (never
+// OneDrive) - that's why we scan drive roots. No path to configure by hand.
+static const char* kAudiobookRels[] = {
+    "AI_crap\\chatterbox-AI\\Chatterbox-TTS-Extended-main",
+    "chatterbox-AI\\Chatterbox-TTS-Extended-main",
+    "Chatterbox-TTS-Extended-main",
+    "AI crap\\chatterbox-AI\\Chatterbox-TTS-Extended-main",
+};
+
+static TempStr AudiobookResolveDir() {
+    Str saved = gGlobalPrefs->audiobook.chatterboxDir;
+    if (AudiobookDirValid(saved)) {
+        return str::DupTemp(saved);
+    }
+    // fast path: common placements under Documents / the user profile
+    TempStr docs = GetSpecialFolderTemp(CSIDL_PERSONAL);
+    TempStr prof = GetSpecialFolderTemp(CSIDL_PROFILE);
+    TempStr quick[] = {docs, prof};
+    for (TempStr r : quick) {
+        if (len(r) == 0) {
+            continue;
+        }
+        for (const char* rel : kAudiobookRels) {
+            TempStr c = fmt("%s\\%s", r, Str(rel));
+            if (AudiobookDirValid(c)) {
+                return c;
+            }
+        }
+    }
+    // scan the root of each fixed (hard) drive
+    DWORD mask = GetLogicalDrives();
+    for (int i = 0; i < 26; i++) {
+        if ((mask & (1u << i)) == 0) {
+            continue;
+        }
+        TempStr root = fmt("%c:\\", (char)('A' + i));
+        if (GetDriveTypeA(root.s) != DRIVE_FIXED) {
+            continue; // skip removable / network / empty card slots
+        }
+        for (const char* rel : kAudiobookRels) {
+            TempStr c = fmt("%s%s", root, Str(rel)); // root ends with '\'
+            if (AudiobookDirValid(c)) {
+                return c;
+            }
+        }
+        gAudiobookScanBudget = 6000;
+        TempStr found = AudiobookScanRec(root, 6);
+        if (len(found) > 0) {
+            return found;
+        }
+    }
+    return {};
+}
+
+// ---- Chatterbox audiobook Read Aloud engine -------------------------------
+// When Audiobook.UseChatterbox is set, Read Aloud hands the book to the
+// external Chatterbox engine (audiobook/engine.py) instead of Windows TTS.
+// The engine reads in per-character voices and drives the in-window highlight
+// through the AudiobookHighlight DDE command.
+//
+// The engine is *resident*: it starts, loads the TTS model, and waits. Reading
+// and analysing are requests we send it. That's what lets the Characters panel
+// open and show the cast without a word being read, and it means Stop doesn't
+// throw away a loaded model that the next Read Aloud would have to load again.
+static HANDLE gAudiobookProc = nullptr;
+
+// Because the engine outlives the reading, "is the process there" and "is it
+// reading" are different questions. This is the second one.
+static bool gAudiobookPlaying = false;
+
+// The engine has no UI: this app is the UI. Read Aloud's Pause / Continue /
+// Stop commands and the Characters panel drive the engine through its local
+// control API (audiobook/control.py), which listens on this port.
+constexpr int kAudiobookControlPort = 7862;
+
+static bool AudiobookProcAlive() {
+    if (!gAudiobookProc) {
+        return false;
+    }
+    if (WaitForSingleObject(gAudiobookProc, 0) == WAIT_TIMEOUT) {
+        return true;
+    }
+    CloseHandle(gAudiobookProc);
+    gAudiobookProc = nullptr;
+    gAudiobookPlaying = false;
+    return false;
+}
+
+// Fire a command at the engine (play / pause / stop / analyze / cast / test).
+// Returns false if the engine isn't up or didn't answer.
+static bool AudiobookControl(Str path, Str jsonBody = {}) {
+    if (!AudiobookProcAlive()) {
+        return false;
+    }
+    str::Builder hdrs;
+    hdrs.Append("Content-Type: application/json\r\n");
+    str::Builder body;
+    if (len(jsonBody) > 0) {
+        body.Append(jsonBody);
+    }
+    return HttpPost(StrL("127.0.0.1"), kAudiobookControlPort, path, &hdrs, &body);
+}
+
+// Open the Voice Lab so a voice can be trained for this character.
+//
+// Training is a long workflow of its own (record/pick clips, transcribe, build
+// a dataset, fine-tune, then wave-match the result against the reference), and
+// it lives in the Chatterbox install rather than here.
+void AudiobookTrainVoice(Str character, Str bookPath) {
+    TempStr dir = AudiobookResolveDir();
+    if (len(dir) == 0) {
+        return;
+    }
+    Str pySet = gGlobalPrefs->audiobook.pythonExe;
+    TempStr python = (len(pySet) > 0) ? str::DupTemp(pySet) : fmt("%s\\.venv-amd\\Scripts\\pythonw.exe", dir);
+    TempStr lab = fmt("%s\\audiobook\\reader.py", dir);
+    if (!file::Exists(python) || !file::Exists(lab)) {
+        return;
+    }
+    TempStr cmdLine;
+    if (len(bookPath) > 0) {
+        cmdLine = fmt("\"%s\" \"%s\" --voice-lab --character \"%s\" \"%s\"", python, lab, character, bookPath);
+    } else {
+        cmdLine = fmt("\"%s\" \"%s\" --voice-lab --character \"%s\"", python, lab, character);
+    }
+    HANDLE h = LaunchProcessInDir(cmdLine, dir, 0);
+    if (h) {
+        CloseHandle(h);
+    }
+}
+
+static void AudiobookNotify(MainWindow* win, const char* msg, bool warning) {
+    NotificationCreateArgs args;
+    args.hwndParent = win->hwndCanvas;
+    args.msg = Str(msg);
+    args.warning = warning;
+    args.timeoutMs = warning ? 6000 : 3000;
+    ShowNotification(args);
+}
+
+// Clear the reading highlight and take the playback bar down.
+static void AudiobookClearReadingUI(MainWindow* win) {
+    if (win && win->AsFixed()) {
+        win->fwdSearchMark.show = false;
+        win->fwdSearchMark.rects.Reset();
+        ScheduleRepaint(win, 0);
+    }
+    if (win) {
+        ReadAloudPlaybackBarUpdateSession(win->CurrentTab());
+    }
+}
+
+// Stop the reading. The engine stays up with its model loaded, so the
+// Characters panel keeps working and the next Read Aloud starts instantly.
+// /stop saves the place, so Read Aloud carries on from there.
+static void AudiobookStop(MainWindow* win) {
+    AudiobookControl(StrL("/stop"));
+    gAudiobookPlaying = false;
+    AudiobookClearReadingUI(win);
+}
+
+// Shut the engine down for good. Only for switching engines or closing the
+// window - stopping the reading is AudiobookStop().
+static void AudiobookQuit(MainWindow* win) {
+    if (AudiobookProcAlive()) {
+        AudiobookControl(StrL("/stop")); // remember the place first
+        AudiobookControl(StrL("/quit"));
+    }
+    if (gAudiobookProc) {
+        // it gets a moment to go quietly; it has no UI, so an orphan would
+        // keep reading with no way to stop it
+        if (WaitForSingleObject(gAudiobookProc, 2000) != WAIT_OBJECT_0) {
+            TerminateProcess(gAudiobookProc, 0);
+        }
+        CloseHandle(gAudiobookProc);
+        gAudiobookProc = nullptr;
+    }
+    gAudiobookPlaying = false;
+    AudiobookClearReadingUI(win);
+}
+
+// Flip Read Aloud between the Chatterbox engine and Windows TTS. Reachable
+// from the Read Aloud > Voices menu, so it has to work from the toolbar
+// dropdown's own dispatch as well as the frame's.
+static void AudiobookToggleEngine(MainWindow* win) {
+    // Silence whatever is speaking: switching engines mid-read would otherwise
+    // leave the old one running and the next Read Aloud would start the other
+    // one on top of it.
+    if (AudiobookProcAlive()) {
+        AudiobookQuit(win);
+    }
+    if (TtsIsSpeaking()) {
+        ReadAloudStopRememberPos();
+    }
+    gGlobalPrefs->audiobook.useChatterbox = !gGlobalPrefs->audiobook.useChatterbox;
+    SaveSettings();
+    AudiobookNotify(win,
+                    gGlobalPrefs->audiobook.useChatterbox ? "Read Aloud will use Chatterbox character voices"
+                                                          : "Read Aloud will use Windows text-to-speech",
+                    false);
+}
+
+// the playback bar lives in another file and drives the engine through these.
+// The bar is about a reading in progress, so this is "reading", not "alive".
+bool AudiobookIsRunning() {
+    return AudiobookProcAlive() && gAudiobookPlaying;
+}
+
+bool AudiobookSendCommand(Str path, Str jsonBody) {
+    return AudiobookControl(path, jsonBody);
+}
+
+// Only one voice may ever speak. Chatterbox is a separate process and Windows
+// TTS is in-process, so nothing stops them running at once unless we say so:
+// starting either must silence the other first. Call this before any Read Aloud
+// playback starts.
+static void ReadAloudMakeExclusive(MainWindow* win, bool wantChatterbox) {
+    if (wantChatterbox) {
+        if (TtsIsSpeaking()) {
+            ReadAloudStopRememberPos();
+        }
+        return;
+    }
+    if (AudiobookIsRunning()) {
+        AudiobookStop(win); // saves its place for Continue
+    }
+}
+
+// A selection, trimmed down to something we can match a line against and pass
+// on a command line. Quotes and backslashes go: a literal quote can't survive
+// the command line unmangled, and novels are mostly dialogue, so the engine
+// strips them from the book's text too before matching (control.py `_norm`).
+// Only the head is needed - the engine matches on the first 60 characters.
+static TempStr AudiobookSelectionKeyTemp(Str sel) {
+    str::Builder b;
+    // hold the space back until a word actually follows it, so the key can't
+    // end (or start) with one
+    bool pendingSpace = false;
+    for (int i = 0; i < len(sel) && b.len < 160; i++) {
+        char c = sel.s[i];
+        if (c == '"' || c == '\\' || c == '\'') {
+            continue;
+        }
+        if (c == ' ' || c == '\r' || c == '\n' || c == '\t') {
+            pendingSpace = !b.IsEmpty();
+            continue;
+        }
+        if (pendingSpace) {
+            b.AppendChar(' ');
+            pendingSpace = false;
+        }
+        b.AppendChar(c);
+    }
+    return str::DupTemp(ToStr(b));
+}
+
+// The selected text, ready to match a line against, or empty if nothing is
+// selected. Read Aloud uses this to start where the reader is looking.
+static TempStr AudiobookSelectionTextTemp(MainWindow* win, WindowTab* tab) {
+    if (!win || !tab || !win->showSelection || !tab->selectionOnPage) {
+        return {};
+    }
+    if (len(*tab->selectionOnPage) == 0 || !HasPermission(Perm::CopySelection)) {
+        return {};
+    }
+    bool isTextOnly = false;
+    TempStr sel = GetSelectedTextTemp(tab, "\n", isTextOnly);
+    if (len(sel) == 0) {
+        return {};
+    }
+    return AudiobookSelectionKeyTemp(Str(sel));
+}
+
+// The page the selection starts on, so the engine can prefer a line from it.
+static int AudiobookSelectionPage(WindowTab* tab) {
+    if (!tab || !tab->selectionOnPage || len(*tab->selectionOnPage) == 0) {
+        return 0;
+    }
+    return (*tab->selectionOnPage)[0].pageNo;
+}
+
+// Start the engine for this book if it isn't already up.
+//
+// play=false leaves it idle: it loads the TTS model and serves the control
+// API, but reads nothing. That's how the Characters panel starts it.
+static bool AudiobookLaunch(MainWindow* win, WindowTab* tab, bool play, bool fromStart, Str startText, int startPage) {
+    if (!tab || len(tab->filePath) == 0) {
+        return false;
+    }
+    // find the Chatterbox install automatically; remember it once found
+    TempStr dir = AudiobookResolveDir();
+    if (len(dir) == 0) {
+        AudiobookNotify(win, "Chatterbox install not found. Install it, or set Audiobook / ChatterboxDir in Settings.",
+                        true);
+        return false;
+    }
+    if (!str::Eq(gGlobalPrefs->audiobook.chatterboxDir, dir)) {
+        str::ReplaceWithCopy(&gGlobalPrefs->audiobook.chatterboxDir, dir);
+        SaveSettings();
+    }
+    Str pySet = gGlobalPrefs->audiobook.pythonExe;
+    TempStr python = (len(pySet) > 0) ? str::DupTemp(pySet) : fmt("%s\\.venv-amd\\Scripts\\pythonw.exe", dir);
+    TempStr engine = fmt("%s\\audiobook\\engine.py", dir);
+    if (!file::Exists(python) || !file::Exists(engine)) {
+        AudiobookNotify(win, "Chatterbox engine not found - check Audiobook / ChatterboxDir in Settings", true);
+        return false;
+    }
+    Str pdf = tab->filePath;
+    TempStr selfExe = GetSelfExePathTemp();
+    int port = gGlobalPrefs->audiobook.ttsServerPort;
+    Str lmUrl = gGlobalPrefs->audiobook.lmStudioUrl;
+    Str narrator = gGlobalPrefs->audiobook.narratorVoice;
+
+    // --parent-pid: the engine has no UI, so it must never outlive us - an
+    // orphan would keep reading the book aloud with no way to stop it
+    TempStr cmdLine =
+        fmt("\"%s\" \"%s\" --pdf \"%s\" --sumatra-exe \"%s\" --tts-port %d --lm-url \"%s\""
+            " --control-port %d --parent-pid %d",
+            python, engine, pdf, selfExe, port, lmUrl, kAudiobookControlPort, (int)GetCurrentProcessId());
+    if (len(narrator) > 0) {
+        cmdLine = fmt("%s --narrator \"%s\"", cmdLine, narrator);
+    }
+    Str lmModel = gGlobalPrefs->audiobook.lmModel;
+    if (len(lmModel) > 0) {
+        cmdLine = fmt("%s --lm-model \"%s\"", cmdLine, lmModel);
+    }
+    // other machines to share the analysis out over
+    Str lmUrls = gGlobalPrefs->audiobook.lmUrls;
+    if (len(lmUrls) > 0) {
+        cmdLine = fmt("%s --lm-urls \"%s\"", cmdLine, lmUrls);
+    }
+    // who works out the speakers: the per-chunk LLM, or BookNLP (local, needs
+    // no LLM server). Only pass it when set to BookNLP; the engine defaults to
+    // the LLM, which is what an empty/legacy setting means.
+    Str analyzer = gGlobalPrefs->audiobook.analyzer;
+    if (str::EqI(analyzer, StrL("booknlp"))) {
+        cmdLine = fmt("%s --analyzer booknlp", cmdLine);
+    }
+    if (play) {
+        cmdLine = fmt("%s --play", cmdLine);
+    }
+    if (fromStart) {
+        cmdLine = fmt("%s --from-start", cmdLine);
+    }
+    if (len(startText) > 0) {
+        cmdLine = fmt("%s --start-text \"%s\" --start-page %d", cmdLine, startText, startPage);
+    }
+    gAudiobookProc = LaunchProcessInDir(cmdLine, dir, CREATE_NO_WINDOW);
+    if (!gAudiobookProc) {
+        AudiobookNotify(win, "Failed to start the Chatterbox audiobook engine", true);
+        return false;
+    }
+    gAudiobookPlaying = play;
+    if (play) {
+        AudiobookNotify(win, "Starting audiobook - loading voices...", false);
+        // same playback bar as Windows TTS, driving the engine instead
+        ReadAloudPlaybackBarUpdateSession(tab);
+    }
+    return true;
+}
+
+// Start (or restart) the reading. If the engine is already up - the panel is
+// open, or we read earlier - this is just a request to it, so there's no
+// startup to wait through.
+static void AudiobookStart(MainWindow* win, WindowTab* tab, bool fromStart, Str startText = {}, int startPage = 0) {
+    if (!tab) {
+        return;
+    }
+    if (AudiobookProcAlive()) {
+        str::Builder b;
+        b.Append("{\"analyze_first\":true");
+        if (fromStart) {
+            b.Append(",\"from_start\":true");
+        }
+        if (len(startText) > 0) {
+            b.Append(fmt(",\"text\":\"%s\",\"page\":%d", startText, startPage));
+        }
+        b.Append("}");
+        if (AudiobookControl(StrL("/play"), ToStr(b))) {
+            gAudiobookPlaying = true;
+            ReadAloudPlaybackBarUpdateSession(tab);
+            return;
+        }
+        // it's there but not answering: fall through and start a fresh one
+        AudiobookQuit(win);
+    }
+    AudiobookLaunch(win, tab, true /* play */, fromStart, startText, startPage);
+}
+
+// Make sure an engine is up for the current book without reading anything.
+// The Characters panel calls this: it needs the cast and the TTS model, not a
+// word spoken. Returns false only if there's no book or no Chatterbox install.
+bool AudiobookEnsureEngineForCurrentTab() {
+    if (AudiobookProcAlive()) {
+        return true;
+    }
+    MainWindow* win = FindMainWindowByHwnd(GetForegroundWindow());
+    if (!win) {
+        win = len(gWindows) > 0 ? gWindows[0] : nullptr;
+    }
+    if (!win) {
+        return false;
+    }
+    return AudiobookLaunch(win, win->CurrentTab(), false /* play */, false, {}, 0);
+}
+
+static void AudiobookToggle(MainWindow* win, WindowTab* tab, Str startText, int startPage) {
+    if (AudiobookIsRunning()) {
+        // stopping: remember where it got to, so Read Aloud carries on there
+        AudiobookStop(win);
+        AudiobookNotify(win, "Audiobook stopped", false);
+        return;
+    }
+    AudiobookStart(win, tab, false, startText, startPage);
+}
+
 static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     int cmdId = LOWORD(wp);
     bool openAnnotationEdit = false;
@@ -8489,10 +8997,40 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
             break;
         }
 
+        case CmdAudiobookCharacters: {
+            ToggleAudiobookPanel(win);
+            break;
+        }
+
+        case CmdToggleAudiobookVoices: {
+            // lives in the Read Aloud > Voices menu, alongside the Windows voices
+            AudiobookToggleEngine(win);
+            break;
+        }
+
         case CmdReadAloud: {
             if (!tab) {
                 break;
             }
+
+            // Audiobook.UseChatterbox routes Read Aloud to the Chatterbox
+            // engine (per-character voices + highlighting) instead of the
+            // built-in Windows TTS. Never both at once.
+            if (gGlobalPrefs->audiobook.useChatterbox) {
+                ReadAloudMakeExclusive(win, true);
+                // A selection means "read this". It's an instruction, not a
+                // toggle: it starts at the selected text and carries on from
+                // there, whatever place an earlier Stop saved - and it doesn't
+                // stop a reading that's already going, it moves it.
+                TempStr selKey = AudiobookSelectionTextTemp(win, tab);
+                if (len(selKey) > 0) {
+                    AudiobookStart(win, tab, false, selKey, AudiobookSelectionPage(tab));
+                } else {
+                    AudiobookToggle(win, tab, {}, 0);
+                }
+                break;
+            }
+            ReadAloudMakeExclusive(win, false);
 
             if (TtsIsSpeaking()) {
                 ReadAloudStopRememberPos();
@@ -8506,12 +9044,23 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
         }
 
         case CmdPauseReadAloud: {
+            // the Chatterbox engine is a separate process: pause it instead
+            if (AudiobookIsRunning()) {
+                AudiobookControl(StrL("/pause"));
+                ToolbarUpdateStateForWindow(win, true);
+                break;
+            }
             ReadAloudStopRememberPos();
             ToolbarUpdateStateForWindow(win, true);
             break;
         }
 
         case CmdContinueReadAloud: {
+            if (AudiobookIsRunning()) {
+                AudiobookControl(StrL("/resume"));
+                ToolbarUpdateStateForWindow(win, true);
+                break;
+            }
             if (!TtsIsSpeaking()) {
                 ReadAloudContinueInTab(tab);
             }
@@ -8519,6 +9068,12 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
         }
 
         case CmdStopReadAloud:
+            if (AudiobookIsRunning()) {
+                // stops the reading and saves the place; the engine stays up
+                AudiobookStop(win);
+                ToolbarUpdateStateForWindow(win, true);
+                break;
+            }
             ReadAloudPlaybackStop();
             break;
 
@@ -8526,6 +9081,15 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
             if (!tab) {
                 break;
             }
+            // "from the top" means from the top with Chatterbox too - and it
+            // must not leave the other engine talking over it
+            if (gGlobalPrefs->audiobook.useChatterbox) {
+                ReadAloudMakeExclusive(win, true);
+                AudiobookStop(win); // drop any reading in progress
+                AudiobookStart(win, tab, true /* fromStart */);
+                break;
+            }
+            ReadAloudMakeExclusive(win, false);
             if (TtsIsSpeaking()) {
                 TtsStop();
             }
@@ -8537,6 +9101,19 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
             if (!tab) {
                 break;
             }
+            // The engine setting decides who reads, here as everywhere else -
+            // "Read Aloud" on the selection popup shouldn't hand you a Windows
+            // voice while Chatterbox is switched on.
+            if (gGlobalPrefs->audiobook.useChatterbox) {
+                ReadAloudMakeExclusive(win, true);
+                TempStr selKey = AudiobookSelectionTextTemp(win, tab);
+                if (len(selKey) > 0) {
+                    AudiobookStart(win, tab, false, selKey, AudiobookSelectionPage(tab));
+                    break;
+                }
+                // no selection to read: fall through to the Windows TTS notice
+            }
+            ReadAloudMakeExclusive(win, false);
             if (TtsIsSpeaking()) {
                 TtsStop();
             }
@@ -10719,6 +11296,16 @@ static void StopReadAloudIfSourceTab(WindowTab* tab) {
 }
 
 static void StopReadAloudIfSourceWindow(MainWindow* win) {
+    // The Chatterbox engine is a separate process and isn't tracked by
+    // gReadAloudSourceTab, so end it before the checks below bail out. It has
+    // no window of its own: left running it would keep reading the book aloud
+    // with nothing to stop it. Quit rather than stop - the window is going, so
+    // there is nothing left for a resident engine to serve. (It also watches
+    // our pid and exits if we die without getting here.)
+    if (AudiobookProcAlive()) {
+        AudiobookQuit(win);
+    }
+
     if (!win || !gReadAloudSourceTab || gReadAloudSourceTab->win != win) {
         return;
     }
@@ -11147,10 +11734,24 @@ static void BuildReadAloudVoiceMenuItems(HMENU voiceMenu) {
     }
 
     Str currentVoiceId = TtsGetVoiceId();
+    bool useChatterbox = gGlobalPrefs->audiobook.useChatterbox;
+
+    // Chatterbox is a voice choice like any other: pick it here and Read Aloud
+    // reads in per-character voices instead of a single Windows one. The
+    // Windows voices below only apply when it's off, so grey them out.
+    UINT cbFlags = MF_STRING;
+    if (useChatterbox) {
+        cbFlags |= MF_CHECKED;
+    }
+    AppendMenuW(voiceMenu, cbFlags, CmdToggleAudiobookVoices, CWStrTemp(_TRA("Use Chatterbox voices")));
+    AppendMenuW(voiceMenu, MF_SEPARATOR, 0, nullptr);
 
     UINT defaultFlags = MF_STRING;
     if (len(currentVoiceId) == 0) {
         defaultFlags |= MF_CHECKED;
+    }
+    if (useChatterbox) {
+        defaultFlags |= MF_GRAYED;
     }
 
     AppendMenuW(voiceMenu, defaultFlags, CmdTtsVoiceDefault, L"System default");
@@ -11175,6 +11776,9 @@ static void BuildReadAloudVoiceMenuItems(HMENU voiceMenu) {
         UINT flags = MF_STRING;
         if (str::Eq(voice.id, currentVoiceId)) {
             flags |= MF_CHECKED;
+        }
+        if (useChatterbox) {
+            flags |= MF_GRAYED;
         }
 
         TempStr localeName = TtsLangIdToLocaleNameTemp(voice.lang);
@@ -11232,6 +11836,16 @@ static void BuildReadAloudMenuItems(HMENU menu, MainWindow* win, bool includeCur
         }
         AppendMenuW(menu, MF_POPUP | MF_STRING, (UINT_PTR)speedMenu, CWStrTemp(_TRA("Speed")));
     }
+
+    // The cast belongs with the reading, not in Settings: it's about who reads
+    // this book. Greyed with Windows TTS, which has no characters. It's a
+    // docked panel, so it's a checkable toggle, not a "..." dialog.
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    UINT charFlags = gGlobalPrefs->audiobook.useChatterbox ? MF_STRING : MF_STRING | MF_GRAYED;
+    if (IsAudiobookPanelVisible(win)) {
+        charFlags |= MF_CHECKED;
+    }
+    AppendMenuW(menu, charFlags, CmdAudiobookCharacters, CWStrTemp(_TRA("Audiobook Characters")));
 }
 
 void RebuildReadAloudMenu(MainWindow* win, HMENU menu, bool includeCursorItem, bool canReadFromCursor) {
@@ -11279,6 +11893,10 @@ static void HandleReadAloudMenuSelection(MainWindow* win, UINT selected) {
             TtsStop();
         }
         ReadAloudSelectionInTab(currTab);
+    } else if (selected == CmdToggleAudiobookVoices) {
+        AudiobookToggleEngine(win);
+    } else if (selected == CmdAudiobookCharacters) {
+        ToggleAudiobookPanel(win);
     } else if (selected == CmdTtsVoiceDefault) {
         if (TtsSetVoiceById("")) {
             ReadAloudSaveVoicePref("");
@@ -11301,7 +11919,8 @@ static void HandleReadAloudMenuSelection(MainWindow* win, UINT selected) {
 }
 
 bool HandleReadAloudMenuCommand(MainWindow* win, int cmdId) {
-    if (cmdId == CmdTtsVoiceDefault || (cmdId >= CmdTtsMenuReadCurrentPage && cmdId <= CmdTtsMenuStopReading) ||
+    if (cmdId == CmdTtsVoiceDefault || cmdId == CmdToggleAudiobookVoices ||
+        (cmdId >= CmdTtsMenuReadCurrentPage && cmdId <= CmdTtsMenuStopReading) ||
         (cmdId >= CmdTtsVoiceFirst && cmdId <= CmdTtsVoiceLast) ||
         (cmdId >= CmdTtsSpeedFirst && cmdId <= CmdTtsSpeedLast)) {
         HandleReadAloudMenuSelection(win, (UINT)cmdId);
