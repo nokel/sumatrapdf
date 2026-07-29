@@ -108,6 +108,9 @@
     <ClInclude Include="..\src\AppSettings.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\LibraryPage.h">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\AppTools.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -531,6 +534,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\AppSettings.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\LibraryPage.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\AppTools.cpp">

@@ -400,6 +400,37 @@ ClaudeCode [
     BgColor = #ffffff
 ]
 
+; settings for the library start page (introduced in version 3.7)
+Library [
+    ; if true, the start page is the library: a wall of book covers grouped by
+    ; series, with a page per book showing its metadata, the
+    ; characters/family/places found in it, and its film and TV adaptations. If
+    ; false, the classic Frequently Read page is shown instead
+    Home = true
+
+    ; folders to look for books in, separated by ; . Empty means work them out:
+    ; the folders already catalogued, then Documents/Downloads/Desktop, then a
+    ; bounded scan of every fixed drive
+    Roots = 
+
+    ; how the library start page orders the series list: "alpha" (A to Z),
+    ; "genre" (grouped under genre headings), "most" (most books first) or
+    ; "fewest" (fewest books first). Chosen on the page
+    Sort = alpha
+
+    ; port the local library service listens on
+    Port = 7863
+
+    ; folder of the Chatterbox-TTS-Extended install, which ships the library
+    ; service as audiobook\library; found automatically, only set this if
+    ; auto-detection fails
+    ServiceDir = 
+
+    ; python that runs the library service; if empty,
+    ; <ServiceDir>\.venv-amd\Scripts\pythonw.exe is used
+    PythonExe = 
+]
+
 ; settings for the Grok Build chat sidebar (introduced in version 3.7)
 GrokBuild [
     ; Grok model ID for --model (e.g. grok-composer-2.5-fast, grok-build)

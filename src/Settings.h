@@ -152,6 +152,34 @@ struct ClaudeCode {
     ParsedColor bgColorParsed;
 };
 
+// settings for the library start page
+struct Library {
+    // if true, the start page is the library: a wall of book covers
+    // grouped by series, with a page per book showing its metadata, the
+    // characters/family/places found in it, and its film and TV
+    // adaptations. If false, the classic Frequently Read page is shown
+    // instead
+    bool home;
+    // folders to look for books in, separated by ; . Empty means work them
+    // out: the folders already catalogued, then
+    // Documents/Downloads/Desktop, then a bounded scan of every fixed
+    // drive
+    Str roots;
+    // how the library start page orders the series list: "alpha" (A to Z),
+    // "genre" (grouped under genre headings), "most" (most books first) or
+    // "fewest" (fewest books first). Chosen on the page
+    Str sort;
+    // port the local library service listens on
+    int port;
+    // folder of the Chatterbox-TTS-Extended install, which ships the
+    // library service as audiobook\library; found automatically, only set
+    // this if auto-detection fails
+    Str serviceDir;
+    // python that runs the library service; if empty,
+    // <ServiceDir>\.venv-amd\Scripts\pythonw.exe is used
+    Str pythonExe;
+};
+
 // settings for the Grok Build chat sidebar
 struct GrokBuild {
     // Grok model ID for --model (e.g. grok-composer-2.5-fast, grok-build)
@@ -707,6 +735,8 @@ struct GlobalPrefs {
     MarkdownUI markdownUI;
     // settings for the Claude Code chat sidebar
     ClaudeCode claudeCode;
+    // settings for the library start page
+    Library library;
     // settings for the Grok Build chat sidebar
     GrokBuild grokBuild;
     // settings for the OpenAI Codex chat sidebar
@@ -912,6 +942,26 @@ static const StructInfo gClaudeCodeInfo = {
     "aliases for the dropdown, comma-separated; sonnet, opus, and haiku are always included\0Claude effort level: "
     "0=Low, 1=Medium, 2=High, 3=Max\0if true, pass --dangerously-skip-permissions to Claude Code\0background color of "
     "the Claude Code chat panel"};
+
+static const FieldInfo gLibraryFields[] = {
+    {offsetof(Library, home), SettingType::Bool, true},
+    {offsetof(Library, roots), SettingType::String, (intptr_t)""},
+    {offsetof(Library, sort), SettingType::String, (intptr_t)"alpha"},
+    {offsetof(Library, port), SettingType::Int, 7863},
+    {offsetof(Library, serviceDir), SettingType::String, (intptr_t)""},
+    {offsetof(Library, pythonExe), SettingType::String, (intptr_t)""},
+};
+static const StructInfo gLibraryInfo = {
+    sizeof(Library), 6, gLibraryFields, "Home\0Roots\0Sort\0Port\0ServiceDir\0PythonExe",
+    "if true, the start page is the library: a wall of book covers grouped by series, with a page per book showing its "
+    "metadata, the characters/family/places found in it, and its film and TV adaptations. If false, the classic "
+    "Frequently Read page is shown instead\0folders to look for books in, separated by ; . Empty means work them out: "
+    "the folders already catalogued, then Documents/Downloads/Desktop, then a bounded scan of every fixed drive\0how "
+    "the library start page orders the series list: \"alpha\" (A to Z), \"genre\" (grouped under genre headings), "
+    "\"most\" (most books first) or \"fewest\" (fewest books first). Chosen on the page\0port the local library "
+    "service listens on\0folder of the Chatterbox-TTS-Extended install, which ships the library service as "
+    "audiobook\\library; found automatically, only set this if auto-detection fails\0python that runs the library "
+    "service; if empty, <ServiceDir>\\.venv-amd\\Scripts\\pythonw.exe is used"};
 
 static const FieldInfo gGrokBuildFields[] = {
     {offsetof(GrokBuild, model), SettingType::String, (intptr_t)"grok-composer-2.5-fast"},
@@ -1300,6 +1350,8 @@ static const FieldInfo gGlobalPrefsFields[] = {
     {(size_t)-1, SettingType::Comment, 0},
     {offsetof(GlobalPrefs, claudeCode), SettingType::Struct, (intptr_t)&gClaudeCodeInfo},
     {(size_t)-1, SettingType::Comment, 0},
+    {offsetof(GlobalPrefs, library), SettingType::Struct, (intptr_t)&gLibraryInfo},
+    {(size_t)-1, SettingType::Comment, 0},
     {offsetof(GlobalPrefs, grokBuild), SettingType::Struct, (intptr_t)&gGrokBuildInfo},
     {(size_t)-1, SettingType::Comment, 0},
     {offsetof(GlobalPrefs, codexBuild), SettingType::Struct, (intptr_t)&gCodexBuildInfo},
@@ -1348,7 +1400,7 @@ static const FieldInfo gGlobalPrefsFields[] = {
     {(size_t)-1, SettingType::Comment, (intptr_t)"Settings below are not recognized by the current version", true},
 };
 static const StructInfo gGlobalPrefsInfo = {
-    sizeof(GlobalPrefs), 126, gGlobalPrefsFields,
+    sizeof(GlobalPrefs), 128, gGlobalPrefsFields,
     "\0\0DefaultDisplayMode\0DefaultZoom\0DisableJavaScript\0AllowExternalImages\0EnableTeXEnhancements\0EscToExit\0Ful"
     "lPathInTitle\0InverseSearchCmdLine\0LazyLoading\0MainWindowBackground\0NoHomeTab\0HomePageSortByFrequentlyRead\0Ho"
     "mePageViewMode\0ReloadModifiedDocuments\0RememberOpenedFiles\0RememberStatePerDocument\0RestoreSession\0ReuseInsta"
@@ -1359,11 +1411,11 @@ static const StructInfo gGlobalPrefsInfo = {
     "bWidth\0Theme\0LastLightTheme\0LastDarkTheme\0DocumentColorsFollowTheme\0TocDy\0ToolbarSize\0TreeFontName\0TreeFon"
     "tSize\0UIFontSize\0DisableAntiAlias\0EngineeringDrawingEnhance\0DisableAutoLinks\0UseSysColors\0UseTabs\0Selection"
     "Toolbar\0TabsMru\0ZoomLevels\0ZoomIncrement\0\0FixedPageUI\0\0EBookUI\0\0ComicBookUI\0\0ImageUI\0\0ChmUI\0\0Markdo"
-    "wnUI\0\0ClaudeCode\0\0GrokBuild\0\0CodexBuild\0\0AIChatSidebarDx\0\0TranslateToLang\0TranslateFromLang\0TranslateE"
-    "ngine\0\0Annotations\0\0ExternalViewers\0\0ForwardSearch\0\0PrinterDefaults\0\0Fullscreen\0\0SelectionHandlers\0\0"
-    "Shortcuts\0\0Themes\0\0TabGroups\0\0CustomScreenDPI\0\0\0DefaultPasswords\0UiLanguage\0VersionToSkip\0WindowState"
-    "\0WindowPos\0SearchUIWindowPos\0FileStates\0SessionData\0ReopenOnce\0TimeOfLastUpdateCheck\0OpenCountWeek\0PropWin"
-    "Pos\0CheckForUpdates\0\0",
+    "wnUI\0\0ClaudeCode\0\0Library\0\0GrokBuild\0\0CodexBuild\0\0AIChatSidebarDx\0\0TranslateToLang\0TranslateFromLang"
+    "\0TranslateEngine\0\0Annotations\0\0ExternalViewers\0\0ForwardSearch\0\0PrinterDefaults\0\0Fullscreen\0\0Selection"
+    "Handlers\0\0Shortcuts\0\0Themes\0\0TabGroups\0\0CustomScreenDPI\0\0\0DefaultPasswords\0UiLanguage\0VersionToSkip\0"
+    "WindowState\0WindowPos\0SearchUIWindowPos\0FileStates\0SessionData\0ReopenOnce\0TimeOfLastUpdateCheck\0OpenCountWe"
+    "ek\0PropWinPos\0CheckForUpdates\0\0",
     "\0\0default layout of pages. valid values: automatic, single page, facing, book view, continuous, continuous "
     "facing, continuous book view\0default zoom. valid values: fit page, fit width, fit height, fit content or percent "
     "like 100%\0if true, JavaScript in PDF documents is disabled (e.g. form-field calculations won't run)\0if true, a "
@@ -1420,12 +1472,13 @@ static const StructInfo gGlobalPrefsInfo = {
     "eBookUI\0\0customization options for Comic Book UI\0\0customization options for image files UI\0\0customization "
     "options for CHM UI. If UseFixedPageUI is true, FixedPageUI settings apply instead\0\0customization options for "
     "Markdown UI. If UseFixedPageUI is true, MuPDF is used; otherwise WebView2 browser view is used when "
-    "available\0\0settings for the Claude Code chat sidebar\0\0settings for the Grok Build chat sidebar\0\0settings "
-    "for the OpenAI Codex chat sidebar\0\0width of the AI chat sidebar (0 = use default); shared by Claude Code, Grok "
-    "Build, and OpenAI Codex (internal)\0\0remembered destination language for selection translation; empty uses OS UI "
-    "language\0remembered source language for selection translation; empty means Auto\0remembered engine for Translate "
-    "Selection: Google, DeepL, Grok Build, Claude Code or OpenAI Codex\0\0default values for annotations in PDF "
-    "documents\0\0list of additional external viewers for various file types. See [docs for more "
+    "available\0\0settings for the Claude Code chat sidebar\0\0settings for the library start page\0\0settings for the "
+    "Grok Build chat sidebar\0\0settings for the OpenAI Codex chat sidebar\0\0width of the AI chat sidebar (0 = use "
+    "default); shared by Claude Code, Grok Build, and OpenAI Codex (internal)\0\0remembered destination language for "
+    "selection translation; empty uses OS UI language\0remembered source language for selection translation; empty "
+    "means Auto\0remembered engine for Translate Selection: Google, DeepL, Grok Build, Claude Code or OpenAI "
+    "Codex\0\0default values for annotations in PDF documents\0\0list of additional external viewers for various file "
+    "types. See [docs for more "
     "information](https://www.sumatrapdfreader.org/docs/Customize-external-viewers)\0\0customization options for how "
     "we show forward search results (used from LaTeX editors)\0\0these override the default settings in the Print "
     "dialog\0\0options for fullscreen mode\0\0list of handlers for selected text, shown in context menu when text "

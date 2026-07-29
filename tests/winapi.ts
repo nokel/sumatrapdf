@@ -26,6 +26,8 @@ const user32 = dlopen("user32.dll", {
   SetCursorPos: { args: [FFIType.i32, FFIType.i32], returns: FFIType.bool },
   ClientToScreen: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.bool },
   GetWindowTextW: { args: [FFIType.ptr, FFIType.ptr, FFIType.i32], returns: FFIType.i32 },
+  GetParent: { args: [FFIType.ptr], returns: FFIType.i64 },
+  IsWindow: { args: [FFIType.ptr], returns: FFIType.bool },
   GetWindowRect: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.bool },
   SetForegroundWindow: { args: [FFIType.ptr], returns: FFIType.bool },
   GetWindowDC: { args: [FFIType.ptr], returns: FFIType.u64 },
@@ -244,6 +246,16 @@ export function getScrollPos(hwnd: number, bar: number = SB_VERT): number {
   return getScrollInfo(hwnd, bar).pos;
 }
 
+// full scrollbar state of a window's scrollbar: range, page size and position
+export function getScrollInfo(hwnd: number, bar: number = SB_VERT): { min: number; max: number; page: number; pos: number } {
+  const buf = new Uint8Array(28);
+  const dv = new DataView(buf.buffer);
+  dv.setUint32(0, 28, true); // cbSize
+  dv.setUint32(4, SIF_ALL, true); // fMask
+  user32.symbols.GetScrollInfo(hwnd, bar, ptr(buf));
+  return { min: dv.getInt32(8, true), max: dv.getInt32(12, true), page: dv.getUint32(16, true), pos: dv.getInt32(20, true) };
+}
+
 export function postMessage(hwnd: number, msg: number, wParam: number, lParam: number): boolean {
   return user32.symbols.PostMessageW(hwnd, msg, BigInt(wParam), BigInt(lParam));
 }
@@ -324,6 +336,14 @@ export function getWindowText(hwnd: number): string {
     s += String.fromCharCode(buf[i]);
   }
   return s;
+}
+
+export function getParent(hwnd: number): number {
+  return Number(user32.symbols.GetParent(hwnd));
+}
+
+export function isWindow(hwnd: number): boolean {
+  return user32.symbols.IsWindow(hwnd);
 }
 
 // Full window/control text (large buffer; GetWindowTextW works cross-process).

@@ -19,6 +19,7 @@
 #include "base/Archive.h"
 #include "base/Timer.h"
 #include "base/LzmaSimpleArchive.h"
+#include "base/Http.h"
 
 #include "wingui/UIModels.h"
 #include "wingui/Layout.h"
@@ -81,6 +82,7 @@
 #include "ImageSaveCropResize.h"
 #include "StressTesting.h"
 #include "HomePage.h"
+#include "LibraryPage.h"
 #include "SumatraDialogs.h"
 #include "SumatraProperties.h"
 #include "TabGroupsManage.h"
@@ -8077,6 +8079,179 @@ static bool ShouldToggle(CustomCommand* cmd, bool curState) {
     return GetCommandBoolArg(cmd, kCmdArgState, !curState) != curState;
 }
 
+// ---- the library service -------------------------------------------------
+// The catalogue (scanning for books, cover art, series grouping, partitions)
+// is a small local HTTP service written in Python. It ships inside the
+// Chatterbox-TTS-Extended install as audiobook\library, so finding the service
+// means finding that install.
+
+static bool LibraryServiceDirValid(Str dir) {
+    if (len(dir) == 0) {
+        return false;
+    }
+    return file::Exists(fmt("%s\\audiobook\\library\\__main__.py", dir));
+}
+
+static int gLibraryScanBudget = 0;
+
+// dirs never worth descending into when hunting for the install: hidden
+// (.git/.venv-amd), and huge/irrelevant system trees that would burn the
+// scan budget before we reach Documents (AppData is the big one).
+static bool LibrarySkipDir(Str name) {
+    if (len(name) == 0 || name.s[0] == '.') {
+        return true;
+    }
+    static const char* skip[] = {"AppData",      "Application Data", "Windows",       "node_modules",
+                                 "$Recycle.Bin", "ProgramData",      "Program Files", "Program Files (x86)"};
+    for (const char* s : skip) {
+        if (str::EqI(name, Str(s))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// bounded depth-first search for a folder containing audiobook\library
+static TempStr LibraryServiceScanRec(Str dir, int depth) {
+    if (depth < 0 || gLibraryScanBudget <= 0) {
+        return {};
+    }
+    if (LibraryServiceDirValid(dir)) {
+        return str::DupTemp(dir);
+    }
+    DirIter di(dir);
+    di.includeFiles = false;
+    di.includeDirs = true;
+    di.recurse = false;
+    for (DirIterEntry* de : di) {
+        if (--gLibraryScanBudget <= 0) {
+            break;
+        }
+        if (!IsDirectory(de) || LibrarySkipDir(de->name)) {
+            continue;
+        }
+        TempStr found = LibraryServiceScanRec(de->filePath, depth - 1);
+        if (len(found) > 0) {
+            return found;
+        }
+    }
+    return {};
+}
+
+static const char* kLibraryServiceRels[] = {
+    "AI_crap\\chatterbox-AI\\Chatterbox-TTS-Extended-main",
+    "chatterbox-AI\\Chatterbox-TTS-Extended-main",
+    "Chatterbox-TTS-Extended-main",
+    "AI crap\\chatterbox-AI\\Chatterbox-TTS-Extended-main",
+};
+
+// The saved setting if it still resolves, else common locations under
+// Documents, else a bounded scan of the root of every fixed drive. The install
+// carries gigabytes of models, so it lives on a real disk (never OneDrive) -
+// that's why we scan drive roots. No path to configure by hand.
+static TempStr LibraryServiceInstallDir() {
+    Str saved = gGlobalPrefs->library.serviceDir;
+    if (LibraryServiceDirValid(saved)) {
+        return str::DupTemp(saved);
+    }
+    TempStr docs = GetSpecialFolderTemp(CSIDL_PERSONAL);
+    TempStr prof = GetSpecialFolderTemp(CSIDL_PROFILE);
+    TempStr quick[] = {docs, prof};
+    for (TempStr r : quick) {
+        if (len(r) == 0) {
+            continue;
+        }
+        for (const char* rel : kLibraryServiceRels) {
+            TempStr c = fmt("%s\\%s", r, Str(rel));
+            if (LibraryServiceDirValid(c)) {
+                return c;
+            }
+        }
+    }
+    DWORD mask = GetLogicalDrives();
+    for (int i = 0; i < 26; i++) {
+        if ((mask & (1u << i)) == 0) {
+            continue;
+        }
+        TempStr root = fmt("%c:\\", (char)('A' + i));
+        if (GetDriveTypeA(root.s) != DRIVE_FIXED) {
+            continue; // skip removable / network / empty card slots
+        }
+        for (const char* rel : kLibraryServiceRels) {
+            TempStr c = fmt("%s%s", root, Str(rel)); // root ends with '\'
+            if (LibraryServiceDirValid(c)) {
+                return c;
+            }
+        }
+        gLibraryScanBudget = 6000;
+        TempStr found = LibraryServiceScanRec(root, 6);
+        if (len(found) > 0) {
+            return found;
+        }
+    }
+    return {};
+}
+
+static HANDLE gLibraryProc = nullptr;
+
+static bool LibraryServiceAnswers() {
+    HttpRsp rsp;
+    TempStr url = fmt("http://127.0.0.1:%d/status", LibraryServicePort());
+    return HttpGet(Str(url), &rsp) && IsHttpRspOk(&rsp);
+}
+
+bool LibraryEnsureService() {
+    if (gLibraryProc && WaitForSingleObject(gLibraryProc, 0) == WAIT_TIMEOUT) {
+        return true;
+    }
+    if (gLibraryProc) {
+        CloseHandle(gLibraryProc);
+        gLibraryProc = nullptr;
+    }
+    if (LibraryServiceAnswers()) {
+        return true;
+    }
+    TempStr dir = LibraryServiceInstallDir();
+    if (len(dir) == 0) {
+        return false;
+    }
+    if (!str::Eq(gGlobalPrefs->library.serviceDir, dir)) {
+        str::ReplaceWithCopy(&gGlobalPrefs->library.serviceDir, dir);
+        SaveSettings();
+    }
+    Str pySet = gGlobalPrefs->library.pythonExe;
+    TempStr python = (len(pySet) > 0) ? str::DupTemp(pySet) : fmt("%s\\.venv-amd\\Scripts\\pythonw.exe", dir);
+    if (!file::Exists(python)) {
+        return false;
+    }
+    TempStr cmdLine = fmt("\"%s\" -m audiobook.library --port %d --parent-pid %d", python, LibraryServicePort(),
+                          (int)GetCurrentProcessId());
+    Str roots = gGlobalPrefs->library.roots;
+    if (len(roots) > 0) {
+        StrVec parts;
+        Split(&parts, roots, StrL(";"), true);
+        for (int i = 0; i < parts.size; i++) {
+            cmdLine = fmt("%s --root \"%s\"", cmdLine, parts.At(i));
+        }
+    }
+    gLibraryProc = LaunchProcessInDir(cmdLine, dir, CREATE_NO_WINDOW);
+    if (!gLibraryProc) {
+        return false;
+    }
+    for (int i = 0; i < 40; i++) {
+        SleepInMs(250);
+        if (LibraryServiceAnswers()) {
+            return true;
+        }
+        if (WaitForSingleObject(gLibraryProc, 0) != WAIT_TIMEOUT) {
+            CloseHandle(gLibraryProc);
+            gLibraryProc = nullptr;
+            return false;
+        }
+    }
+    return false;
+}
+
 static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     int cmdId = LOWORD(wp);
     bool openAnnotationEdit = false;
@@ -8486,6 +8661,19 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
 
         case CmdSaveAnnotations: {
             SaveAnnotationsToExistingFile(tab);
+            break;
+        }
+
+        case CmdToggleLibraryHome: {
+            SetLibraryHomeEnabled(!LibraryHomeEnabled());
+            SaveSettings();
+            win->homePageScrollY = 0;
+            win->RedrawAll(true);
+            break;
+        }
+
+        case CmdLibraryRescan: {
+            LibraryRefresh(win, true);
             break;
         }
 

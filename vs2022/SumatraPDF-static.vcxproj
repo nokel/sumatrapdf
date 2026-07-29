@@ -1227,6 +1227,7 @@ if not exist ..\.work\translations.txt type nul > ..\.work\translations.txt
     <ClInclude Include="..\src\ImageSaveCropResize.h" />
     <ClInclude Include="..\src\Installer.h" />
     <ClInclude Include="..\src\JxlReader.h" />
+    <ClInclude Include="..\src\LibraryPage.h" />
     <ClInclude Include="..\src\MainWindow.h" />
     <ClInclude Include="..\src\MarkdownModel.h" />
     <ClInclude Include="..\src\MarkdownToc.h" />
@@ -1430,6 +1431,7 @@ if not exist ..\.work\translations.txt type nul > ..\.work\translations.txt
     <ClCompile Include="..\src\Installer.cpp" />
     <ClCompile Include="..\src\InstallerCommon.cpp" />
     <ClCompile Include="..\src\JxlReader.cpp" />
+    <ClCompile Include="..\src\LibraryPage.cpp" />
     <ClCompile Include="..\src\MainWindow.cpp" />
     <ClCompile Include="..\src\MarkdownModel.cpp" />
     <ClCompile Include="..\src\MarkdownToc.cpp" />

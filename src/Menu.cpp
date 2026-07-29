@@ -33,6 +33,7 @@
 #include "Favorites.h"
 #include "FileThumbnails.h"
 #include "HomePage.h"
+#include "LibraryPage.h"
 #include "Translations.h"
 #include "Toolbar.h"
 #include "Accelerators.h"
@@ -259,6 +260,18 @@ static MenuDef menuDefView[] = {
     {
         _TRN("Show &Toolbar"),
         CmdToggleToolbar,
+    },
+    {
+        kMenuSeparator,
+        0,
+    },
+    {
+        _TRN("&Library start page"),
+        CmdToggleLibraryHome,
+    },
+    {
+        _TRN("Rescan the library"),
+        CmdLibraryRescan,
     },
     {
         kMenuSeparator,
@@ -493,6 +506,10 @@ static MenuDef menuDefSettings[] = {
     {
         _TRN("&Options..."),
         CmdOptions,
+    },
+    {
+        _TRN("Advanced &Settings..."),
+        CmdAdvancedSettings,
     },
     {
         _TRN("&Advanced Options..."),
@@ -1757,6 +1774,8 @@ static void MenuUpdateStateForWindow(MainWindow* win) {
     MenuSetChecked(win->menu, CmdFavoriteShowInTab, FindFavoritesTab(win) != nullptr);
     MenuSetChecked(win->menu, CmdToggleToolbar, gGlobalPrefs->showToolbar);
     MenuSetChecked(win->menu, CmdToggleMenuBar, gGlobalPrefs->showMenubar);
+    MenuSetChecked(win->menu, CmdToggleLibraryHome, LibraryHomeEnabled());
+    MenuSetEnabled(win->menu, CmdLibraryRescan, LibraryHomeEnabled());
     // CmdChangeScrollbar doesn't need a check mark - it opens a dialog
     MenuUpdateDisplayMode(win);
     MenuUpdateZoom(win);

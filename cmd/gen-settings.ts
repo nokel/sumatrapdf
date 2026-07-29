@@ -383,6 +383,48 @@ const claudeCode: Field[] = [
   field("BgColor", Color, "#ffffff", "background color of the Claude Code chat panel"),
 ];
 
+const library: Field[] = [
+  field(
+    "Home",
+    Bool,
+    true,
+    "if true, the start page is the library: a wall of book covers grouped by series, " +
+      "with a page per book showing its metadata, the characters/family/places found in " +
+      "it, and its film and TV adaptations. If false, the classic Frequently Read page " +
+      "is shown instead",
+  ),
+  field(
+    "Roots",
+    Str,
+    "",
+    "folders to look for books in, separated by ; . Empty means work them out: the " +
+      "folders already catalogued, then Documents/Downloads/Desktop, then a bounded scan " +
+      "of every fixed drive",
+  ),
+  field(
+    "Sort",
+    Str,
+    "alpha",
+    'how the library start page orders the series list: "alpha" (A to Z), "genre" ' +
+      '(grouped under genre headings), "most" (most books first) or "fewest" (fewest ' +
+      "books first). Chosen on the page",
+  ),
+  field("Port", Int, 7863, "port the local library service listens on"),
+  field(
+    "ServiceDir",
+    Str,
+    "",
+    "folder of the Chatterbox-TTS-Extended install, which ships the library service as " +
+      "audiobook\\library; found automatically, only set this if auto-detection fails",
+  ),
+  field(
+    "PythonExe",
+    Str,
+    "",
+    "python that runs the library service; if empty, <ServiceDir>\\.venv-amd\\Scripts\\pythonw.exe is used",
+  ),
+];
+
 const fullscreen: Field[] = [
   field("ShowToolbar", Bool, false, "if true, show the toolbar in fullscreen mode"),
   field("ShowMenubar", Bool, false, "if true, show the menu bar in fullscreen mode"),
@@ -913,6 +955,8 @@ const globalPrefs: Field[] = [
   ),
   emptyLine(),
   struct("ClaudeCode", claudeCode, "settings for the Claude Code chat sidebar").ver("3.7"),
+  emptyLine(),
+  struct("Library", library, "settings for the library start page").ver("3.7"),
   emptyLine(),
   struct("GrokBuild", grokBuild, "settings for the Grok Build chat sidebar").ver("3.7"),
   emptyLine(),
