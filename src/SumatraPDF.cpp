@@ -2337,16 +2337,19 @@ static MainWindow* CreateMainWindow() {
     int dx = windowPos.dx;
     int dy = windowPos.dy;
     HINSTANCE h = GetModuleHandle(nullptr);
-    HWND hwndFrame =
-        CreateWindowExW(WS_EX_APPWINDOW, clsName.s, title.s, style, x, y, dx, dy, nullptr, nullptr, h, nullptr);
+    // No WS_EX_APPWINDOW: with it, Windows gives the frame a window region that
+    // rounds the two top corners (3px). SumatraPDF 3.6 created the frame without
+    // it and so had classic square corners. The window still appears on the
+    // taskbar without it, because it's a normal top-level window with no owner.
+    HWND hwndFrame = CreateWindowExW(0, clsName.s, title.s, style, x, y, dx, dy, nullptr, nullptr, h, nullptr);
     if (!hwndFrame) {
         return nullptr;
     }
 
-    // WM_NCCALCSIZE returning 0 disables DWM rounded corners; re-enable them.
-    if (!IsRunningOnWine()) {
-        SetWindowRoundedCorners(hwndFrame, true);
-    }
+    // Force square corners (classic Windows look, not Win11-style rounding).
+    // Set unconditionally: the custom NCCALCSIZE frame otherwise gets DWM's
+    // default rounded corners, and the preference must be applied on Wine too.
+    SetWindowRoundedCorners(hwndFrame, false);
 
     ReportIf(nullptr != FindMainWindowByHwnd(hwndFrame));
     MainWindow* win = new MainWindow(hwndFrame);
@@ -6457,10 +6460,8 @@ void ExitFullScreen(MainWindow* win) {
         }
     }
 
-    // restore DWM rounded corners and border
-    if (!IsRunningOnWine()) {
-        SetWindowRoundedCorners(win->hwndFrame, true);
-    }
+    // keep square corners (classic look) after leaving fullscreen/presentation
+    SetWindowRoundedCorners(win->hwndFrame, false);
     UpdateWindowFrameBorderColor(win);
 
     Rect cr = ClientRect(win->hwndFrame);
@@ -9569,6 +9570,9 @@ static LRESULT OnFrameGetMinMaxInfo(MINMAXINFO* info) {
 
 #define UNDOCUMENTED_MENU_CLASS_NAME L"#32768"
 #define DO_NOT_REOPEN_MENU_TIMER_ID 1
+
+// re-strips Windows' rounded-corner window region once the frame has settled
+constexpr UINT_PTR kSquareCornersTimerId = 0x101;
 #define DO_NOT_REOPEN_MENU_DELAY_IN_MS 1
 #define CBS_INACTIVE 5
 #define NON_CLIENT_BAND 1
@@ -10072,6 +10076,43 @@ static void DrawCaptionButton(MainWindow* win, HDC hdc, ButtonInfo* bi) {
 
 static WCHAR gMenuAccelPressed = 0;
 
+// Windows puts a window *region* on our frame that rounds the two top corners
+// (3px). Stock SumatraPDF 3.7 has it; 3.6.1 does not, even though both create
+// the frame with identical window styles. It is applied asynchronously - about
+// 40ms after the window is shown, and again after a resize - so stripping it
+// only from the message that triggered the change loses the race. Hence
+// ScheduleSquareCorners() below, which also re-strips on a short timer.
+//
+// Note: there is no API alternative on Windows 10. DWMWA_WINDOW_CORNER_PREFERENCE
+// (the Windows 11 way to say "don't round") returns E_INVALIDARG here.
+//
+// Only strips when a region is actually set, so this is a no-op once the corners
+// are square. That matters: SetWindowRgn() repaints the frame, so an
+// unconditional call from a paint path would re-enter and loop forever.
+static void EnsureSquareCorners(HWND hwnd, MainWindow* win) {
+    if (win && (win->isFullScreen || win->presentation)) {
+        return;
+    }
+    // a maximized window keeps its region: Windows sizes that one to the work
+    // area and dropping it would let the frame cover the taskbar
+    if (IsZoomed(hwnd) || IsIconic(hwnd)) {
+        return;
+    }
+    HRGN rgn = CreateRectRgn(0, 0, 0, 0);
+    int type = GetWindowRgn(hwnd, rgn);
+    DeleteObject(rgn);
+    if (type == ERROR) {
+        return; // no region: already square
+    }
+    SetWindowRgn(hwnd, nullptr, TRUE);
+}
+
+static void ScheduleSquareCorners(HWND hwnd, MainWindow* win) {
+    EnsureSquareCorners(hwnd, win);
+    // catch the asynchronous re-apply that happens shortly after the frame changes
+    SetTimer(hwnd, kSquareCornersTimerId, 50, nullptr);
+}
+
 static LRESULT CustomCaptionFrameProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp, bool* callDef, MainWindow* win) {
     switch (msg) {
         case WM_SETTINGCHANGE:
@@ -10154,12 +10195,21 @@ static LRESULT CustomCaptionFrameProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp,
                 }
                 uint flags = RDW_ERASE | RDW_INVALIDATE | RDW_UPDATENOW;
                 RedrawWindow(hwnd, &rc, nullptr, flags);
+                // after the redraw: drawing the frame is what brings the rounded
+                // region back, so strip it once that's done
+                ScheduleSquareCorners(hwnd, win);
                 *callDef = false;
                 return TRUE;
             }
             break;
 
         case WM_TIMER:
+            if (wp == kSquareCornersTimerId) {
+                KillTimer(hwnd, kSquareCornersTimerId);
+                EnsureSquareCorners(hwnd, win);
+                *callDef = false;
+                return 0;
+            }
             if (wp == DO_NOT_REOPEN_MENU_TIMER_ID) {
                 KillTimer(hwnd, DO_NOT_REOPEN_MENU_TIMER_ID);
                 *callDef = false;
@@ -10187,6 +10237,10 @@ static LRESULT CustomCaptionFrameProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp,
                      (int)IsZoomed(hwnd));
             }
             bool isFullScreen = win->isFullScreen || win->presentation;
+            // Frameless (as upstream 3.7): the whole window is client area, so
+            // there is no left/right/bottom resize frame and no visible border.
+            // The rounded top corners are handled by stripping the window region
+            // (see EnsureSquareCorners).
             if (IsZoomed(hwnd) && !isFullScreen) {
                 // The maximized outer frame extends beyond the work area. Global
                 // system metrics can still describe the old monitor during a
@@ -11376,6 +11430,7 @@ LRESULT CALLBACK WndProcSumatraFrame(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
                 // the scheduled update relayouts only when the size actually
                 // changed, and a burst of WM_SIZE does the work once
                 ScheduleUiUpdate(win);
+                ScheduleSquareCorners(hwnd, win);
             }
             break;
 
@@ -11385,6 +11440,12 @@ LRESULT CALLBACK WndProcSumatraFrame(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
                 FrameUpdateUi(win);
             }
             return 0;
+
+        case WM_WINDOWPOSCHANGED: {
+            LRESULT resPos = DefWindowProcW(hwnd, msg, wp, lp);
+            ScheduleSquareCorners(hwnd, win);
+            return resPos;
+        }
 
         case WM_GETMINMAXINFO:
             return OnFrameGetMinMaxInfo((MINMAXINFO*)lp);
@@ -11397,6 +11458,7 @@ LRESULT CALLBACK WndProcSumatraFrame(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
             return 0;
 
         case WM_EXITSIZEMOVE:
+            ScheduleSquareCorners(hwnd, win);
             if (win) {
                 if (win->dpiChromeRefreshPending) {
                     if (!PostMessageW(hwnd, WM_MAIN_WINDOW_DPI_SETTLED, 0, 0)) {
