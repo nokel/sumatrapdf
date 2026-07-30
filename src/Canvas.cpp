@@ -15,6 +15,7 @@
 #include "base/GuessFileType.h"
 
 #include <mmsystem.h> // timeBeginPeriod / timeEndPeriod for smooth-scroll timer
+#include <shlobj.h>   // IDragSourceHelper for image drag thumbnails
 #pragma comment(lib, "winmm.lib")
 
 #include "wingui/UIModels.h"
@@ -100,6 +101,86 @@ class TextDropSource : public IDropSource {
         return S_OK;
     }
     STDMETHODIMP GiveFeedback(__unused DWORD) override { return DRAGDROP_S_USEDEFAULTCURSORS; }
+};
+
+// Drop source that paints a proportional thumbnail via ImageList_BeginDrag
+// (IDragSourceHelper does not show a drag image for our custom IDataObject).
+class ImageDropSource : public IDropSource {
+    LONG refCount = 1;
+    HIMAGELIST himl = nullptr;
+    bool dragStarted = false;
+
+  public:
+    explicit ImageDropSource(HIMAGELIST list) : himl(list) {}
+    ~ImageDropSource() {
+        EndImageListDrag();
+        if (himl) {
+            ImageList_Destroy(himl);
+            himl = nullptr;
+        }
+    }
+
+    bool BeginImageListDrag(int hotX, int hotY) {
+        if (!himl) {
+            return false;
+        }
+        if (!ImageList_BeginDrag(himl, 0, hotX, hotY)) {
+            return false;
+        }
+        Point pt = GetCursorPosition();
+        // Desktop HWND so the drag image is not clipped to our canvas
+        if (!ImageList_DragEnter(GetDesktopWindow(), pt.x, pt.y)) {
+            ImageList_EndDrag();
+            return false;
+        }
+        dragStarted = true;
+        return true;
+    }
+
+    void EndImageListDrag() {
+        if (!dragStarted) {
+            return;
+        }
+        ImageList_DragLeave(GetDesktopWindow());
+        ImageList_EndDrag();
+        dragStarted = false;
+    }
+
+    STDMETHODIMP QueryInterface(REFIID riid, void** ppv) override {
+        if (riid == IID_IUnknown || riid == IID_IDropSource) {
+            *ppv = this;
+            AddRef();
+            return S_OK;
+        }
+        *ppv = nullptr;
+        return E_NOINTERFACE;
+    }
+    ULONG STDMETHODCALLTYPE AddRef() override { return InterlockedIncrement(&refCount); }
+    ULONG STDMETHODCALLTYPE Release() override {
+        LONG r = InterlockedDecrement(&refCount);
+        if (r == 0) {
+            delete this;
+        }
+        return r;
+    }
+    STDMETHODIMP QueryContinueDrag(BOOL fEscapePressed, DWORD grfKeyState) override {
+        if (fEscapePressed) {
+            return DRAGDROP_S_CANCEL;
+        }
+        if (!(grfKeyState & MK_LBUTTON)) {
+            return DRAGDROP_S_DROP;
+        }
+        return S_OK;
+    }
+    STDMETHODIMP GiveFeedback(__unused DWORD) override {
+        if (dragStarted) {
+            Point pt = GetCursorPosition();
+            ImageList_DragMove(pt.x, pt.y);
+            // S_OK: we supply the drag visual via ImageList (not the OLE default cursor)
+            return S_OK;
+        }
+        return DRAGDROP_S_USEDEFAULTCURSORS;
+    }
 };
 
 class SimpleEnumFormatEtc : public IEnumFORMATETC {
@@ -535,6 +616,126 @@ class ImageDataObject : public IDataObject {
     STDMETHODIMP EnumDAdvise(__unused IEnumSTATDATA**) override { return E_NOTIMPL; }
 };
 
+// Longest edge of the proportional drag-out thumbnail (logical px; DPI-scaled).
+constexpr int kDragImageThumbnailSize = 220;
+
+// Proportional drag thumbnail (longest edge capped), Chrome-like.
+// GDI+ scales the source (StretchBlt on some DIB/mapped bitmaps leaves pure white).
+// Top-down 32bpp DIB with a 1px border so light pages stay visible. Caller owns HBITMAP.
+static HBITMAP CreateProportionalDragThumbnail(HBITMAP src, int maxEdge) {
+    if (!src || maxEdge < 16) {
+        return nullptr;
+    }
+    BITMAP bm{};
+    if (!GetObject(src, sizeof(bm), &bm) || bm.bmWidth <= 0 || bm.bmHeight <= 0) {
+        return nullptr;
+    }
+    int sw = bm.bmWidth;
+    int sh = bm.bmHeight;
+    int maxDim = sw > sh ? sw : sh;
+    int dw = sw;
+    int dh = sh;
+    if (maxDim > maxEdge) {
+        dw = (int)((i64)sw * maxEdge / maxDim);
+        dh = (int)((i64)sh * maxEdge / maxDim);
+        if (dw < 1) {
+            dw = 1;
+        }
+        if (dh < 1) {
+            dh = 1;
+        }
+    }
+
+    Gdiplus::Bitmap srcGdip(src, nullptr);
+    if (srcGdip.GetLastStatus() != Gdiplus::Ok) {
+        return nullptr;
+    }
+    Gdiplus::Bitmap scaled(dw, dh, PixelFormat32bppARGB);
+    if (scaled.GetLastStatus() != Gdiplus::Ok) {
+        return nullptr;
+    }
+    {
+        Gdiplus::Graphics g(&scaled);
+        g.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
+        g.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHighQuality);
+        g.Clear(Gdiplus::Color(255, 255, 255, 255));
+        g.DrawImage(&srcGdip, 0, 0, dw, dh);
+        Gdiplus::Pen border(Gdiplus::Color(255, 60, 60, 60), 1.0f);
+        g.DrawRectangle(&border, 0, 0, dw - 1, dh - 1);
+    }
+
+    Gdiplus::BitmapData bd{};
+    Gdiplus::Rect lockRc(0, 0, dw, dh);
+    if (scaled.LockBits(&lockRc, Gdiplus::ImageLockModeRead, PixelFormat32bppARGB, &bd) != Gdiplus::Ok) {
+        return nullptr;
+    }
+
+    BITMAPINFO bmi{};
+    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi.bmiHeader.biWidth = dw;
+    bmi.bmiHeader.biHeight = -dh; // top-down
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biCompression = BI_RGB;
+
+    void* bits = nullptr;
+    HDC screenDc = GetDC(nullptr);
+    HBITMAP dib = screenDc ? CreateDIBSection(screenDc, &bmi, DIB_RGB_COLORS, &bits, nullptr, 0) : nullptr;
+    if (screenDc) {
+        ReleaseDC(nullptr, screenDc);
+    }
+    if (!dib || !bits) {
+        scaled.UnlockBits(&bd);
+        if (dib) {
+            DeleteObject(dib);
+        }
+        return nullptr;
+    }
+
+    auto* dst = (BYTE*)bits;
+    auto* srcRow = (const BYTE*)bd.Scan0;
+    for (int y = 0; y < dh; y++) {
+        auto* s = srcRow + y * bd.Stride;
+        auto* d = dst + y * dw * 4;
+        for (int x = 0; x < dw; x++) {
+            // GDI+ 32bppARGB is B,G,R,A in memory on Windows; full opacity
+            d[0] = s[0];
+            d[1] = s[1];
+            d[2] = s[2];
+            d[3] = 0xFF;
+            s += 4;
+            d += 4;
+        }
+    }
+    scaled.UnlockBits(&bd);
+    return dib;
+}
+
+// Build an imagelist from the thumbnail for ImageList_BeginDrag.
+// Takes ownership of hbmp (always destroyed before return).
+static HIMAGELIST CreateDragImageList(HBITMAP hbmp) {
+    if (!hbmp) {
+        return nullptr;
+    }
+    BITMAP bm{};
+    if (!GetObject(hbmp, sizeof(bm), &bm) || bm.bmWidth <= 0 || bm.bmHeight <= 0) {
+        DeleteObject(hbmp);
+        return nullptr;
+    }
+    HIMAGELIST himl = ImageList_Create(bm.bmWidth, bm.bmHeight, ILC_COLOR32, 1, 1);
+    if (!himl) {
+        DeleteObject(hbmp);
+        return nullptr;
+    }
+    int idx = ImageList_Add(himl, hbmp, nullptr);
+    DeleteObject(hbmp);
+    if (idx < 0) {
+        ImageList_Destroy(himl);
+        return nullptr;
+    }
+    return himl;
+}
+
 static void StartImageDragDrop(MainWindow* win) {
     DisplayModel* dm = win->AsFixed();
     if (!dm) {
@@ -544,20 +745,70 @@ static void StartImageDragDrop(MainWindow* win) {
     if (!el) {
         return;
     }
-    RenderedBitmap* bmp = dm->GetEngine()->GetImageForPageElement(el);
-    if (!bmp) {
+    RenderedBitmap* rb = dm->GetEngine()->GetImageForPageElement(el);
+    if (!rb) {
         return;
     }
-    HGLOBAL hPng = EncodeBitmapToPngGlobal(bmp->GetBitmap());
-    delete bmp;
+    HBITMAP srcBmp = rb->GetBitmap();
+    HGLOBAL hPng = EncodeBitmapToPngGlobal(srcBmp);
     if (!hPng) {
+        delete rb;
         return;
     }
+
     ImageDataObject* dataObj = new ImageDataObject(hPng);
-    TextDropSource* dropSrc = new TextDropSource();
+
+    int maxEdge = DpiScale(win->hwndCanvas, kDragImageThumbnailSize);
+    POINT hot{0, 0};
+    HIMAGELIST himl = nullptr;
+    HBITMAP thumb = CreateProportionalDragThumbnail(srcBmp, maxEdge);
+    if (thumb) {
+        BITMAP tbm{};
+        GetObject(thumb, sizeof(tbm), &tbm);
+        hot.x = tbm.bmWidth / 2;
+        hot.y = tbm.bmHeight / 2;
+        if (win->imageDragPageNo > 0 && tbm.bmWidth > 0 && tbm.bmHeight > 0) {
+            Rect screenRc = dm->CvtToScreen(win->imageDragPageNo, el->GetRect());
+            if (screenRc.dx > 0 && screenRc.dy > 0) {
+                int relX = win->dragStart.x - screenRc.x;
+                int relY = win->dragStart.y - screenRc.y;
+                if (relX < 0) {
+                    relX = 0;
+                }
+                if (relY < 0) {
+                    relY = 0;
+                }
+                if (relX > screenRc.dx) {
+                    relX = screenRc.dx;
+                }
+                if (relY > screenRc.dy) {
+                    relY = screenRc.dy;
+                }
+                hot.x = (int)((i64)relX * tbm.bmWidth / screenRc.dx);
+                hot.y = (int)((i64)relY * tbm.bmHeight / screenRc.dy);
+            }
+        }
+        himl = CreateDragImageList(thumb); // takes ownership of thumb
+    }
+    delete rb;
+
+    ImageDropSource* dropSrc = himl ? new ImageDropSource(himl) : nullptr;
+    TextDropSource* plainSrc = dropSrc ? nullptr : new TextDropSource();
+    IDropSource* src = dropSrc ? (IDropSource*)dropSrc : (IDropSource*)plainSrc;
+
+    if (dropSrc) {
+        dropSrc->BeginImageListDrag(hot.x, hot.y);
+    }
+
     DWORD dwEffect = 0;
-    DoDragDrop(dataObj, dropSrc, DROPEFFECT_COPY, &dwEffect);
-    dropSrc->Release();
+    DoDragDrop(dataObj, src, DROPEFFECT_COPY, &dwEffect);
+
+    if (dropSrc) {
+        dropSrc->EndImageListDrag();
+        dropSrc->Release();
+    } else {
+        plainSrc->Release();
+    }
     FinishDragDrop(dataObj);
 }
 
@@ -1103,6 +1354,7 @@ static void OnMouseMove(MainWindow* win, int x, int y, WPARAM) {
         }
         StartImageDragDrop(win);
         win->imageDragElement = nullptr;
+        win->imageDragPageNo = -1;
         return;
     }
 
@@ -1517,6 +1769,7 @@ static void OnMouseLeftButtonDown(MainWindow* win, int x, int y, WPARAM key) {
         if (pageEl && pageEl->Is(kindPageElementImage) && !IsFullPageImage(dm, pageEl, elPageNo)) {
             win->imageDragPending = true;
             win->imageDragElement = pageEl;
+            win->imageDragPageNo = elPageNo;
             win->linkOnLastButtonDown = nullptr;
             SetCapture(win->hwndCanvas);
             return;
@@ -1549,6 +1802,7 @@ static void OnMouseLeftButtonUp(MainWindow* win, int x, int y, WPARAM key) {
     if (win->imageDragPending) {
         win->imageDragPending = false;
         win->imageDragElement = nullptr;
+        win->imageDragPageNo = -1;
         win->dragStartPending = false;
         if (GetCapture() == win->hwndCanvas) {
             ReleaseCapture();
@@ -1705,7 +1959,7 @@ static void OnMouseLeftButtonDblClk(MainWindow* win, int x, int y, WPARAM key) {
     if (isLeft && (win->presentation || win->isFullScreen)) {
         // in fullscreen we allow to exit by tapping in upper right corner
         constexpr int kCornerSize = 64;
-        Rect r = ClientRect(win->hwndCanvas);
+        Rect r = HwndClientRect(win->hwndCanvas);
         if (!isOverText && (x >= (r.dx - kCornerSize)) && (y < kCornerSize)) {
             ExitFullScreen(win);
             return;
@@ -1893,7 +2147,7 @@ static void PaintPageFrameAndShadow(HDC hdc, Rect& bounds, Rect& pageRect, bool 
     // Draw shadow
     if (!presentation) {
         AutoDeleteBrush brush = CreateSolidBrush(COL_PAGE_SHADOW);
-        FillRect(hdc, &shadow.ToRECT(), brush);
+        HdcFillRect(hdc, shadow, brush);
     }
 
     // Draw frame
@@ -1939,7 +2193,7 @@ static void DebugShowLinks(DisplayModel* dm, HDC hdc) {
             Rect isect = viewPortRect.Intersect(rect);
             if (!isect.IsEmpty()) {
                 isect.Inflate(2, 2);
-                DrawRect(hdc, isect);
+                HdcDrawRect(hdc, isect);
             }
         }
     }
@@ -1954,7 +2208,7 @@ static void DebugShowLinks(DisplayModel* dm, HDC hdc) {
 
             auto cbbox = dm->GetEngine()->PageContentBox(pageNo);
             Rect rect = dm->CvtToScreen(pageNo, cbbox);
-            DrawRect(hdc, rect);
+            HdcDrawRect(hdc, rect);
         }
     }
 }
@@ -2046,7 +2300,7 @@ NO_INLINE static void PaintCurrentEditAnnotationMark(WindowTab* tab, HDC hdc, Di
     drawHandle(left, midY);
 }
 
-static bool DrawDocument(MainWindow* win, HDC hdc, RECT* rcArea) {
+static bool DrawDocument(MainWindow* win, HDC hdc, Rect rcArea) {
     ReportIf(!win->AsFixed());
     if (!win->AsFixed()) {
         return false;
@@ -2115,12 +2369,12 @@ static bool DrawDocument(MainWindow* win, HDC hdc, RECT* rcArea) {
     bool shouldPaint = false;
     auto* gcols = gGlobalPrefs->fixedPageUI.gradientColors;
     auto nGCols = len(*gcols);
-    auto paintBgOrCheckerboard = [&](COLORREF col, RECT* rc) {
+    auto paintBgOrCheckerboard = [&](COLORREF col, Rect rc) {
         if (col == kColorUnset) {
-            PaintCheckerboard(hdc, rc->left, rc->top, rc->right - rc->left, rc->bottom - rc->top);
+            HdcPaintCheckerboard(hdc, rc.x, rc.y, rc.dx, rc.dy);
         } else {
             AutoDeleteBrush brush = CreateSolidBrush(col);
-            FillRect(hdc, rc, brush);
+            HdcFillRect(hdc, rc, brush);
         }
     };
 
@@ -2130,7 +2384,7 @@ static bool DrawDocument(MainWindow* win, HDC hdc, RECT* rcArea) {
         paintBgOrCheckerboard(colDocBg, rcArea);
     } else if (0 == nGCols) {
         AutoDeleteBrush brush = CreateSolidBrush(colDocBg);
-        FillRect(hdc, rcArea, brush);
+        HdcFillRect(hdc, rcArea, brush);
     } else {
         COLORREF colors[3];
         colors[0] = ParseColor((*gcols)[0], WIN_COL_WHITE);
@@ -2214,11 +2468,11 @@ static bool DrawDocument(MainWindow* win, HDC hdc, RECT* rcArea) {
         // check if this page is known to have failed rendering
         if (pi->failedToRender) {
             shouldPaint = true;
-            HFONT fontRightTxt = CreateSimpleFont(hdc, "MS Shell Dlg", 14);
+            HFONT fontRightTxt = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 14);
             HGDIOBJ hPrevFont = SelectObject(hdc, fontRightTxt);
             auto prevCol = SetTextColor(hdc, colDocTxt);
             TempStr msg = fmt(_TRA("Couldn't render page %d").s, pageNo);
-            DrawCenteredText(hdc, bounds, msg, isRtl);
+            HdcDrawCenteredText(hdc, bounds, msg, isRtl);
             SetTextColor(hdc, prevCol);
             SelectObject(hdc, hPrevFont);
             continue;
@@ -2233,7 +2487,7 @@ static bool DrawDocument(MainWindow* win, HDC hdc, RECT* rcArea) {
             }
         }
         if (renderDelay != 0) {
-            HFONT fontRightTxt = CreateSimpleFont(hdc, "MS Shell Dlg", 14);
+            HFONT fontRightTxt = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 14);
             HGDIOBJ hPrevFont = SelectObject(hdc, fontRightTxt);
             if (renderDelay != RENDER_DELAY_FAILED) {
                 if (renderDelay < kRenderDelayShowNotif) {
@@ -2247,14 +2501,14 @@ static bool DrawDocument(MainWindow* win, HDC hdc, RECT* rcArea) {
                     shouldPaint = true;
                     SetTextColor(hdc, colDocTxt);
                     TempStr msg = fmt(_TRA("Rendering page %d...").s, pageNo);
-                    DrawCenteredText(hdc, bounds, msg, isRtl);
+                    HdcDrawCenteredText(hdc, bounds, msg, isRtl);
                 }
                 rendering = true;
             } else {
                 shouldPaint = true;
                 auto prevCol = SetTextColor(hdc, colDocTxt);
                 TempStr msg = fmt(_TRA("Couldn't render page %d").s, pageNo);
-                DrawCenteredText(hdc, bounds, msg, isRtl);
+                HdcDrawCenteredText(hdc, bounds, msg, isRtl);
                 SetTextColor(hdc, prevCol);
             }
             SelectObject(hdc, hPrevFont);
@@ -2339,12 +2593,12 @@ void DrawCanvasKeyboardFocusIfNeeded(MainWindow* win, HDC hdc) {
     if (!hdc || !CanvasShouldShowKeyboardFocus(win)) {
         return;
     }
-    RECT rc;
-    GetClientRect(win->hwndCanvas, &rc);
+    Rect rc = HwndClientRect(win->hwndCanvas);
     // inset so the dashed rect is fully inside the client area
-    InflateRect(&rc, -1, -1);
-    if (rc.right > rc.left && rc.bottom > rc.top) {
-        DrawFocusRect(hdc, &rc);
+    rc.Inflate(-1, -1);
+    if (!rc.IsEmpty()) {
+        RECT nativeRect = ToRECT(rc);
+        DrawFocusRect(hdc, &nativeRect);
     }
 }
 
@@ -2357,7 +2611,7 @@ void InvalidateCanvasKeyboardFocus(MainWindow* win) {
     if (!gGlobalPrefs || !gGlobalPrefs->showDocumentFocusIndicator) {
         return;
     }
-    InvalidateRect(win->hwndCanvas, nullptr, FALSE);
+    HwndInvalidate(win->hwndCanvas);
 }
 
 static void OnPaintDocument(MainWindow* win) {
@@ -2367,13 +2621,13 @@ static void OnPaintDocument(MainWindow* win) {
 
     switch (win->presentation) {
         case PM_BLACK_SCREEN:
-            FillRect(hdc, &ps.rcPaint, GetStockBrush(BLACK_BRUSH));
+            HdcFillRect(hdc, ToRect(ps.rcPaint), GetStockBrush(BLACK_BRUSH));
             break;
         case PM_WHITE_SCREEN:
-            FillRect(hdc, &ps.rcPaint, GetStockBrush(WHITE_BRUSH));
+            HdcFillRect(hdc, ToRect(ps.rcPaint), GetStockBrush(WHITE_BRUSH));
             break;
         default:
-            bool shouldPaint = DrawDocument(win, win->buffer->GetDC(), &ps.rcPaint);
+            bool shouldPaint = DrawDocument(win, win->buffer->GetDC(), ToRect(ps.rcPaint));
             // Flush when the focus ring is needed so DrawFocusRect is not XOR'd
             // on top of a stale frame that already had a ring.
             bool showFocus = CanvasShouldShowKeyboardFocus(win);
@@ -2590,7 +2844,7 @@ static void ZoomByMouseWheel(MainWindow* win, WPARAM wp) {
 
 static LRESULT CanvasOnMouseWheel(MainWindow* win, UINT msg, WPARAM wp, LPARAM lp) {
     // Scroll the ToC sidebar, if it's visible and the cursor is in it
-    if (win->uiState.tocVisible && IsCursorOverWindow(win->tocTreeView->hwnd) && !gWheelMsgRedirect) {
+    if (win->uiState.tocVisible && HwndIsCursorOverWindow(win->tocTreeView->hwnd) && !gWheelMsgRedirect) {
         // Note: hwndTocTree's window procedure doesn't always handle
         //       WM_MOUSEWHEEL and when it's bubbling up, we'd return
         //       here recursively - prevent that
@@ -2614,7 +2868,7 @@ static LRESULT CanvasOnMouseWheel(MainWindow* win, UINT msg, WPARAM wp, LPARAM l
     //   plain wheel → falls through to scroll the main document, as if the
     //                 popup weren't there (modifier-less wheel scrolling a
     //                 document shouldn't get hijacked by the hover popup)
-    if (win->refHover && win->refHover->hwndPopup && IsWindowVisible(win->refHover->hwndPopup)) {
+    if (win->refHover && win->refHover->hwndPopup && HwndIsVisible(win->refHover->hwndPopup)) {
         bool isCtrl = (LOWORD(wp) & MK_CONTROL) || IsCtrlPressed();
         bool isShift = (LOWORD(wp) & MK_SHIFT) || IsShiftPressed();
         if (isCtrl || isShift) {
@@ -2799,7 +3053,7 @@ static LRESULT CanvasOnMouseWheel(MainWindow* win, UINT msg, WPARAM wp, LPARAM l
 
     if (gGlobalPrefs->fastScrollOverScrollbar) {
         // scroll faster if the cursor is over the scroll bar
-        if (IsCursorOverWindow(win->hwndCanvas)) {
+        if (HwndIsCursorOverWindow(win->hwndCanvas)) {
             Point pt = HwndGetCursorPos(win->hwndCanvas);
             if (pt.x > win->canvasRc.dx) {
                 wp = (delta > 0) ? SB_HALF_PAGEUP : SB_HALF_PAGEDOWN;
@@ -2859,7 +3113,7 @@ static LRESULT CanvasOnMouseWheel(MainWindow* win, UINT msg, WPARAM wp, LPARAM l
 
 static LRESULT CanvasOnMouseHWheel(MainWindow* win, UINT msg, WPARAM wp, LPARAM lp) {
     // Scroll the ToC sidebar, if it's visible and the cursor is in it
-    if (win->uiState.tocVisible && IsCursorOverWindow(win->tocTreeView->hwnd) && !gWheelMsgRedirect) {
+    if (win->uiState.tocVisible && HwndIsCursorOverWindow(win->tocTreeView->hwnd) && !gWheelMsgRedirect) {
         // Note: hwndTocTree's window procedure doesn't always handle
         //       WM_MOUSEHWHEEL and when it's bubbling up, we'd return
         //       here recursively - prevent that
@@ -2929,8 +3183,7 @@ static LRESULT OnGesture(MainWindow* win, UINT msg, WPARAM wp, LPARAM lp) {
             if (!isBegin) {
                 auto prev = touchState.zoomIntermediate;
                 float factor = curr / prev;
-                Point pt{gi.ptsLocation.x, gi.ptsLocation.y};
-                HwndScreenToClient(win->hwndCanvas, pt);
+                Point pt = HwndScreenToClient(win->hwndCanvas, Point(gi.ptsLocation.x, gi.ptsLocation.y));
                 float newZoom = ScaleZoomBy(win, factor);
                 SmartZoom(win, newZoom, &pt, false);
             }
@@ -3103,10 +3356,7 @@ static bool OnPointerMessage(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, LP
     }
 
     // WM_POINTER* lp contains screen coordinates
-    POINT pt;
-    pt.x = GET_X_LPARAM(lp);
-    pt.y = GET_Y_LPARAM(lp);
-    ScreenToClient(hwnd, &pt);
+    Point pt = HwndScreenToClient(hwnd, Point(GET_X_LPARAM(lp), GET_Y_LPARAM(lp)));
     int x = pt.x;
     int y = pt.y;
 
@@ -3298,21 +3548,43 @@ static LRESULT WndProcCanvasChmUI(MainWindow* win, HWND hwnd, UINT msg, WPARAM w
 
 ///// methods needed for FixedPageUI canvases with loading error /////
 
-static void OnPaintError(MainWindow* win) {
+static void OnPaintDocumentStatus(MainWindow* win) {
     PAINTSTRUCT ps;
     HDC hdc = BeginPaint(win->hwndCanvas, &ps);
 
-    HFONT fontRightTxt = CreateSimpleFont(hdc, "MS Shell Dlg", 14);
+    HFONT fontRightTxt = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 14);
     HGDIOBJ hPrevFont = SelectObject(hdc, fontRightTxt);
     auto bgCol = ThemeMainWindowBackgroundColor();
     AutoDeleteBrush bgBrush = CreateSolidBrush(bgCol);
-    FillRect(hdc, &ps.rcPaint, bgBrush);
+    HdcFillRect(hdc, ToRect(ps.rcPaint), bgBrush);
     auto tab = win->CurrentTab();
     Str filePath = tab->filePath;
     if (filePath) {
-        TempStr msg = fmt(_TRA("Error loading %s").s, path::GetBaseNameTemp(filePath));
+        TempStr msg;
+        if (tab->loadState == WindowTab::LoadState::Loading || tab->loadState == WindowTab::LoadState::LoadedPending) {
+            msg = fmt(_TRA("Loading %s ...").s, path::GetBaseNameTemp(filePath));
+            if (tab->loadStartedAt != 0) {
+                u64 elapsedSecs = (GetTickCount64() - tab->loadStartedAt) / 1000;
+                if (elapsedSecs > 0) {
+                    TempStr elapsed;
+                    u64 hours = elapsedSecs / 3600;
+                    u64 minutes = (elapsedSecs % 3600) / 60;
+                    u64 seconds = elapsedSecs % 60;
+                    if (hours > 0) {
+                        elapsed = fmt("%dh %dm %ds", hours, minutes, seconds);
+                    } else if (minutes > 0) {
+                        elapsed = fmt("%dm %ds", minutes, seconds);
+                    } else {
+                        elapsed = fmt("%ds", seconds);
+                    }
+                    msg = fmt("%s %s", msg, elapsed);
+                }
+            }
+        } else {
+            msg = fmt(_TRA("Error loading %s").s, path::GetBaseNameTemp(filePath));
+        }
         SetTextColor(hdc, ThemeWindowTextColor());
-        DrawCenteredText(hdc, ClientRect(win->hwndCanvas), msg, IsUIRtl());
+        HdcDrawCenteredText(hdc, HwndClientRect(win->hwndCanvas), msg, IsUIRtl());
     }
     SelectObject(hdc, hPrevFont);
     DrawCanvasKeyboardFocusIfNeeded(win, hdc);
@@ -3326,7 +3598,7 @@ static LRESULT WndProcCanvasLoadError(MainWindow* win, HWND hwnd, UINT msg, WPAR
             if (gRedrawLog) {
                 logf("redraw: WM_PAINT hwnd=0x%p (canvas-error)\n", hwnd);
             }
-            OnPaintError(win);
+            OnPaintDocumentStatus(win);
             return 0;
 
         case WM_SETCURSOR:
@@ -3388,7 +3660,7 @@ static void OnTimer(MainWindow* win, HWND hwnd, WPARAM timerId) {
             // entire frame and all children, so the toolbar "Page:" label and
             // page-number edit flash on every scroll even when the page is
             // unchanged (very visible with tall comic pages).
-            InvalidateRect(hwnd, nullptr, FALSE);
+            HwndInvalidate(hwnd);
             break;
 
         case SMOOTHSCROLL_TIMER_ID:
@@ -3460,7 +3732,7 @@ static void OnTimer(MainWindow* win, HWND hwnd, WPARAM timerId) {
                 TtsProcessEvents();
                 ReadAloudUpdateAutoScroll(win);
                 ReadAloudPlaybackBarUpdateSession(GetReadAloudSourceTab());
-                InvalidateRect(hwnd, nullptr, FALSE);
+                HwndInvalidate(hwnd);
             } else {
                 ReadAloudHighlightTimerStop(win);
             }
@@ -3570,17 +3842,10 @@ static void OnDropFiles(MainWindow* win, HDROP hDrop, bool dragFinish) {
     bool isShift = IsShiftPressed();
 
     GetDropFilesResolved(hDrop, dragFinish, files);
-    for (Str path : files) {
-        // The first dropped document may override the current window
-        LoadArgs args(path, win);
-        if (isShift && !win) {
-            win = CreateAndShowMainWindow(nullptr);
-            args.win = win;
-        }
-        args.activateExisting = true;
-        args.activateExistingInWindow = true;
-        StartLoadDocument(&args);
+    if (isShift && !win) {
+        win = CreateAndShowMainWindow(nullptr);
     }
+    StartLoadDocuments(files, win);
 }
 
 // returns true if url looks like it could be an image URL
@@ -3948,10 +4213,8 @@ LRESULT CALLBACK WndProcCanvas(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             // https://docs.microsoft.com/en-us/windows/win32/winmsg/wm-erasebkgnd
         case WM_ERASEBKGND: {
             if (gRedrawLog) {
-                RECT rc;
-                GetClientRect(hwnd, &rc);
-                logf("redraw: WM_ERASEBKGND hwnd=0x%p (canvas) rc=(%d,%d,%d,%d)\n", hwnd, rc.left, rc.top, rc.right,
-                     rc.bottom);
+                Rect rc = HwndClientRect(hwnd);
+                logf("redraw: WM_ERASEBKGND hwnd=0x%p (canvas) rc=(%d,%d,%d,%d)\n", hwnd, rc.x, rc.y, rc.dx, rc.dy);
             }
             // don't paint here; old content stays until WM_PAINT covers it
             // (CS_HREDRAW|CS_VREDRAW removed so no transparent flash)
@@ -3964,10 +4227,9 @@ LRESULT CALLBACK WndProcCanvas(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             if (win && win->tabsInTitlebar && !IsZoomed(GetParent(hwnd))) {
                 int x = GET_X_LPARAM(lp);
                 int y = GET_Y_LPARAM(lp);
-                RECT wrc;
-                GetWindowRect(GetParent(hwnd), &wrc);
+                Rect wrc = HwndWindowRect(GetParent(hwnd));
                 int b = kFrameResizeHitTest;
-                if ((x - wrc.left) < b || (wrc.right - x) <= b || (y - wrc.top) < b || (wrc.bottom - y) <= b) {
+                if ((x - wrc.x) < b || (wrc.x + wrc.dx - x) <= b || (y - wrc.y) < b || (wrc.y + wrc.dy - y) <= b) {
                     return HTTRANSPARENT;
                 }
             }
@@ -4007,14 +4269,13 @@ LRESULT CALLBACK WndProcCanvas(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_SIZE:
             if (!IsIconic(win->hwndFrame)) {
                 if (gRedrawLog) {
-                    RECT rc;
-                    GetClientRect(hwnd, &rc);
-                    logf("redraw: WM_SIZE hwnd=0x%p (canvas) size=(%d,%d)\n", hwnd, rc.right, rc.bottom);
+                    Rect rc = HwndClientRect(hwnd);
+                    logf("redraw: WM_SIZE hwnd=0x%p (canvas) size=(%d,%d)\n", hwnd, rc.dx, rc.dy);
                 }
                 win->UpdateCanvasSize();
                 // fully invalidate since layout depends on size
                 // (replaces CS_HREDRAW | CS_VREDRAW which caused transparent flash)
-                InvalidateRect(hwnd, nullptr, FALSE);
+                HwndInvalidate(hwnd);
             }
             return 0;
 

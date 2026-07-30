@@ -29,7 +29,7 @@ class DialogData {
         }
 
         // Store some sizes etc. for later.
-        Rect rectWnd = WindowRect(hwnd);
+        Rect rectWnd = HwndWindowRect(hwnd);
         ptSmallest.x = rectWnd.dx;
         ptSmallest.y = rectWnd.dy;
 
@@ -37,7 +37,7 @@ class DialogData {
             hTheme = OpenThemeData(hwnd, WC_SCROLLBAR);
         }
 
-        Rect rectClient = ClientRect(hwnd);
+        Rect rectClient = HwndClientRect(hwnd);
         sizeClient = rectClient.Size();
         UpdateGripperRect();
 
@@ -77,7 +77,7 @@ class DialogData {
         // otherwise we would have trail of grippers when we sized the dialog larger
         // in any axis
         RECT tmpRect = ToRECT(rcGrip.Union(rcOld));
-        InvalidateRect(hwnd, &tmpRect, TRUE);
+        HwndInvalidateRect(hwnd, ToRect(tmpRect), true);
     }
 
     void DrawGripper(HDC hdc) {
@@ -136,7 +136,7 @@ void UpdateWindowSize(DialogData* pdd, const int cx, const int cy, HWND hwnd) {
     for (int i = 0; i < pdd->nItemCount; i++) {
         const DialogSizerSizingItem* psd = pdd->psd + i;
         HWND hwndChild = GetDlgItem(hwnd, psd->uControlID);
-        Rect rect = MapRectToWindow(WindowRect(hwndChild), HWND_DESKTOP, hwnd);
+        Rect rect = HwndMapRectToWindow(HwndWindowRect(hwndChild), HWND_DESKTOP, hwnd);
 
         // Adjust the window horizontally
         if (psd->uSizeInfo & DS_MoveX) {
@@ -188,9 +188,8 @@ static LRESULT CALLBACK SizingProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 
         case WM_NCHITTEST: {
             // If the gripper is enabled then perform a simple hit test on our gripper area.
-            POINT pt = {LOWORD(lp), HIWORD(lp)};
-            ScreenToClient(hwnd, &pt);
-            if (pdd->InsideGripper(Point(pt.x, pt.y))) {
+            Point pt = HwndScreenToClient(hwnd, Point(GET_X_LPARAM(lp), GET_Y_LPARAM(lp)));
+            if (pdd->InsideGripper(pt)) {
                 return HTBOTTOMRIGHT;
             }
         } break;

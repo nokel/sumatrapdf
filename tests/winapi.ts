@@ -57,6 +57,19 @@ const gdiplus = dlopen("gdiplus.dll", {
   GdipDisposeImage: { args: [FFIType.u64], returns: FFIType.u32 },
 });
 
+const kernel32 = dlopen("kernel32.dll", {
+  CreateProcessW: {
+    args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.bool, FFIType.u32, FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr],
+    returns: FFIType.bool,
+  },
+  CloseHandle: { args: [FFIType.u64], returns: FFIType.bool },
+  GetLastError: { args: [], returns: FFIType.u32 },
+});
+
+// CreateProcess creation flags
+const DETACHED_PROCESS = 0x00000008;
+const CREATE_NEW_PROCESS_GROUP = 0x00000200;
+
 // window messages
 export const WM_CLOSE = 0x0010;
 export const WM_SETTEXT = 0x000c;
@@ -73,6 +86,7 @@ export const WM_RBUTTONUP = 0x0205;
 export const WM_MBUTTONDOWN = 0x0207;
 export const WM_CONTEXTMENU = 0x007b;
 export const WM_COMMAND = 0x0111;
+export const WM_COPYDATA = 0x004a;
 // virtual-key / mouse-button flags
 export const MK_LBUTTON = 0x0001;
 export const MK_MBUTTON = 0x0010;
@@ -268,6 +282,18 @@ export function sendMessage(hwnd: number, msg: number, wParam: number | bigint, 
   return user32.symbols.SendMessageW(hwnd, msg, BigInt(wParam), BigInt(lParam)) as bigint;
 }
 
+// Send a null-terminated UTF-16 WM_COPYDATA payload. COPYDATASTRUCT is 24
+// bytes on x64: ULONG_PTR dwData, DWORD cbData + padding, PVOID lpData.
+export function sendCopyDataW(hwnd: number, dataId: number, text: string): bigint {
+  const payload = wideZ(text);
+  const cds = new Uint8Array(24);
+  const view = new DataView(cds.buffer);
+  view.setBigUint64(0, BigInt(dataId), true);
+  view.setUint32(8, payload.byteLength, true);
+  view.setBigUint64(16, BigInt(ptr(payload)), true);
+  return sendMessage(hwnd, WM_COPYDATA, 0, BigInt(ptr(cds)));
+}
+
 // --- TreeView (SysTreeView32) helpers; item handles are opaque bigints ---
 
 export function treeGetNextItem(tree: number, flag: number, item: bigint = 0n): bigint {
@@ -421,4 +447,44 @@ export function captureWindowToPng(hwnd: number, outPath: string): boolean {
   gdi32.symbols.DeleteDC(memDC);
   user32.symbols.ReleaseDC(hwnd, winDC);
   return status === 0;
+}
+
+// Launch a process fully detached from this one (via CreateProcessW) and return
+// its pid, WITHOUT waiting for it to exit. Unlike Bun.spawn, the child is not
+// placed in Bun's job object, so it keeps running after this script exits.
+// Use for launching a long-lived GUI app from a short-lived launcher script.
+export function launchDetached(exePath: string, args: string[] = []): number {
+  const quoted =
+    `"${exePath}"` + (args.length ? " " + args.map((a) => `"${a}"`).join(" ") : "");
+  const appW = wideZ(exePath);
+  const cmdW = wideZ(quoted); // CreateProcessW may modify this buffer in place
+
+  const si = new Uint8Array(104); // STARTUPINFOW (x64)
+  new DataView(si.buffer).setUint32(0, 104, true); // cb = sizeof(STARTUPINFOW)
+  const pi = new Uint8Array(24); // PROCESS_INFORMATION (x64)
+
+  const ok = kernel32.symbols.CreateProcessW(
+    ptr(appW),
+    ptr(cmdW),
+    null,
+    null,
+    false,
+    DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP,
+    null,
+    null,
+    ptr(si),
+    ptr(pi),
+  );
+  if (!ok) {
+    const err = kernel32.symbols.GetLastError();
+    throw new Error(`CreateProcessW('${exePath}') failed, GetLastError=${err}`);
+  }
+
+  const dv = new DataView(pi.buffer);
+  const hProcess = dv.getBigUint64(0, true);
+  const hThread = dv.getBigUint64(8, true);
+  const pid = dv.getUint32(16, true);
+  kernel32.symbols.CloseHandle(hProcess); // we don't wait on the child
+  kernel32.symbols.CloseHandle(hThread);
+  return pid;
 }

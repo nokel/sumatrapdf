@@ -890,7 +890,7 @@ static MenuDef menuDefCreateAnnotUnderCursor[] = {
     //    CmdCreateAnnotPolygon,
     //},
     //{
-    //    _TRN("Poly Line"),
+    //    _TRN("Polyline"),
     //    CmdCreateAnnotPolyLine,
     //},
     //{ _TRN("Ink"), CmdCreateAnnotInk, },
@@ -1838,8 +1838,7 @@ void OnAboutContextMenu(MainWindow* win, int x, int y) {
     ctx.filePath = path;
     HMENU popup = BuildMenuFromDef(menuDefContextStart, CreatePopupMenu(), &ctx);
     MenuSetChecked(popup, CmdPinSelectedDocument, fs->isPinned);
-    POINT pt = {x, y};
-    MapWindowPoints(win->hwndCanvas, HWND_DESKTOP, &pt, 1);
+    Point pt = HwndMapWindowPoint(win->hwndCanvas, HWND_DESKTOP, {x, y});
     MarkMenuOwnerDraw(popup);
     INT cmd = TrackPopupMenu(popup, TPM_RETURNCMD | TPM_RIGHTBUTTON, pt.x, pt.y, 0, win->hwndFrame, nullptr);
     FreeMenuOwnerDrawInfoData(popup);
@@ -2059,8 +2058,7 @@ void OnWindowContextMenu(MainWindow* win, int x, int y) {
         HwndRepaintNow(win->hwndCanvas);
     }
 
-    POINT pt = {x, y};
-    MapWindowPoints(win->hwndCanvas, HWND_DESKTOP, &pt, 1);
+    Point pt = HwndMapWindowPoint(win->hwndCanvas, HWND_DESKTOP, {x, y});
     MarkMenuOwnerDraw(popup);
     UINT flags = TPM_RETURNCMD | TPM_RIGHTBUTTON;
     int cmdId = TrackPopupMenu(popup, flags, pt.x, pt.y, 0, win->hwndFrame, nullptr);
@@ -2453,7 +2451,7 @@ void MenuCustomDrawItem(HWND hwnd, DRAWITEMSTRUCT* dis) {
     };
 
     auto brBg = CreateSolidBrush(bgCol);
-    FillRect(hdc, &rc, brBg);
+    HdcFillRect(hdc, ToRect(rc), brBg);
     auto brTxt = CreateSolidBrush(txtCol);
 
     AutoDeleteObject deleteBgBrush(brBg);

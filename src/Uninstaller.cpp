@@ -42,13 +42,14 @@ static Str gUninstallerLogPath;
 // file is still correctly removed when SumatraPDF is eventually uninstalled.
 // clang-format off
 const char* gInstalledFiles[] = {
-    "libmupdf.dll",
+    "libsumatrapdf.dll",
     "PdfFilter.dll",
     "PdfPreview.dll",
     // those probably won't delete because in use
     "SumatraPDF.exe",
     "RA-MICRO PDF Viewer.exe",
     // files no longer shipped, to be deleted
+    "libmupdf.dll", // renamed to libsumatrapdf.dll in 3.7
     "DroidSansFallback.ttf",
     "npPdfViewer.dll",
     "uninstall.exe",
@@ -317,7 +318,7 @@ static bool InstanceInit() {
 
     SetDefaultMsg();
 
-    CenterDialog(gHwndFrame);
+    HwndCenterDialog(gHwndFrame);
     ShowWindow(gHwndFrame, SW_SHOW);
     SetForegroundWindow(gHwndFrame);
 

@@ -36,10 +36,10 @@ LRESULT CALLBACK PluginParentWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
         // resize the SumatraPDF window
         HWND hChild = FindWindowEx(hwnd, nullptr, nullptr, nullptr);
         if (hChild) {
-            Rect rcClient = ClientRect(hwnd);
+            Rect rcClient = HwndClientRect(hwnd);
             MoveWindow(hChild, rcClient.x, rcClient.y, rcClient.dx, rcClient.dy, FALSE);
         } else {
-            InvalidateRect(hwnd, nullptr, TRUE);
+            HwndInvalidate(hwnd, true);
             UpdateWindow(hwnd);
         }
     } else if (WM_COPYDATA == msg) {
@@ -55,9 +55,9 @@ LRESULT CALLBACK PluginParentWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
         // paint an error message (only needed if SumatraPDF couldn't be run)
         PAINTSTRUCT ps;
         HDC hDC = BeginPaint(hwnd, &ps);
-        RECT rcClient = ToRECT(ClientRect(hwnd));
+        RECT rcClient = ToRECT(HwndClientRect(hwnd));
         HBRUSH brushBg = CreateSolidBrush(0xCCCCCC);
-        FillRect(hDC, &rcClient, brushBg);
+        HdcFillRect(hDC, ToRect(rcClient), brushBg);
         LOGFONTW lf{};
         lf.lfHeight = -14;
         str::BufSet(lf.lfFaceName, dimof(lf.lfFaceName), "MS Shell Dlg");
