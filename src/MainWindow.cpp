@@ -216,6 +216,7 @@ void ClearMouseState(MainWindow* win) {
     win->textDragPending = false;
     win->imageDragPending = false;
     win->imageDragElement = nullptr;
+    win->imageDragPageNo = -1;
     win->linkOnLastButtonDown = nullptr;
     win->annotationUnderCursor = nullptr;
 }
@@ -323,7 +324,7 @@ MarkdownModel* MainWindow::AsMarkdown() const {
 // Notify both display model and double-buffer (if they exist)
 // about a potential change of available canvas size
 void MainWindow::UpdateCanvasSize() {
-    Rect rc = ClientRect(hwndCanvas);
+    Rect rc = HwndClientRect(hwndCanvas);
     if (buffer && canvasRc == rc) {
         return;
     }
@@ -363,7 +364,7 @@ Size MainWindow::GetViewPortSize() const {
 
 static BOOL CALLBACK RedrawHwndCallback(HWND hwnd, LPARAM lp) {
     bool update = (bool)lp;
-    InvalidateRect(hwnd, nullptr, true);
+    HwndInvalidate(hwnd, true);
     if (update) {
         UpdateWindow(hwnd);
     }

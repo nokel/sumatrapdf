@@ -709,11 +709,9 @@ void PropertiesWnd::SizeToContent() {
         Str rest = Str(text.s + off, text.len - off);
         int nl = str::IndexOfChar(rest, '\n');
         int lineLen = nl >= 0 ? nl : rest.len;
-        SIZE sz{};
-        TempWStr lineW = ToWStrTemp(Str(rest.s, lineLen));
-        GetTextExtentPoint32W(hdcEdit, lineW.s, lineW.len, &sz);
-        if (sz.cx > maxLineDx) {
-            maxLineDx = sz.cx;
+        Size size = HdcGetTextExtentPoint32(hdcEdit, Str(rest.s, lineLen));
+        if (size.dx > maxLineDx) {
+            maxLineDx = size.dx;
         }
         nLines++;
         off += lineLen + (nl >= 0 ? 1 : 0);
@@ -748,13 +746,13 @@ void PropertiesWnd::SizeToContent() {
     int wantedDy = (nLines + 3) * lineHeight + editBorderDy + btnAreaDy + bottomMargin + frameDy;
 
     // cap at 80% of screen
-    Rect work = GetWorkAreaRect(WindowRect(hwnd), hwnd);
+    Rect work = GetWorkAreaRect(HwndWindowRect(hwnd), hwnd);
     int maxDx = (work.dx * 80) / 100;
     int maxDy = (work.dy * 80) / 100;
     wantedDx = std::min(wantedDx, maxDx);
     wantedDy = std::min(wantedDy, maxDy);
 
-    Rect wRc = WindowRect(hwnd);
+    Rect wRc = HwndWindowRect(hwnd);
     MoveWindow(hwnd, wRc.x, wRc.y, wantedDx, wantedDy, TRUE);
     LayoutToClient();
 }
@@ -763,7 +761,7 @@ void PropertiesWnd::LayoutToClient() {
     if (!layout || !hwnd) {
         return;
     }
-    Rect rc = ClientRect(hwnd);
+    Rect rc = HwndClientRect(hwnd);
     Constraints bc = Tight({rc.dx, rc.dy});
     layout->Layout(bc);
     layout->SetBounds({0, 0, rc.dx, rc.dy});
@@ -821,7 +819,7 @@ static void SavePropertiesWindowPos(PropertiesWnd* w, HWND hwnd) {
     if (!w || !hwnd || !IsWindow(hwnd)) {
         return;
     }
-    Rect rc = WindowRect(hwnd);
+    Rect rc = HwndWindowRect(hwnd);
     Point pos = {rc.x, rc.y};
     if (pos != w->initialPos) {
         gGlobalPrefs->propWinPos = pos;
@@ -874,7 +872,7 @@ bool PropertiesWnd::Create(HWND parent) {
     }
 
     HDC hdc = GetDC(hwnd);
-    propsFont = CreateSimpleFont(hdc, "Consolas", 14);
+    propsFont = HdcCreateSimpleFont(hdc, "Consolas", 14);
     ReleaseDC(hwnd, hdc);
 
     auto* vbox = new VBox();
@@ -923,7 +921,7 @@ struct GetFontsResult {
 static void OnGetFontsFinished(GetFontsResult* result) {
     PropertiesWnd* w = FindPropertyWindowByHwnd(result->hwnd);
     if (w) {
-        Str marker = _TRA("Getting fonts information...");
+        Str marker = _TRA("Getting font information...");
         Str props = ToStr(w->propsText);
         int pos = str::IndexOf(props, marker);
         if (pos >= 0) {
@@ -976,7 +974,7 @@ void ShowProperties(HWND parent, DocController* ctrl) {
     GetPropsText(ctrl, wnd->propsText);
     AlignPropertiesText(wnd->propsText);
     wnd->propsText.Append("\n");
-    wnd->propsText.Append(_TRA("Getting fonts information..."));
+    wnd->propsText.Append(_TRA("Getting font information..."));
 
     wnd->onClose = MkFunc1Void<Wnd::CloseEvent*>(OnPropertiesClose);
     wnd->onDestroy = MkFunc1Void<Wnd::DestroyEvent*>(OnPropertiesDestroy);
@@ -991,11 +989,11 @@ void ShowProperties(HWND parent, DocController* ctrl) {
         SetWindowPos(wnd->hwnd, nullptr, savedPos.x, savedPos.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
         wnd->LayoutToClient();
     } else {
-        CenterDialog(wnd->hwnd, parent);
+        HwndCenterDialog(wnd->hwnd, parent);
     }
-    HwndEnsureVisible(wnd->hwnd);
+    HwndEnsureOnScreen(wnd->hwnd);
     {
-        Rect rc = WindowRect(wnd->hwnd);
+        Rect rc = HwndWindowRect(wnd->hwnd);
         wnd->initialPos = {rc.x, rc.y};
     }
 

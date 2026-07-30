@@ -100,7 +100,7 @@ Str GetInstallerLogPath() {
     return path::Join(dir, kLogFileName);
 }
 
-// Write a file during install/upgrade. libmupdf.dll is often locked by
+// Write a file during install/upgrade. libsumatrapdf.dll is often locked by
 // SumatraPDF.exe, dllhost/prevhost (preview), or PdfFilter; a plain
 // CreateFile(CREATE_ALWAYS) then fails and leaves the old DLL (size mismatch
 // with the new exe). Retry: direct write, temp+rename, kill holders, delete.
@@ -209,7 +209,7 @@ static bool WriteInstallerFileRobust(Str path, Str data) {
 }
 
 // --- Rename locked install files aside before extract ----------------------------
-// Upgrades rename libmupdf.dll / PdfFilter.dll / PdfPreview.dll to *.copy so we
+// Upgrades rename libsumatrapdf.dll / PdfFilter.dll / PdfPreview.dll to *.copy so we
 // can write new files even when the old DLL is still mapped. If rename stays
 // blocked, show a dialog that retries every 3s (or silent retries for ~60s).
 
@@ -369,7 +369,7 @@ static bool ShowMoveAsideBlockedDialog(Str path, Str copyPath, Str fileName) {
     TempStr content = fmt(_TRA("Could not update %s because another program still has the file open.\n\n"
                                "Common causes:\n"
                                "• Windows Search Indexer (loads PdfFilter.dll for PDF search)\n"
-                               "• File Explorer PDF preview (loads PdfPreview.dll / libmupdf.dll)\n"
+                               "• File Explorer PDF preview (loads PdfPreview.dll / libsumatrapdf.dll)\n"
                                "• Another SumatraPDF window or PDF application\n\n"
                                "What to try:\n"
                                "• Close Explorer windows that show a PDF preview pane\n"
@@ -465,29 +465,66 @@ static bool MoveAsideInstallFile(Str installDir, Str fileName, bool silent) {
     return true;
 }
 
+// Through 3.6 the engine DLL was libmupdf.dll; 3.7+ ships libsumatrapdf.dll.
+// Best-effort only: a locked legacy file must not abort install — the new DLL
+// has a different name and can still be written. Prefer rename-aside so a
+// still-mapped module can unload later; fall back to delete when possible.
+static void MoveAsideOrDeleteLegacyLibmupdf(Str installDir) {
+    TempStr path = path::JoinTemp(installDir, StrL("libmupdf.dll"));
+    if (!file::Exists(path)) {
+        logf("MoveAsideOrDeleteLegacyLibmupdf: no legacy '%s'\n", path);
+        return;
+    }
+    logf("MoveAsideOrDeleteLegacyLibmupdf: found legacy '%s' size=%lld\n", path, (long long)file::GetSize(path));
+    KillProcessesWithModule(path, true);
+    TempStr copyPath = str::JoinTemp(path, ".copy");
+    if (TryRenameAsideOnce(path, copyPath)) {
+        logf("MoveAsideOrDeleteLegacyLibmupdf: renamed to '%s'\n", copyPath);
+        return;
+    }
+    DWORD attrs = file::GetAttributes(path);
+    if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_READONLY)) {
+        file::SetAttributes(path, attrs & ~FILE_ATTRIBUTE_READONLY);
+    }
+    if (file::Delete(path)) {
+        logf("MoveAsideOrDeleteLegacyLibmupdf: deleted '%s'\n", path);
+        return;
+    }
+    logf("MoveAsideOrDeleteLegacyLibmupdf: could not rename/delete '%s' (ok; install continues)\n", path);
+    LogLastError();
+}
+
 // Rename lockable DLLs aside before extract so new files can be written freely.
 static bool PrepareInstallDirByRenaming(Str installDir, bool silent) {
     logf("PrepareInstallDirByRenaming('%s' silent=%d)\n", installDir, (int)silent);
     StopWindowsSearchService();
-    // Order: filter/preview first (often locked by Search/Explorer), then libmupdf.
+    // Order: filter/preview first (often locked by Search/Explorer), then engine DLL.
     static const Str kFiles[] = {
         StrL("PdfFilter.dll"),
         StrL("PdfPreview.dll"),
-        StrL("libmupdf.dll"),
+        StrL("libsumatrapdf.dll"),
     };
     for (Str name : kFiles) {
         if (!MoveAsideInstallFile(installDir, name, silent)) {
             return false;
         }
     }
+    // The exe itself: a just-killed (TerminateProcess is async) or relaunched
+    // instance can still map SumatraPDF.exe, which would make CopySelfToDir's
+    // overwrite fail with a sharing violation. Rename it aside too - renaming a
+    // mapped image is allowed even though overwriting/deleting it is not.
+    if (!MoveAsideInstallFile(installDir, Str(kExeName), silent)) {
+        return false;
+    }
+    // Older installs: move libmupdf.dll out of the way without blocking on it.
+    MoveAsideOrDeleteLegacyLibmupdf(installDir);
     return true;
 }
 
 static void DeleteInstallCopyLeftovers(Str destDir) {
     static const Str kCopies[] = {
-        StrL("libmupdf.dll.copy"),
-        StrL("PdfFilter.dll.copy"),
-        StrL("PdfPreview.dll.copy"),
+        StrL("libsumatrapdf.dll.copy"), StrL("libmupdf.dll.copy"),   StrL("PdfFilter.dll.copy"),
+        StrL("PdfPreview.dll.copy"),    StrL("SumatraPDF.exe.copy"),
     };
     for (Str name : kCopies) {
         TempStr copyPath = path::JoinTemp(destDir, name);
@@ -500,6 +537,9 @@ static void DeleteInstallCopyLeftovers(Str destDir) {
             logf("  could not delete leftover '%s' (ok to ignore)\n", copyPath);
         }
     }
+    // If a still-locked legacy DLL survived prepare, try again after extract
+    // (holders may have exited); never fail the install on this.
+    MoveAsideOrDeleteLegacyLibmupdf(destDir);
 }
 
 static bool ExtractInstallerFiles(lzma::SimpleArchive* archive, Str destDir) {
@@ -755,7 +795,7 @@ Exit:
     // Best-effort: restore search indexing after we may have stopped WSearch.
     StartWindowsSearchService();
     // Pre-release debug report (no symbols download) so we learn about failed
-    // upgrades (e.g. locked libmupdf.dll) with the install log attached.
+    // upgrades (e.g. locked libsumatrapdf.dll) with the install log attached.
     if (gInstallFailed) {
         TempStr cond = fmt("Installation failed: %s", gFirstError ? gFirstError : StrL("(no details)"));
         logf("InstallerThread: upload debug report: %s\n", cond);
@@ -822,7 +862,7 @@ static void StartInstallation(InstallerWnd* wnd) {
     // create a progress bar in place of the Options button
     int dx = DpiScale(wnd->hwnd, GetInstallerWinDx() / 2);
     Rect rc(0, 0, dx, gButtonDy);
-    rc = MapRectToWindow(rc, wnd->btnOptions->hwnd, wnd->hwnd);
+    rc = HwndMapRectToWindow(rc, wnd->btnOptions->hwnd, wnd->hwnd);
 
     int nInstallationSteps = gArchive.filesCount;
     nInstallationSteps++; // for copying files to installation dir
@@ -1245,7 +1285,7 @@ static void CreateInstallerWindowControls(InstallerWnd* wnd, Flags* cli) {
     {
         // button position: bottom-right
         HWND parent = ::GetParent(b->hwnd);
-        Rect r = ClientRect(parent);
+        Rect r = HwndClientRect(parent);
         Size size = b->GetIdealSize();
         int x = r.dx - size.dx - margin;
         int y = r.dy - size.dy - margin;
@@ -1253,7 +1293,7 @@ static void CreateInstallerWindowControls(InstallerWnd* wnd, Flags* cli) {
     }
     ShowAndEnable(wnd->btnInstall, showInstallButton);
 
-    Rect r = ClientRect(hwnd);
+    Rect r = HwndClientRect(hwnd);
     wnd->btnOptions = CreateDefaultButton(hwnd, _TRA("&Options"), isRtl);
     b = wnd->btnOptions;
     b->onClick = MkFunc0(OnButtonOptions, wnd);
@@ -1278,7 +1318,7 @@ static void CreateInstallerWindowControls(InstallerWnd* wnd, Flags* cli) {
     // build options controls going from the bottom
     y -= (staticDy + margin);
 
-    RECT rc;
+    Rect rc;
     int checkDy;
     // only show this checkbox if the CPU arch of DLL and OS match
     // (assuming that the installer has the same CPU arch as its content!)
@@ -1292,7 +1332,7 @@ static void CreateInstallerWindowControls(InstallerWnd* wnd, Flags* cli) {
         wnd->checkboxRegisterPreview = CreateCheckbox(hwnd, s, isChecked);
         checkDy = wnd->checkboxRegisterPreview->GetIdealSize().dy;
 
-        rc = {x, y, x + dx, y + checkDy};
+        rc = {x, y, dx, checkDy};
         wnd->checkboxRegisterPreview->SetPos(&rc);
         y -= checkDy;
 
@@ -1303,7 +1343,7 @@ static void CreateInstallerWindowControls(InstallerWnd* wnd, Flags* cli) {
         s = _TRA("Let Windows Desktop Search &search PDF documents");
         wnd->checkboxRegisterSearchFilter = CreateCheckbox(hwnd, s, isChecked);
         checkDy = wnd->checkboxRegisterSearchFilter->GetIdealSize().dy;
-        rc = {x, y, x + dx, y + checkDy};
+        rc = {x, y, dx, checkDy};
         wnd->checkboxRegisterSearchFilter->SetPos(&rc);
         y -= checkDy;
     }
@@ -1321,7 +1361,7 @@ static void CreateInstallerWindowControls(InstallerWnd* wnd, Flags* cli) {
         if (wnd->checkboxRegisterPreview) {
             checkDy = wnd->checkboxRegisterPreview->GetIdealSize().dy;
         }
-        rc = {x, y, x + dx, y + checkDy};
+        rc = {x, y, dx, checkDy};
         wnd->checkboxForAllUsers->SetPos(&rc);
         y -= checkDy;
     }
@@ -1503,7 +1543,7 @@ static bool CreateInstallerWindow(Flags* cli) {
 
     SetDefaultMsg();
 
-    CenterDialog(gWnd->hwnd);
+    HwndCenterDialog(gWnd->hwnd);
     ShowWindow(gWnd->hwnd, SW_SHOW);
 
     return true;
@@ -1576,28 +1616,28 @@ static bool OpenEmbeddedFilesArchive() {
     return true;
 }
 
-bool ExtractLibmupdfToDir(Str destDir) {
-    logf("ExtractLibmupdfToDir: destDir='%s'\n", destDir);
+bool ExtractLibsumatrapdfToDir(Str destDir) {
+    logf("ExtractLibsumatrapdfToDir: destDir='%s'\n", destDir);
     if (!OpenEmbeddedFilesArchive()) {
-        log("ExtractLibmupdfToDir: OpenEmbeddedFilesArchive failed\n");
+        log("ExtractLibsumatrapdfToDir: OpenEmbeddedFilesArchive failed\n");
         return false;
     }
-    int idx = lzma::GetIdxFromName(&gArchive, "libmupdf.dll");
+    int idx = lzma::GetIdxFromName(&gArchive, "libsumatrapdf.dll");
     if (idx < 0) {
-        log("ExtractLibmupdfToDir: libmupdf.dll not found in archive\n");
+        log("ExtractLibsumatrapdfToDir: libsumatrapdf.dll not found in archive\n");
         return false;
     }
     lzma::FileInfo* fi = &gArchive.files[idx];
-    logf("ExtractLibmupdfToDir: archive entry uncompressed=%u compressed=%u\n", (unsigned)fi->uncompressedSize,
+    logf("ExtractLibsumatrapdfToDir: archive entry uncompressed=%u compressed=%u\n", (unsigned)fi->uncompressedSize,
          (unsigned)fi->compressedSize);
     u8* uncompressed = lzma::GetFileDataByIdx(&gArchive, idx, nullptr);
     if (!uncompressed) {
-        log("ExtractLibmupdfToDir: failed to decompress libmupdf.dll\n");
+        log("ExtractLibsumatrapdfToDir: failed to decompress libsumatrapdf.dll\n");
         return false;
     }
     if (!dir::CreateAll(destDir)) {
         free(uncompressed);
-        logf("ExtractLibmupdfToDir: couldn't create directory '%s'\n", destDir);
+        logf("ExtractLibsumatrapdfToDir: couldn't create directory '%s'\n", destDir);
         LogLastError();
         return false;
     }
@@ -1606,10 +1646,10 @@ bool ExtractLibmupdfToDir(Str destDir) {
     bool ok = WriteInstallerFileRobust(filePath, d);
     free(uncompressed);
     if (!ok) {
-        logf("ExtractLibmupdfToDir: failed to write '%s'\n", filePath);
+        logf("ExtractLibsumatrapdfToDir: failed to write '%s'\n", filePath);
         return false;
     }
-    logf("ExtractLibmupdfToDir: extracted '%s' size=%lld\n", filePath, (long long)file::GetSize(filePath));
+    logf("ExtractLibsumatrapdfToDir: extracted '%s' size=%lld\n", filePath, (long long)file::GetSize(filePath));
     return true;
 }
 
@@ -1623,8 +1663,9 @@ bool ExtractInstallerFiles(Str dir) {
         return false;
     }
 
-    // Rename lockable DLLs aside (PdfFilter / PdfPreview / libmupdf) before
+    // Rename lockable DLLs aside (PdfFilter / PdfPreview / libsumatrapdf) before
     // extract. Dialog retries every 3s if a file stays locked; user can abort.
+    // Legacy libmupdf.dll (through 3.6) is moved/deleted best-effort (different name).
     bool silent = gCliNew.silent || (gCli && gCli->silent);
     if (!PrepareInstallDirByRenaming(dir, silent)) {
         log("ExtractInstallerFiles: PrepareInstallDirByRenaming failed\n");

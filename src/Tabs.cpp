@@ -128,6 +128,14 @@ void RemoveTab(WindowTab* tab) {
     MainWindow* win = tab->win;
     win->tabSelectionHistory->Remove(tab);
     int idx = win->GetTabIdx(tab);
+    bool leavesOnlyHome = false;
+    if (win->TabCount() == 2) {
+        WindowTab* other = win->GetTab(idx == 0 ? 1 : 0);
+        leavesOnlyHome = other->IsAboutTab();
+    }
+    if (leavesOnlyHome) {
+        ShowTabBar(win, false);
+    }
     WindowTab* tab2 = win->tabsCtrl->RemoveTab<WindowTab*>(idx);
     ReportIf(tab != tab2);
     bool closedCurrentTab = (tab == win->CurrentTab());
@@ -135,7 +143,9 @@ void RemoveTab(WindowTab* tab) {
         win->ctrl = nullptr;
         win->currentTabTemp = nullptr;
     }
-    UpdateTabWidth(win);
+    if (!leavesOnlyHome) {
+        UpdateTabWidth(win);
+    }
 
     int nTabs = win->TabCount();
     if (nTabs < 1) {
@@ -229,7 +239,7 @@ static void MaybeMigrateTab(WindowTab* tab, MainWindow* newWin, Point releasePt)
             if (!newWin) {
                 return;
             }
-            MoveWindow(newWin->hwndFrame, rect);
+            HwndMoveWindow(newWin->hwndFrame, &rect);
             ShowMainWindow(newWin, WIN_STATE_NORMAL);
         } else {
             newWin = CreateAndShowMainWindow(nullptr);
@@ -435,7 +445,7 @@ static void TabsContextMenu(ContextMenuEvent* ev) {
     if (tabUnderMouse->IsAboutTab()) {
         return;
     }
-    POINT pt = ToPOINT(ev->mouseScreen);
+    Point pt = ev->mouseScreen;
 
     Vec<WindowTab*> toCloseOther;
     Vec<WindowTab*> toCloseRight;
@@ -570,10 +580,7 @@ static void MainWindowTabSelectionChanged(MainWindow* win, TabsCtrl::SelectionCh
 static void MainWindowTabMigration(MainWindow* win, TabsCtrl::MigrationEvent* ev) {
     WindowTab* tab = win->GetTab(ev->tabIdx);
     MainWindow* releaseWnd = nullptr;
-    POINT p;
-    p.x = ev->releasePoint.x;
-    p.y = ev->releasePoint.y;
-    HWND hwnd = WindowFromPoint(p);
+    HWND hwnd = HwndWindowFromPoint(ev->releasePoint);
     if (hwnd != nullptr) {
         releaseWnd = FindMainWindowByHwnd(hwnd);
     }
@@ -669,7 +676,7 @@ void SaveCurrentWindowTab(MainWindow* win) {
     win->tabSelectionHistory->Append(tab);
 }
 
-WindowTab* AddTabToWindow(MainWindow* win, WindowTab* tab) {
+WindowTab* AddTabToWindow(MainWindow* win, WindowTab* tab, bool deferUpdate) {
     ReportIf(!win);
     if (!win) {
         return nullptr;
@@ -693,7 +700,7 @@ WindowTab* AddTabToWindow(MainWindow* win, WindowTab* tab) {
         newTab->isPinned = true;
         newTab->canClose = true;
         newTab->userData = (UINT_PTR)homeTab;
-        int insertedIdx = tabs->InsertTab(idx, newTab);
+        int insertedIdx = tabs->InsertTab(idx, newTab, !deferUpdate);
         ReportIf(insertedIdx != 0);
         idx++;
     }
@@ -705,10 +712,12 @@ WindowTab* AddTabToWindow(MainWindow* win, WindowTab* tab) {
     newTab->userData = (UINT_PTR)tab;
     newTab->tabColor = tab->tabColor;
 
-    int insertedIdx = tabs->InsertTab(idx, newTab);
+    int insertedIdx = tabs->InsertTab(idx, newTab, !deferUpdate);
     ReportIf(insertedIdx == -1);
-    tabs->SetSelected(insertedIdx);
-    UpdateTabWidth(win);
+    if (!deferUpdate) {
+        tabs->SetSelected(insertedIdx);
+        UpdateTabWidth(win);
+    }
     return tab;
 }
 

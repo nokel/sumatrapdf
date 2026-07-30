@@ -33,10 +33,7 @@
     <ClInclude Include="..\src\base\Base.h">
       <Filter>src\base</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\base\ByteOrderDecoder.h">
-      <Filter>src\base</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\base\ByteWriter.h">
+    <ClInclude Include="..\src\base\ByteReaderWriter.h">
       <Filter>src\base</Filter>
     </ClInclude>
     <ClInclude Include="..\src\base\CmdLineArgsIter.h">
@@ -61,6 +58,9 @@
       <Filter>src\base</Filter>
     </ClInclude>
     <ClInclude Include="..\src\base\LzmaSimpleArchive.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\base\Pixmap.h">
       <Filter>src\base</Filter>
     </ClInclude>
     <ClInclude Include="..\src\base\Str.h">
@@ -122,10 +122,7 @@
     <ClCompile Include="..\src\base\Base_win.cpp">
       <Filter>src\base</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\base\ByteOrderDecoder.cpp">
-      <Filter>src\base</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\ByteWriter.cpp">
+    <ClCompile Include="..\src\base\ByteReaderWriter.cpp">
       <Filter>src\base</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\CmdLineArgsIter.cpp">
@@ -159,6 +156,9 @@
       <Filter>src\base</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\LzmaSimpleArchive.cpp">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\base\Pixmap.cpp">
       <Filter>src\base</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\Str.cpp">
