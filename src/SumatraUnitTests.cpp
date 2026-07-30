@@ -308,7 +308,10 @@ static void DocPropertiesTest() {
     utassert(PropFromName("bogusPropName") == DocProp::None);
 }
 
+extern void LibraryCatalogTest();
+
 void SumatraPDF_UnitTests() {
+    LibraryCatalogTest();
     DocPropertiesTest();
     parseCommandsTest();
     colorTest();
