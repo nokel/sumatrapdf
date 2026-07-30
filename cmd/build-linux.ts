@@ -205,7 +205,7 @@ function makeLibarchive(outDir: string): LibDef {
         dir: "ext/a-bzip2",
         patterns: ["bzip2.c"],
       },
-      // LzmaDec/Bra* live in base/exe for LzSA (not in libmupdf/libarchive)
+      // LzmaDec/Bra* live in base/exe for LzSA (not in libsumatrapdf/libarchive)
       {
         dir: "ext/liblzma",
         patterns: [
@@ -461,8 +461,7 @@ const DEP_LIBS_BASE = [
           "Archive.cpp",
           "Arena.cpp",
           "Arena_posix.cpp",
-          "ByteOrderDecoder.cpp",
-          "ByteReader.cpp",
+          "ByteReaderWriter.cpp",
           "CmdLineArgsIter.cpp",
           "Color.cpp",
           "Crypto_posix.cpp",
@@ -483,6 +482,7 @@ const DEP_LIBS_BASE = [
           "HtmlTags.cpp",
           "JsonParser.cpp",
           "Pixmap.cpp",
+          "Pixmap_linux.cpp",
           "SettingsUtil.cpp",
           "SquareTreeParser.cpp",
           "StrQueue.cpp",
@@ -533,7 +533,7 @@ const TEST_UTIL_SOURCES = [
   "src/SumatraLog_posix.cpp",
   "src/SumatraUnitTests.cpp",
   "src/base/tests/Base_ut.cpp",
-  "src/base/tests/ByteOrderDecoder_ut.cpp",
+  "src/base/tests/ByteReaderWriter_ut.cpp",
   "src/base/tests/Crypto_ut.cpp",
   "src/base/tests/CssParser_ut.cpp",
   "src/base/tests/Dict_ut.cpp",
@@ -551,7 +551,6 @@ const TEST_UTIL_SOURCES = [
 ];
 
 const TEST_ENGINES_SOURCES = [
-  "src/base/BitReader.cpp",
   "src/base/GuessFileType.cpp",
   "src/DocProperties.cpp",
   "src/EbookDoc.cpp",
@@ -860,7 +859,7 @@ async function buildTestEngines(
     ...commonFlags,
     ...units.map((u) => u.obj),
     join(outDir, "lib", "libbase.a"),
-    join(outDir, "lib", "libmupdf.a"),
+    join(outDir, "lib", "libsumatrapdf.a"),
     join(outDir, "lib", "libcmark-gfm.a"),
     join(outDir, "lib", "libmujs.a"),
     join(outDir, "lib", "libextract.a"),

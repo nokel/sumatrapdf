@@ -195,7 +195,7 @@ static void UpdateAIChatPanelTitle(MainWindow* win, int labelDx) {
         font = GetDefaultGuiFont(true, false);
     }
     if (labelDx <= 0 && win->hwndAiChatBox) {
-        labelDx = ClientRect(win->hwndAiChatBox).dx;
+        labelDx = HwndClientRect(win->hwndAiChatBox).dx;
     }
     int maxDx = AIChatLabelMaxTextDx(labelHwnd, labelDx);
     TempStr prefix = str::JoinTemp(p->TitleTemp(), StrL(" with "));
@@ -209,7 +209,7 @@ static void LayoutAIChatBox(MainWindow* win) {
     if (!win->aiChatLayout) {
         return;
     }
-    Rect rc = ClientRect(win->hwndAiChatBox);
+    Rect rc = HwndClientRect(win->hwndAiChatBox);
     if (rc.dx <= 0 || rc.dy <= 0) {
         return;
     }
@@ -760,9 +760,7 @@ static LRESULT CALLBACK WndProcAIChatBox(HWND hwnd, UINT msg, WPARAM wp, LPARAM 
     switch (msg) {
         case WM_ERASEBKGND: {
             HDC hdc = (HDC)wp;
-            RECT rc;
-            GetClientRect(hwnd, &rc);
-            FillRect(hdc, &rc, win->brControlBgColor);
+            HdcFillRect(hdc, HwndClientRect(hwnd), win->brControlBgColor);
             return TRUE;
         }
         case WM_CTLCOLORSTATIC: {
@@ -809,7 +807,7 @@ static void OnAIChatSplitterMove(Splitter::MoveEvent* ev) {
         return;
     }
     Point pcur = HwndGetCursorPos(win->hwndFrame);
-    Rect rFrame = ClientRect(win->hwndFrame);
+    Rect rFrame = HwndClientRect(win->hwndFrame);
     int dx = rFrame.dx - pcur.x;
     if (dx < kAIChatMinDx || dx > rFrame.dx / 2) {
         ev->resizeAllowed = false;
@@ -832,7 +830,7 @@ void RelayoutAIChatPanel(MainWindow* win) {
     }
     RedrawWindow(win->hwndAiChatBox, nullptr, nullptr, RDW_ERASE | RDW_INVALIDATE | RDW_ALLCHILDREN);
     if (win->aiChatSplitter && win->aiChatSplitter->hwnd) {
-        InvalidateRect(win->aiChatSplitter->hwnd, nullptr, TRUE);
+        HwndInvalidate(win->aiChatSplitter->hwnd, true);
     }
 }
 
@@ -869,7 +867,7 @@ static void EnsureWebViewReady(MainWindow* win) {
     webView->resourceProvider.ctx = &gAIChatMarkedJs;
     webView->resourceProvider.getResource = AIChatGetMarkedJsResource;
 
-    Rect rc = ClientRect(win->hwndAiChatBox);
+    Rect rc = HwndClientRect(win->hwndAiChatBox);
     CreateWebViewArgs wvArgs;
     wvArgs.parent = win->hwndAiChatBox;
     wvArgs.pos = Rect(0, 0, rc.dx, rc.dy);

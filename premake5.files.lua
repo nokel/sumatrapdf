@@ -15,8 +15,7 @@ function makelzsa_files()
     "Base.h",
     "Base.cpp",
     "Base_win.cpp",
-    "ByteOrderDecoder.*",
-    "ByteWriter.*",
+    "ByteReaderWriter.*",
     "CmdLineArgsIter.h",
     "CmdLineArgsIter.cpp",
     "CmdLineArgsIter_win.cpp",
@@ -33,6 +32,7 @@ function makelzsa_files()
     "Log.h",
     "LogNoOp.cpp",
     "LzmaSimpleArchive.*",
+    "Pixmap.*",
     "Strconv.*",
     "StrFormatParse.*",
     "StrQueue.*",
@@ -859,10 +859,7 @@ function base_files()
     "Base.h",
     "Base.cpp",
     "Base_win.cpp",
-    "BitReader.*",
-    "ByteOrderDecoder.*",
-    "ByteReader.*",
-    "ByteWriter.*",
+    "ByteReaderWriter.*",
     "CmdLineArgsIter.h",
     "CmdLineArgsIter.cpp",
     "CmdLineArgsIter_win.cpp",
@@ -899,6 +896,7 @@ function base_files()
     "Log.h",
     "LzmaSimpleArchive.*",
     "Pixmap.*",
+    "Pixmap_win.cpp",
     "RegistryPaths.*",
     "Scoped.h",
     "ScopedWin.h",
@@ -1322,8 +1320,7 @@ function test_util_files()
     "Base.cpp",
     "Base_win.cpp",
     "BitManip.*",
-    "ByteOrderDecoder.*",
-    "ByteReader.*",
+    "ByteReaderWriter.*",
     "CmdLineArgsIter.h",
     "CmdLineArgsIter.cpp",
     "CmdLineArgsIter_win.cpp",
@@ -1349,6 +1346,7 @@ function test_util_files()
     "JsonParser.*",
     "Log.h",
     "Pixmap.*",
+    "Pixmap_win.cpp",
     "Scoped.*",
     "SettingsUtil.*",
     "SquareTreeParser.*",
@@ -1426,6 +1424,12 @@ end
 function bench_image_files()
   files {
     "src/tools/bench_image.cpp",
+  }
+end
+
+function logview_files()
+  files {
+    "tools/logview/logview.cpp",
   }
 end
 

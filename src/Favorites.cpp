@@ -1192,12 +1192,12 @@ static void DrawFavItemHighlight(TreeView::CustomDrawEvent* ev, MainWindow* win)
         return;
     }
 
-    RECT labelRect;
+    Rect labelRect;
     TreeView* tv = ev->treeView;
     if (!tv->GetItemRect(ev->treeItem, true, labelRect)) {
         return;
     }
-    RECT itemRect{};
+    Rect itemRect{};
     tv->GetItemRect(ev->treeItem, false, itemRect);
 
     NMTVCUSTOMDRAW* tvcd = ev->nm;
@@ -1350,7 +1350,7 @@ static void FavTreeContextMenu(ContextMenuEvent* ev) {
         return;
     }
 
-    POINT pt{};
+    Point pt{};
     TreeItem ti = GetOrSelectTreeItemAtPos(ev, pt);
     if (!ti) {
         pt = {ev->mouseScreen.x, ev->mouseScreen.y};
@@ -1399,8 +1399,8 @@ void LayoutFavoritesContainer(MainWindow* win) {
     if (!win || !win->favLayout || !win->hwndFavBox) {
         return;
     }
-    // ClientRect: layout is in parent client coordinates
-    Rect rc = ClientRect(win->hwndFavBox);
+    // HwndClientRect: layout is in parent client coordinates
+    Rect rc = HwndClientRect(win->hwndFavBox);
     if (rc.IsEmpty()) {
         return;
     }

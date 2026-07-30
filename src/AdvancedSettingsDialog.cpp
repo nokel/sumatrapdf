@@ -272,7 +272,7 @@ struct AdvancedSettingsWnd : Wnd {
 
     bool Create(MainWindow* win);
     bool PreTranslateMessage(MSG&) override;
-    void OnSize(UINT msg, UINT type, SIZE size) override;
+    void OnSize(UINT msg, UINT type, Size size) override;
 
     void QueryChanged();
     void DrawListBoxItem(ListBox::DrawItemEvent* ev);
@@ -371,10 +371,10 @@ void AdvancedSettingsWnd::OnSelectionChanged() {
 // Split a list-item row into non-overlapping name (left) and value (right)
 // columns so long names and long values (e.g. InverseSearchCmdLine) don't
 // draw on top of each other (#5804).
-static void AdvSettingsItemColumns(HWND hwnd, const RECT& rc, RECT& rcName, RECT& rcVal) {
+static void AdvSettingsItemColumns(HWND hwnd, const Rect& rc, Rect& rcName, Rect& rcVal) {
     int pad = DpiScale(hwnd, 4);
     int gap = DpiScale(hwnd, 10);
-    int totalW = (rc.right - rc.left) - 2 * pad;
+    int totalW = rc.dx - 2 * pad;
     if (totalW < 1) {
         rcName = rc;
         rcVal = rc;
@@ -400,12 +400,12 @@ static void AdvSettingsItemColumns(HWND hwnd, const RECT& rc, RECT& rcName, RECT
     }
 
     rcName = rc;
-    rcName.left += pad;
-    rcName.right = rcName.left + nameW;
+    rcName.x += pad;
+    rcName.dx = nameW;
 
     rcVal = rc;
-    rcVal.right -= pad;
-    rcVal.left = rcVal.right - valW;
+    rcVal.x += rcVal.dx - pad - valW;
+    rcVal.dx = valW;
 }
 
 void AdvancedSettingsWnd::DrawListBoxItem(ListBox::DrawItemEvent* ev) {
@@ -417,7 +417,7 @@ void AdvancedSettingsWnd::DrawListBoxItem(ListBox::DrawItemEvent* ev) {
     }
 
     HDC hdc = ev->hdc;
-    RECT rc = ev->itemRect;
+    Rect rc = ev->itemRect;
 
     COLORREF colBg = IsSpecialColor(lb->bgColor) ? GetSysColor(COLOR_WINDOW) : lb->bgColor;
     COLORREF colText = IsSpecialColor(lb->textColor) ? GetSysColor(COLOR_WINDOWTEXT) : lb->textColor;
@@ -426,7 +426,7 @@ void AdvancedSettingsWnd::DrawListBoxItem(ListBox::DrawItemEvent* ev) {
     }
 
     SetBkColor(hdc, colBg);
-    ExtTextOutW(hdc, 0, 0, ETO_OPAQUE, &rc, nullptr, 0, nullptr);
+    HdcFillRectWithBkColor(hdc, rc);
 
     HFONT fontNormal = font ? font : GetAppFont(hwnd);
 
@@ -437,17 +437,17 @@ void AdvancedSettingsWnd::DrawListBoxItem(ListBox::DrawItemEvent* ev) {
 
     SetTextColor(hdc, colText);
 
-    RECT rcName{}, rcVal{};
+    Rect rcName{}, rcVal{};
     AdvSettingsItemColumns(hwnd, rc, rcName, rcVal);
 
     HGDIOBJ prevFont = SelectObject(hdc, nameFont);
     TempWStr ws = ToWStrTemp(item->name);
-    DrawTextW(hdc, ws.s, -1, &rcName, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS);
+    HdcDrawText(hdc, ws, rcName, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS);
 
     TempStr val = FormatSettingValueTemp(item);
     SelectObject(hdc, valFont);
     ws = ToWStrTemp(val);
-    DrawTextW(hdc, ws.s, -1, &rcVal, DT_RIGHT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS);
+    HdcDrawText(hdc, ws, rcVal, DT_RIGHT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS);
 
     SelectObject(hdc, prevFont);
 }
@@ -465,14 +465,13 @@ Rect AdvancedSettingsWnd::ValueRectForItem(int idx) {
     if (lbIdx < 0) {
         return Rect();
     }
-    RECT rc{};
-    LRESULT res = SendMessageW(listBox->hwnd, LB_GETITEMRECT, (WPARAM)lbIdx, (LPARAM)&rc);
-    if (res == LB_ERR) {
+    Rect rc = LbGetItemRect(listBox->hwnd, lbIdx);
+    if (rc.IsEmpty()) {
         return Rect();
     }
-    RECT rcName{}, rcVal{};
+    Rect rcName{}, rcVal{};
     AdvSettingsItemColumns(hwnd, rc, rcName, rcVal);
-    return ToRect(rcVal);
+    return rcVal;
 }
 
 void AdvancedSettingsWnd::BeginEditValue(int idx) {
@@ -525,9 +524,7 @@ void AdvancedSettingsWnd::BeginEditEnum(int idx) {
     }
     // ValueRectForItem is in listBox client coords; the drop-down is parented
     // to the dialog (see below), so map the rect into dialog client coords
-    RECT rr = {r.x, r.y, r.x + r.dx, r.y + r.dy};
-    MapWindowPoints(listBox->hwnd, hwnd, (POINT*)&rr, 2);
-    r = ToRect(rr);
+    r = HwndMapRectToWindow(r, listBox->hwnd, hwnd);
 
     DropDown::CreateArgs args;
     // parent to the dialog, not the listBox: a subclassed control (the listBox)
@@ -569,7 +566,7 @@ void AdvancedSettingsWnd::OnEnumSelectionChanged() {
     if (sel >= 0) {
         str::ReplaceWithCopy(&item->strVal, item->enumValues[sel]);
         SetItemChanged(item);
-        InvalidateRect(listBox->hwnd, nullptr, TRUE);
+        HwndInvalidate(listBox->hwnd, true);
     }
     // selecting with the mouse closes the list: dispose of the control then.
     // can't do it here (we're inside its notification), so check afterwards;
@@ -601,7 +598,7 @@ void AdvancedSettingsWnd::CloseEnumEdit(bool keepValue) {
     }
     editItemIdx = -1;
     delete tmp;
-    InvalidateRect(listBox->hwnd, nullptr, TRUE);
+    HwndInvalidate(listBox->hwnd, true);
     HwndSetFocus(listBox->hwnd);
 }
 
@@ -627,7 +624,7 @@ void AdvancedSettingsWnd::CommitEditValue() {
     }
     SetItemChanged(item);
     CancelEditValue();
-    InvalidateRect(listBox->hwnd, nullptr, TRUE);
+    HwndInvalidate(listBox->hwnd, true);
 }
 
 // activate a setting: toggle a bool, or begin editing an enum / value. A single
@@ -641,7 +638,7 @@ void AdvancedSettingsWnd::ActivateItem(int lbIdx) {
     if (item->type == SettingType::Bool) {
         item->boolVal = !item->boolVal;
         SetItemChanged(item);
-        InvalidateRect(listBox->hwnd, nullptr, TRUE);
+        HwndInvalidate(listBox->hwnd, true);
         return;
     }
     int idx = model->filtered[lbIdx];
@@ -805,14 +802,14 @@ static int gAdvSettingsLastClientDx = 0;
 static int gAdvSettingsLastClientDy = 0;
 
 // re-layout the controls when the (resizable) window is resized
-void AdvancedSettingsWnd::OnSize(UINT, UINT, SIZE size) {
+void AdvancedSettingsWnd::OnSize(UINT, UINT, Size size) {
     // a WS_CAPTION/WS_THICKFRAME window gets WM_SIZE during CreateCustom,
     // before the child controls exist; ignore layout until they're created
     if (!layout || !listBox) {
         return;
     }
-    int dx = (int)size.cx;
-    int dy = (int)size.cy;
+    int dx = size.dx;
+    int dy = size.dy;
     if (dx == 0 || dy == 0) {
         return;
     }
@@ -822,7 +819,7 @@ void AdvancedSettingsWnd::OnSize(UINT, UINT, SIZE size) {
     // moves on resize, so close them
     CancelEditValue();
     LayoutToSize(layout, {dx, dy});
-    InvalidateRect(hwnd, nullptr, false);
+    HwndInvalidate(hwnd);
 }
 
 // a bold variant of the given font, for drawing changed settings
@@ -837,8 +834,8 @@ static HFONT CreateBoldFont(HFONT font) {
 
 // center the dialog over the main window frame
 static void PositionDialog(HWND hwnd, HWND hwndRelative) {
-    Rect rRelative = WindowRect(hwndRelative);
-    Rect r = WindowRect(hwnd);
+    Rect rRelative = HwndWindowRect(hwndRelative);
+    Rect r = HwndWindowRect(hwnd);
     int x = rRelative.x + (rRelative.dx / 2) - (r.dx / 2);
     int y = rRelative.y + (rRelative.dy / 2) - (r.dy / 2);
     r = {x, y, r.dx, r.dy};
@@ -977,15 +974,15 @@ bool AdvancedSettingsWnd::Create(MainWindow* mainWin) {
     auto padding = new Padding(vbox, DpiScaledInsets(hwnd, 4, 8));
     layout = padding;
 
-    auto rc = ClientRect(win->hwndFrame);
+    auto rc = HwndClientRect(win->hwndFrame);
     // Default is wide enough that long setting names (e.g. InverseSearchCmdLine)
     // and long values don't crowd each other; reuse last size if the user
     // resized earlier this session (#5804).
     int dy = gAdvSettingsLastClientDy > 0 ? gAdvSettingsLastClientDy : limitValue(rc.dy - 72, 480, 900);
     int dx = gAdvSettingsLastClientDx > 0 ? gAdvSettingsLastClientDx : limitValue(rc.dx - 128, 760, 1100);
     LayoutAndSizeToContent(layout, dx, dy, hwnd);
-    gAdvSettingsLastClientDx = ClientRect(hwnd).dx;
-    gAdvSettingsLastClientDy = ClientRect(hwnd).dy;
+    gAdvSettingsLastClientDx = HwndClientRect(hwnd).dx;
+    gAdvSettingsLastClientDy = HwndClientRect(hwnd).dy;
     PositionDialog(hwnd, win->hwndFrame);
 
     SetIsVisible(true);

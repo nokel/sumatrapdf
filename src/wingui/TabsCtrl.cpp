@@ -63,7 +63,7 @@ void TabsCtrl::ScheduleRepaint() {
 // Calculates tab's elements, based on its width and height.
 // Generates a GraphicsPath, which is used for painting the tab, etc.
 void TabsCtrl::LayoutTabs() {
-    Rect rect = ClientRect(hwnd);
+    Rect rect = HwndClientRect(hwnd);
     int dy = rect.dy;
     int nTabs = TabCount();
     if (nTabs == 0) {
@@ -189,10 +189,10 @@ bool TabsCtrl::IsValidIdx(int idx) {
     return idx >= 0 && idx < TabCount();
 }
 
-void TabsCtrl::Paint(HDC hdc, const RECT& rc) {
+void TabsCtrl::Paint(HDC hdc, const Rect& rc) {
     // verify the cursor is actually inside the tab control; if not, ignore stale lastMousePos
     Point cursorPos = HwndGetCursorPos(hwnd);
-    Rect clientRc = ClientRect(hwnd);
+    Rect clientRc = HwndClientRect(hwnd);
     bool mouseInside = clientRc.Contains(cursorPos);
     TabsCtrl::MouseState tabState;
     if (mouseInside) {
@@ -516,10 +516,7 @@ LRESULT TabsCtrl::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     }
 
     if (draggingTab && msg == WM_MOUSEMOVE) {
-        POINT p;
-        p.x = mousePos.x;
-        p.y = mousePos.y;
-        MapWindowPoints(hwnd, NULL, &p, 1);
+        Point p = HwndMapWindowPoint(hwnd, nullptr, mousePos);
         // logfa("%s moving to: %d %d\n", WinMsgNameTemp(msg), p.x, p.y);
         ImageList_DragMove(p.x, p.y);
         return 0;
@@ -545,7 +542,7 @@ LRESULT TabsCtrl::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             if (!inTitleBar || hwnd == GetCapture()) {
                 return HTCLIENT;
             }
-            HwndScreenToClient(hwnd, mousePos);
+            mousePos = HwndScreenToClient(hwnd, mousePos);
             tabState = TabStateFromMousePosition(mousePos);
             if (tabState.tabIdx >= 0) {
                 return HTCLIENT;
@@ -590,9 +587,8 @@ LRESULT TabsCtrl::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 ImageList_BeginDrag(himl, 0, grabLocation.x, grabLocation.y);
                 DeleteObject(hbmp);
                 DeleteObject(himl);
-                POINT p(mousePos.x, mousePos.y);
-                MapWindowPoints(hwnd, NULL, &p, 1);
-                ImageList_DragEnter(NULL, p.x, p.y);
+                Point p = HwndMapWindowPoint(hwnd, nullptr, mousePos);
+                ImageList_DragEnter(nullptr, p.x, p.y);
                 return 0;
             }
 
@@ -694,9 +690,7 @@ LRESULT TabsCtrl::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             int selectedTab = GetSelected();
             if (tabUnderMouse < 0) {
                 // migrate to new/different window
-                POINT p(mousePos.x, mousePos.y);
-                ClientToScreen(hwnd, &p);
-                Point scPoint(p.x, p.y);
+                Point scPoint = HwndClientToScreen(hwnd, mousePos);
                 TriggerTabMigration(this, selectedTab, scPoint);
                 return 0;
             }
@@ -746,9 +740,9 @@ LRESULT TabsCtrl::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_PAINT: {
             // TabCtrl_SetCurSel invalidates native (LTR) item rects; we lay out tabs
             // manually (RTL tabs start from the right). Avoid BeginPaint's clip region.
-            RECT clientRc = ClientRECT(hwnd);
+            Rect clientRc = HwndClientRect(hwnd);
             HDC hdc = GetDC(hwnd);
-            DoubleBuffer buffer(hwnd, ToRect(clientRc));
+            DoubleBuffer buffer(hwnd, clientRc);
             Paint(buffer.GetDC(), clientRc);
             buffer.Flush(hdc);
             ReleaseDC(hwnd, hdc);
@@ -781,7 +775,7 @@ HWND TabsCtrl::Create(TabsCtrl::CreateArgs& args) {
 
     if (withToolTips) {
         HWND ttHwnd = GetToolTipsHwnd();
-        SetWindowStyle(ttHwnd, TTS_NOPREFIX, true);
+        HwndSetWindowStyle(ttHwnd, TTS_NOPREFIX, true);
     }
     return hwnd;
 }
@@ -797,7 +791,7 @@ int TabsCtrl::TabCount() {
 }
 
 // takes ownership of tab
-int TabsCtrl::InsertTab(int idx, TabInfo* tab) {
+int TabsCtrl::InsertTab(int idx, TabInfo* tab, bool update) {
     ReportIf(idx < 0);
     TCITEMW item{};
     item.mask = TCIF_TEXT;
@@ -807,12 +801,14 @@ int TabsCtrl::InsertTab(int idx, TabInfo* tab) {
         return res;
     }
     tabs.InsertAt(idx, tab);
-    // LayoutTabs() must be before SetSelected() because SetSelected()
-    // triggers sync repaint which paints tab texts in wrong positions
-    // because we didn't position them yet in layout.
-    LayoutTabs();
-    SetSelected(idx);
-    TabsCtrlUpdateAfterChangingTabsCount(this);
+    if (update) {
+        // LayoutTabs() must be before SetSelected() because SetSelected()
+        // triggers sync repaint which paints tab texts in wrong positions
+        // because we didn't position them yet in layout.
+        LayoutTabs();
+        SetSelected(idx);
+        TabsCtrlUpdateAfterChangingTabsCount(this);
+    }
     return idx;
 }
 
@@ -839,17 +835,20 @@ void TabsCtrl::SetTabDirty(int idx, bool dirty) {
 UINT_PTR TabsCtrl::RemoveTab(int idx) {
     ReportIf(idx < 0);
     ReportIf(idx >= TabCount());
+    int selectedTab = GetSelected();
     BOOL ok = TabCtrl_DeleteItem(hwnd, idx);
     ReportIf(!ok);
     TabInfo* tab = tabs[idx];
     UINT_PTR userData = tab->userData;
     tabs.RemoveAt(idx);
     delete tab;
-    int selectedTab = GetSelected();
-    if (idx < selectedTab) {
-        SetSelected(selectedTab - 1);
-    } else if (idx == selectedTab) {
-        SetSelected(0);
+    if (TabCount() > 0 && selectedTab >= 0) {
+        if (idx < selectedTab) {
+            selectedTab--;
+        } else if (idx == selectedTab) {
+            selectedTab = 0;
+        }
+        SetSelected(selectedTab);
     }
     LayoutTabs();
     TabsCtrlUpdateAfterChangingTabsCount(this);
