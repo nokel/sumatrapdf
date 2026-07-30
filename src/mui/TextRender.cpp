@@ -3,6 +3,7 @@
 
 #include "base/Base.h"
 #include "base/GdiPlus.h"
+#include "base/Win.h"
 #include "Mui.h"
 
 /*
@@ -119,9 +120,8 @@ float TextRenderGdi::GetCurrFontLineSpacing() {
 }
 
 RectF TextRenderGdi::Measure(WStr s) {
-    SIZE txtSize;
-    GetTextExtentPoint32W(hdcForTextMeasure, s.s, s.len, &txtSize);
-    RectF res(0.0f, 0.0f, (float)txtSize.cx, (float)txtSize.cy);
+    Size size = HdcGetTextExtentPoint32(hdcForTextMeasure, s);
+    RectF res(0.0f, 0.0f, (float)size.dx, (float)size.dy);
     return res;
 }
 
@@ -335,6 +335,10 @@ void TextRenderGdiplus::SetTextColor(Gdiplus::Color col) {
     textColorBrush = new SolidBrush(col);
 }
 
+Gdiplus::PointF ToGdipPointF(const PointF p) {
+    return Gdiplus::PointF(p.x, p.y);
+}
+
 void TextRenderGdiplus::Draw(WStr s, const RectF bb, bool isRtl) {
     Gdiplus::PointF pos = ToGdipPointF(bb.TL());
     if (!isRtl) {
@@ -437,10 +441,9 @@ RectF TextRenderHdc::Measure(Str s) {
 }
 
 RectF TextRenderHdc::Measure(WStr s) {
-    SIZE txtSize;
     ReportIf(!hdc);
-    GetTextExtentPoint32W(hdc, s.s, s.len, &txtSize);
-    RectF res(0.0f, 0.0f, (float)txtSize.cx, (float)txtSize.cy);
+    Size size = HdcGetTextExtentPoint32(hdc, s);
+    RectF res(0.0f, 0.0f, (float)size.dx, (float)size.dy);
     return res;
 }
 
@@ -459,7 +462,7 @@ void TextRenderHdc::Draw(WStr s, const RectF bb, bool /* isRtl */) {
         opts = opts | ETO_RTLREADING;
     }
 #endif
-    ExtTextOutW(hdc, x, y, opts, nullptr, s.s, (uint)s.len, nullptr);
+    HdcExTextOut(hdc, Point(x, y), opts, Rect(), s);
 }
 
 TextRenderHdc::~TextRenderHdc() {

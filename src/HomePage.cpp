@@ -317,7 +317,7 @@ void DrawTipWords(HDC hdc, ParsedTip& tip, HFONT font, COLORREF textCol, COLORRE
         int underlineY = first.y + first.dy - 3;
         int x1 = first.x;
         int x2 = last.x + last.dx;
-        DrawLine(hdc, Rect(x1, underlineY, x2 - x1, 0));
+        HdcDrawLine(hdc, Rect(x1, underlineY, x2 - x1, 0));
     }
     SelectObject(hdc, prevPen);
     DeleteObject(pen);
@@ -546,8 +546,8 @@ constexpr COLORREF kCol5 = RGB(112, 115, 207);
 
 static void DrawSumatraVersion(HDC hdc, Rect rect) {
     uint fmt = DT_LEFT | DT_NOCLIP;
-    HFONT fontSumatraTxt = CreateSimpleFont(hdc, kSumatraTxtFont, kSumatraTxtFontSize);
-    HFONT fontVersionTxt = CreateSimpleFont(hdc, kVersionTxtFont, kVersionTxtFontSize);
+    HFONT fontSumatraTxt = HdcCreateSimpleFont(hdc, kSumatraTxtFont, kSumatraTxtFontSize);
+    HFONT fontVersionTxt = HdcCreateSimpleFont(hdc, kVersionTxtFont, kVersionTxtFontSize);
 
     SetBkMode(hdc, TRANSPARENT);
 
@@ -583,7 +583,7 @@ static void DrawSumatraVersion(HDC hdc, Rect rect) {
 
 // draw on the bottom right
 static Rect DrawHideFrequentlyReadLink(HWND hwnd, HDC hdc, Str txt) {
-    HFONT fontLeftTxt = CreateSimpleFont(hdc, "MS Shell Dlg", 16);
+    HFONT fontLeftTxt = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 16);
 
     VirtWndText w(hwnd, txt, fontLeftTxt);
     w.isRtl = IsUIRtl();
@@ -595,7 +595,7 @@ static Rect DrawHideFrequentlyReadLink(HWND hwnd, HDC hdc, Str txt) {
 
     SetTextColor(hdc, col);
     SetBkMode(hdc, TRANSPARENT);
-    Rect rc = ClientRect(hwnd);
+    Rect rc = HwndClientRect(hwnd);
 
     int innerPadding = DpiScale(hwnd, kInnerPadding);
     Rect r = {0, 0, txtSize.dx, txtSize.dy};
@@ -610,8 +610,8 @@ static Rect DrawHideFrequentlyReadLink(HWND hwnd, HDC hdc, Str txt) {
 }
 
 static Size CalcSumatraVersionSize(HDC hdc) {
-    HFONT fontSumatraTxt = CreateSimpleFont(hdc, kSumatraTxtFont, kSumatraTxtFontSize);
-    HFONT fontVersionTxt = CreateSimpleFont(hdc, kVersionTxtFont, kVersionTxtFontSize);
+    HFONT fontSumatraTxt = HdcCreateSimpleFont(hdc, kSumatraTxtFont, kSumatraTxtFontSize);
+    HFONT fontVersionTxt = HdcCreateSimpleFont(hdc, kVersionTxtFont, kVersionTxtFontSize);
 
     /* calculate minimal top box size */
     Size sz = HdcMeasureText(hdc, kAppName, fontSumatraTxt);
@@ -645,15 +645,15 @@ static void DrawAbout(HWND hwnd, HDC hdc, Rect rect, Vec<StaticLink*>& staticLin
     col = ThemeWindowLinkColor();
     AutoDeletePen penLinkLine(CreatePen(PS_SOLID, ABOUT_LINE_SEP_SIZE, col));
 
-    HFONT fontLeftTxt = CreateSimpleFont(hdc, kLeftTextFont, kLeftTextFontSize);
-    HFONT fontRightTxt = CreateSimpleFont(hdc, kRightTextFont, kRightTextFontSize);
+    HFONT fontLeftTxt = HdcCreateSimpleFont(hdc, kLeftTextFont, kLeftTextFontSize);
+    HFONT fontRightTxt = HdcCreateSimpleFont(hdc, kRightTextFont, kRightTextFontSize);
 
     ScopedSelectObject font(hdc, fontLeftTxt); /* Just to remember the orig font */
 
-    Rect rc = ClientRect(hwnd);
+    Rect rc = HwndClientRect(hwnd);
     col = ThemeMainWindowBackgroundColor();
     AutoDeleteBrush brushAboutBg = CreateSolidBrush(col);
-    FillRect(hdc, rc, brushAboutBg);
+    HdcFillRect(hdc, rc, brushAboutBg);
 
     /* render title */
     Rect titleRect(rect.TL(), CalcSumatraVersionSize(hdc));
@@ -666,9 +666,9 @@ static void DrawAbout(HWND hwnd, HDC hdc, Rect rect, Vec<StaticLink*>& staticLin
 #else
     Rect titleBgBand(0, rect.y, rc.dx, titleRect.dy);
     RECT rcLogoBg = titleBgBand.ToRECT();
-    FillRect(hdc, &rcLogoBg, bgBrush);
-    DrawLine(hdc, Rect(0, rect.y, rc.dx, 0));
-    DrawLine(hdc, Rect(0, rect.y + titleRect.dy, rc.dx, 0));
+    HdcFillRect(hdc, ToRect(rcLogoBg), bgBrush);
+    HdcDrawLine(hdc, Rect(0, rect.y, rc.dx, 0));
+    HdcDrawLine(hdc, Rect(0, rect.y + titleRect.dy, rc.dx, 0));
 #endif
 
     titleRect.Offset((rect.dx - titleRect.dx) / 2, 0);
@@ -709,7 +709,7 @@ static void DrawAbout(HWND hwnd, HDC hdc, Rect rect, Vec<StaticLink*>& staticLin
 
         if (hasUrl) {
             int underlineY = pos.y + pos.dy - 3;
-            DrawLine(hdc, Rect(pos.x, underlineY, pos.dx, 0));
+            HdcDrawLine(hdc, Rect(pos.x, underlineY, pos.dx, 0));
             auto sl = new StaticLink(pos, el->url, el->url);
             staticLinks.Append(sl);
         }
@@ -718,12 +718,12 @@ static void DrawAbout(HWND hwnd, HDC hdc, Rect rect, Vec<StaticLink*>& staticLin
     SelectObject(hdc, penDivideLine);
     Rect divideLine(gAboutLayoutInfo[0].rightPos.x - DpiScale(hwnd, kAboutLeftRightSpaceDx), rect.y + titleRect.dy + 4,
                     0, rect.y + rect.dy - 4 - gAboutLayoutInfo[0].rightPos.y);
-    DrawLine(hdc, divideLine);
+    HdcDrawLine(hdc, divideLine);
 }
 
 static void UpdateAboutLayoutInfo(HWND hwnd, HDC hdc, Rect* rect) {
-    HFONT fontLeftTxt = CreateSimpleFont(hdc, kLeftTextFont, kLeftTextFontSize);
-    HFONT fontRightTxt = CreateSimpleFont(hdc, kRightTextFont, kRightTextFontSize);
+    HFONT fontLeftTxt = HdcCreateSimpleFont(hdc, kLeftTextFont, kLeftTextFontSize);
+    HFONT fontRightTxt = HdcCreateSimpleFont(hdc, kRightTextFont, kRightTextFontSize);
 
     /* calculate minimal top box size */
     Size headerSize = CalcSumatraVersionSize(hdc);
@@ -783,7 +783,7 @@ static void UpdateAboutLayoutInfo(HWND hwnd, HDC hdc, Rect* rect) {
     }
     minRect.dy += 2 * ABOUT_LINE_OUTER_SIZE + 4;
 
-    Rect rc = ClientRect(hwnd);
+    Rect rc = HwndClientRect(hwnd);
     minRect.x = (rc.dx - minRect.dx) / 2;
     minRect.y = (rc.dy - minRect.dy) / 2;
 
@@ -992,8 +992,8 @@ void ShowAboutWindow(MainWindow* win) {
     rc.Inflate(rectPadding, rectPadding);
 
     // resize the new window to just match these dimensions
-    Rect wRc = WindowRect(gHwndAbout);
-    Rect cRc = ClientRect(gHwndAbout);
+    Rect wRc = HwndWindowRect(gHwndAbout);
+    Rect cRc = HwndClientRect(gHwndAbout);
     wRc.dx += rc.dx - cRc.dx;
     wRc.dy += rc.dy - cRc.dy;
     MoveWindow(gHwndAbout, wRc.x, wRc.y, wRc.dx, wRc.dy, FALSE);
@@ -1003,7 +1003,7 @@ void ShowAboutWindow(MainWindow* win) {
 }
 
 void DrawAboutPage(MainWindow* win, HDC hdc) {
-    Rect rc = ClientRect(win->hwndCanvas);
+    Rect rc = HwndClientRect(win->hwndCanvas);
     UpdateAboutLayoutInfo(win->hwndCanvas, hdc, &rc);
     DrawAbout(win->hwndCanvas, hdc, rc, win->staticLinks);
     if (HasPermission(Perm::SavePreferences | Perm::DiskAccess) && SettingsRememberOpenedFiles()) {
@@ -1129,7 +1129,7 @@ static void EnsureHomeSearchCreated(MainWindow* win) {
     win->hwndHomeSearch = CreateWindowExW(exStyle, WC_EDITW, L"", style, 0, 0, 100, kSearchEditDy, win->hwndCanvas,
                                           nullptr, hmod, nullptr);
     HDC hdc = GetDC(win->hwndCanvas);
-    HFONT font = CreateSimpleFont(hdc, "MS Shell Dlg", 14);
+    HFONT font = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 14);
     ReleaseDC(win->hwndCanvas, hdc);
     SetWindowFont(win->hwndHomeSearch, font, TRUE);
     if (!DefWndProcHomeSearch) {
@@ -1215,8 +1215,8 @@ void LayoutHomePage(HomePageLayout& l) {
     }
 
     bool isRtl = IsUIRtl();
-    HFONT fontText = CreateSimpleFont(hdc, "MS Shell Dlg", 14);
-    HFONT hdrFont = CreateSimpleFont(hdc, "MS Shell Dlg", 24);
+    HFONT fontText = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 14);
+    HFONT hdrFont = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 24);
 
     Size sz = CalcSumatraVersionSize(hdc);
     {
@@ -1246,7 +1246,7 @@ void LayoutHomePage(HomePageLayout& l) {
     int thumbsContentWidth = thumbsColsForLayout * kThumbnailDx + (thumbsColsForLayout - 1) * kThumbsSpaceBetweenX;
 
     // --- Step 1: layout header at the top ---
-    l.himlOpen = (HIMAGELIST)SendMessageW(win->hwndToolbar, TB_GETIMAGELIST, 0, 0);
+    l.himlOpen = TbGetImageList(win->hwndToolbar);
     Rect rcIconView(0, 0, 0, 0);
     ImageList_GetIconSize(l.himlOpen, &rcIconView.dx, &rcIconView.dy);
 
@@ -1343,7 +1343,7 @@ void LayoutHomePage(HomePageLayout& l) {
 
     // --- Step 2: calculate tip area at the bottom (before thumbnails) ---
     int tipHeight = 0;
-    HFONT fontTip = CreateSimpleFont(hdc, "MS Shell Dlg", 16);
+    HFONT fontTip = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 16);
     ParsedTip* tip = nullptr;
     if (gGlobalPrefs->showTips && gSelectedTipIdx >= 0) {
         if (gSelectedIsPromo && gSelectedTipIdx < gParsedPromoCount) {
@@ -1400,7 +1400,7 @@ void LayoutHomePage(HomePageLayout& l) {
         }
         int listIconDx = l.rcIconListView.dx;
         int listIconGap = DpiScale(hdc, 6);
-        HFONT fontRow = CreateSimpleFont(hdc, StrL("MS Shell Dlg"), 14);
+        HFONT fontRow = HdcCreateSimpleFont(hdc, StrL("MS Shell Dlg"), 14);
         for (int row = 0; row < nFiles; row++) {
             ThumbnailLayout& thumb = *l.thumbnails.AppendBlanks(1);
             FileState* fs = fileStates[row];
@@ -1513,7 +1513,7 @@ void LayoutHomePage(HomePageLayout& l) {
 
     // layout tip at the bottom
     if (tip) {
-        Rect rcClient = ClientRect(win->hwndCanvas);
+        Rect rcClient = HwndClientRect(win->hwndCanvas);
         int tipPadding = DpiScale(hdc, 8);
 
         int tipY = rcClient.dy - tipHeight;
@@ -1628,7 +1628,7 @@ static void EraseHomeCloseGlyph(MainWindow* win) {
         // no buffer to restore from: fall back to invalidating the area
         if (win) {
             RECT r = ToRECT(pr);
-            InvalidateRect(win->hwndCanvas, &r, FALSE);
+            HwndInvalidateRect(win->hwndCanvas, ToRect(r), false);
         }
     }
     pr = {};
@@ -1746,7 +1746,7 @@ void HomePageOnCanvasMouseLeave() {
 
 static void DrawHomeViewButton(HDC hdc, HIMAGELIST himl, Rect r, TbIcon icon, bool selected) {
     if (selected) {
-        FillRect(hdc, r, ThemeControlBackgroundColor());
+        HdcFillRect(hdc, r, ThemeControlBackgroundColor());
         HBRUSH br = CreateSolidBrush(AccentColor(ThemeControlBackgroundColor(), 40));
         RECT rr = ToRECT(r);
         FrameRect(hdc, &rr, br);
@@ -1788,7 +1788,7 @@ static void DrawHomeListRow(HomePageLayout& l, const ThumbnailLayout& thumb, HFO
 
     COLORREF lineCol = AccentColor(ThemeMainWindowBackgroundColor(), 30);
     ScopedSelectObject pen(hdc, CreatePen(PS_SOLID, 1, lineCol), true);
-    DrawLine(hdc, Rect(row.x, row.y + row.dy - 1, row.dx, 0));
+    HdcDrawLine(hdc, Rect(row.x, row.y + row.dy - 1, row.dx, 0));
 
     RenderedBitmap* thumbImg = LoadThumbnail(fs);
     Rect thumbBox = thumb.rcListThumb;
@@ -1803,9 +1803,8 @@ static void DrawHomeListRow(HomePageLayout& l, const ThumbnailLayout& thumb, HFO
     UINT nameFmt = DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX | (isRtl ? DT_RIGHT : DT_LEFT);
     SelectObject(hdc, fontText);
     {
-        RECT rcText = ToRECT(thumb.rcListFileName);
-        DrawMaybeHighlightedText(hdc, rcText, fileName, l.filterWords, l.highlighted, backgroundColor, isRtl, false,
-                                 nameFmt);
+        DrawMaybeHighlightedText(hdc, thumb.rcListFileName, fileName, l.filterWords, l.highlighted, backgroundColor,
+                                 isRtl, false, nameFmt);
     }
 
     // directory path, right-aligned and muted, in the space the file name doesn't need.
@@ -1814,22 +1813,20 @@ static void DrawHomeListRow(HomePageLayout& l, const ThumbnailLayout& thumb, HFO
     if (!thumb.rcListPath.IsEmpty()) {
         TempStr dirPath = path::GetDirTemp(path);
         SetTextColor(hdc, ThemeWindowTextDisabledColor());
-        RECT rcPath = ToRECT(thumb.rcListPath);
         UINT pathFmt = DT_SINGLELINE | DT_VCENTER | DT_PATH_ELLIPSIS | DT_NOPREFIX | (isRtl ? DT_LEFT : DT_RIGHT);
-        TempWStr pathW = ToWStrTemp(dirPath);
-        DrawTextW(hdc, pathW.s, -1, &rcPath, pathFmt);
+        Rect pathRect = thumb.rcListPath;
+        HdcDrawText(hdc, dirPath, pathRect, pathFmt);
     }
 
     TempStr fileSize = FileSizeForHomeListTemp(path);
     SetTextColor(hdc, ThemeWindowTextColor());
-    RECT rcSize = ToRECT(thumb.rcListSize);
     UINT sizeFmt = DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX | (isRtl ? DT_LEFT : DT_RIGHT);
-    TempWStr sizeW = ToWStrTemp(fileSize);
-    DrawTextW(hdc, sizeW.s, -1, &rcSize, sizeFmt);
+    Rect sizeRect = thumb.rcListSize;
+    HdcDrawText(hdc, fileSize, sizeRect, sizeFmt);
 
     ImageList_Draw(l.himlOpen, (int)TbIcon::Close, hdc, thumb.rcListRemove.x, thumb.rcListRemove.y, ILD_NORMAL);
     if (fs->isPinned) {
-        FillRect(hdc, thumb.rcListPin, ThemeControlBackgroundColor());
+        HdcFillRect(hdc, thumb.rcListPin, ThemeControlBackgroundColor());
     }
     ImageList_Draw(l.himlOpen, (int)TbIcon::Pin, hdc, thumb.rcListPin.x, thumb.rcListPin.y, ILD_NORMAL);
 }
@@ -1842,9 +1839,9 @@ static void DrawHomePageLayout(HomePageLayout& l) {
     auto backgroundColor = ThemeMainWindowBackgroundColor();
 
     {
-        Rect rc = ClientRect(win->hwndCanvas);
+        Rect rc = HwndClientRect(win->hwndCanvas);
         auto color = ThemeMainWindowBackgroundColor();
-        FillRect(hdc, rc, color);
+        HdcFillRect(hdc, rc, color);
     }
 
     // draw search edit border and background on the canvas
@@ -1854,7 +1851,7 @@ static void DrawHomePageLayout(HomePageLayout& l) {
         RECT rcBorder = {sb.x, sb.y, sb.x + sb.dx, sb.y + sb.dy};
         // fill interior with control background so padding matches the edit
         HBRUSH brBg = CreateSolidBrush(bgCol);
-        FillRect(hdc, &rcBorder, brBg);
+        HdcFillRect(hdc, ToRect(rcBorder), brBg);
         DeleteObject(brBg);
         // draw border frame
         COLORREF borderCol = AccentColor(bgCol, 40);
@@ -1871,9 +1868,9 @@ static void DrawHomePageLayout(HomePageLayout& l) {
     auto color = ThemeWindowTextColor();
     if (false) {
         ScopedSelectObject pen(hdc, CreatePen(PS_SOLID, 1, color), true);
-        DrawLine(hdc, l.rcLine);
+        HdcDrawLine(hdc, l.rcLine);
     }
-    HFONT fontText = CreateSimpleFont(hdc, "MS Shell Dlg", 14);
+    HFONT fontText = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 14);
 
     AutoDeletePen penThumbBorder(CreatePen(PS_SOLID, kThumbsBorderDx, color));
     color = ThemeWindowLinkColor();
@@ -1925,8 +1922,7 @@ static void DrawHomePageLayout(HomePageLayout& l) {
 
         SelectObject(hdc, fontText);
         {
-            RECT rcText = {rect.x, rect.y, rect.x + rect.dx, rect.y + rect.dy};
-            DrawMaybeHighlightedText(hdc, rcText, fileName, l.filterWords, l.highlighted, backgroundColor, isRtl, false,
+            DrawMaybeHighlightedText(hdc, rect, fileName, l.filterWords, l.highlighted, backgroundColor, isRtl, false,
                                      fmt);
         }
 
@@ -1958,9 +1954,9 @@ static void DrawHomePageLayout(HomePageLayout& l) {
     // draw tip at the bottom
     if (l.tip) {
         COLORREF tipBgCol = ThemeControlBackgroundColor();
-        FillRect(hdc, l.rcTip, tipBgCol);
+        HdcFillRect(hdc, l.rcTip, tipBgCol);
 
-        HFONT fontTip = CreateSimpleFont(hdc, "MS Shell Dlg", 16);
+        HFONT fontTip = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 16);
         COLORREF textCol = ThemeWindowTextColor();
         COLORREF linkCol = ThemeWindowLinkColor();
         DrawTipWords(hdc, *l.tip, fontTip, textCol, linkCol);
@@ -1976,7 +1972,7 @@ void DrawHomePage(MainWindow* win, HDC hdc) {
     DeleteVecMembers(win->staticLinks);
 
     HomePageLayout l;
-    l.rc = ClientRect(win->hwndCanvas);
+    l.rc = HwndClientRect(win->hwndCanvas);
     l.hdc = hdc;
     l.hwnd = hwnd;
     l.win = win;
@@ -2048,12 +2044,12 @@ void HomePageOnVScroll(MainWindow* win, WPARAM wp) {
     }
     if (newScrollY != win->homePageScrollY) {
         win->homePageScrollY = newScrollY;
-        InvalidateRect(win->hwndCanvas, nullptr, FALSE);
+        HwndInvalidate(win->hwndCanvas);
     }
 }
 
 void HomePageOnMouseWheel(MainWindow* win, int delta) {
-    Rect rc = ClientRect(win->hwndCanvas);
+    Rect rc = HwndClientRect(win->hwndCanvas);
     HDC hdc = GetDC(win->hwndCanvas);
     int thumbsRowDy = HomePageIsListView() ? kHomeListRowDy : kThumbnailDy + kThumbsSpaceBetweenY;
     ReleaseDC(win->hwndCanvas, hdc);
@@ -2068,6 +2064,6 @@ void HomePageOnMouseWheel(MainWindow* win, int delta) {
     }
     if (newScrollY != win->homePageScrollY) {
         win->homePageScrollY = newScrollY;
-        InvalidateRect(win->hwndCanvas, nullptr, FALSE);
+        HwndInvalidate(win->hwndCanvas);
     }
 }

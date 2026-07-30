@@ -37,13 +37,10 @@ extern "C" void fz_set_optind(int val);
 static int CalcDlgWidth(HWND hwndParent, HFONT font, Str path, int minW, int padding) {
     HDC hdc = GetDC(nullptr);
     HFONT oldFont = (HFONT)SelectObject(hdc, font);
-    int pathCch;
-    WCHAR* pathW = CWStrTemp(path, pathCch);
-    SIZE sz{};
-    GetTextExtentPoint32W(hdc, pathW, pathCch, &sz);
+    Size size = HdcGetTextExtentPoint32(hdc, path);
     SelectObject(hdc, oldFont);
     ReleaseDC(nullptr, hdc);
-    int dlgW = sz.cx + 2 * padding + DpiScale(hwndParent, 32);
+    int dlgW = size.dx + 2 * padding + DpiScale(hwndParent, 32);
     dlgW = std::max(dlgW, minW);
     int screenW = GetSystemMetrics(SM_CXSCREEN);
     dlgW = std::min(dlgW, screenW * 80 / 100);
@@ -264,7 +261,7 @@ bool PdfBakeDialog::Create(MainWindow* w, WindowTab* tab) {
     mainLayout->SetBounds(bounds);
     ResizeHwndToClientArea(hwnd, size.dx, size.dy, false);
 
-    CenterDialog(hwnd, w->hwndFrame);
+    HwndCenterDialog(hwnd, w->hwndFrame);
     if (UseDarkModeLib()) {
         DarkMode::setDarkWndSafe(hwnd);
         DarkMode::setWindowEraseBgSubclass(hwnd);
@@ -541,7 +538,7 @@ bool PdfExtractTextDialog::Create(MainWindow* w, WindowTab* tab) {
     mainLayout->SetBounds(bounds);
     ResizeHwndToClientArea(hwnd, size.dx, size.dy, false);
 
-    CenterDialog(hwnd, w->hwndFrame);
+    HwndCenterDialog(hwnd, w->hwndFrame);
     if (UseDarkModeLib()) {
         DarkMode::setDarkWndSafe(hwnd);
         DarkMode::setWindowEraseBgSubclass(hwnd);
@@ -738,7 +735,7 @@ bool PdfCompressDialog::Create(MainWindow* w, WindowTab* tab) {
     mainLayout->SetBounds(bounds);
     ResizeHwndToClientArea(hwnd, size.dx, size.dy, false);
 
-    CenterDialog(hwnd, w->hwndFrame);
+    HwndCenterDialog(hwnd, w->hwndFrame);
     if (UseDarkModeLib()) {
         DarkMode::setDarkWndSafe(hwnd);
         DarkMode::setWindowEraseBgSubclass(hwnd);
@@ -937,7 +934,7 @@ bool PdfDecompressDialog::Create(MainWindow* w, WindowTab* tab) {
     mainLayout->SetBounds(bounds);
     ResizeHwndToClientArea(hwnd, size.dx, size.dy, false);
 
-    CenterDialog(hwnd, w->hwndFrame);
+    HwndCenterDialog(hwnd, w->hwndFrame);
     if (UseDarkModeLib()) {
         DarkMode::setDarkWndSafe(hwnd);
         DarkMode::setWindowEraseBgSubclass(hwnd);
@@ -1381,7 +1378,7 @@ bool PdfDeletePageDialog::Create(MainWindow* w, WindowTab* tab, bool isExtractAr
     pagesEdit->onTextChanged = MkMethod0<PdfDeletePageDialog, &PdfDeletePageDialog::UpdateButton>(this);
     UpdateButton();
 
-    CenterDialog(hwnd, w->hwndFrame);
+    HwndCenterDialog(hwnd, w->hwndFrame);
     if (UseDarkModeLib()) {
         DarkMode::setDarkWndSafe(hwnd);
         DarkMode::setWindowEraseBgSubclass(hwnd);
@@ -1641,7 +1638,7 @@ bool PdfEncryptDialog::Create(MainWindow* w, WindowTab* tab) {
     passwordEdit->onTextChanged = MkMethod0<PdfEncryptDialog, &PdfEncryptDialog::UpdateButton>(this);
     encryptBtn->SetIsEnabled(false);
 
-    CenterDialog(hwnd, w->hwndFrame);
+    HwndCenterDialog(hwnd, w->hwndFrame);
     if (UseDarkModeLib()) {
         DarkMode::setDarkWndSafe(hwnd);
         DarkMode::setWindowEraseBgSubclass(hwnd);
@@ -1851,7 +1848,7 @@ bool PdfDecryptDialog::Create(MainWindow* w, WindowTab* tab, Str pwd) {
     mainLayout->SetBounds(bounds);
     ResizeHwndToClientArea(hwnd, size.dx, size.dy, false);
 
-    CenterDialog(hwnd, w->hwndFrame);
+    HwndCenterDialog(hwnd, w->hwndFrame);
     if (UseDarkModeLib()) {
         DarkMode::setDarkWndSafe(hwnd);
         DarkMode::setWindowEraseBgSubclass(hwnd);

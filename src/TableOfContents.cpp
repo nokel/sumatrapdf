@@ -78,12 +78,12 @@ static void TocCustomizeTooltip(TreeView::GetTooltipEvent* ev) {
     str::Builder infotip;
 
     // Display the item's full label, if it's overlong
-    RECT rcLine, rcLabel;
+    Rect rcLine, rcLabel;
     treeView->GetItemRect(ev->treeItem, false, rcLine);
     treeView->GetItemRect(ev->treeItem, true, rcLabel);
 
     // TODO: this causes a duplicate. Not sure what changed
-    if (false && rcLine.right + 2 < rcLabel.right) {
+    if (false && rcLine.x + rcLine.dx + 2 < rcLabel.x + rcLabel.dx) {
         Str currInfoTip = tm->Text(ti);
         infotip.Append(currInfoTip);
         infotip.Append("\r\n");
@@ -438,7 +438,7 @@ static void SetTocMultiHighlight(MainWindow* win, TreeView* treeView, TocItem* b
     // TreeView selection paint won't cover the extra matches; repaint so
     // OnTocCustomDraw can draw them.
     if (treeView->hwnd) {
-        InvalidateRect(treeView->hwnd, nullptr, TRUE);
+        HwndInvalidate(treeView->hwnd, true);
     }
 }
 
@@ -824,7 +824,7 @@ static void TocContextMenu(ContextMenuEvent* ev) {
     MainWindow* win = FindMainWindowByHwnd(ev->w->hwnd);
     Str filePath = win->ctrl->GetFilePath();
 
-    POINT pt{};
+    Point pt{};
 
     TreeView* treeView = (TreeView*)ev->w;
     TreeItem ti = GetOrSelectTreeItemAtPos(ev, pt);
@@ -1061,11 +1061,11 @@ static void DrawTocItemPostPaint(TreeView::CustomDrawEvent* ev, MainWindow* win)
     }
 
     TreeView* tv = ev->treeView;
-    RECT labelRect{};
+    Rect labelRect{};
     if (!tv->GetItemRect(ev->treeItem, true, labelRect)) {
         return;
     }
-    RECT itemRect{};
+    Rect itemRect{};
     tv->GetItemRect(ev->treeItem, false, itemRect);
 
     NMTVCUSTOMDRAW* tvcd = ev->nm;
@@ -1116,8 +1116,8 @@ static void DrawTocItemPostPaint(TreeView::CustomDrawEvent* ev, MainWindow* win)
 
     // Label area extends to the visible right edge so the page number stays
     // right-aligned against the sidebar, not under a long title.
-    RECT drawRc = labelRect;
-    drawRc.right = std::min(itemRect.right, cd->rc.right);
+    RECT drawRc = ToRECT(labelRect);
+    drawRc.right = std::min(itemRect.x + itemRect.dx, (int)cd->rc.right);
     if (drawRc.right <= drawRc.left) {
         return;
     }
@@ -1131,42 +1131,44 @@ static void DrawTocItemPostPaint(TreeView::CustomDrawEvent* ev, MainWindow* win)
     }
 
     TempWStr pageW{};
-    SIZE pageSize{};
+    Size pageSize{};
     int pageReserve = 0;
     if (showPage) {
         pageW = ToWStrTemp(pageLabel);
         if (pageW.len > 0) {
-            GetTextExtentPoint32W(hdc, pageW.s, pageW.len, &pageSize);
-            pageReserve = pageSize.cx + DpiScale(tv->hwnd, 8);
+            pageSize = HdcGetTextExtentPoint32(hdc, pageLabel);
+            pageReserve = pageSize.dx + DpiScale(tv->hwnd, 8);
         } else {
             showPage = false;
         }
     }
 
+    Rect drawRect = ToRect(drawRc);
     HBRUSH brushBg = CreateSolidBrush(bgCol);
-    FillRect(hdc, &drawRc, brushBg);
+    HdcFillRect(hdc, drawRect, brushBg);
     DeleteObject(brushBg);
 
-    RECT titleRc = drawRc;
-    titleRc.right = std::max(titleRc.left, drawRc.right - pageReserve);
-    InflateRect(&titleRc, -2, -1);
+    Rect titleRect = drawRect;
+    titleRect.dx = std::max(0, titleRect.dx - pageReserve);
+    titleRect.Inflate(-2, -1);
 
     SetBkMode(hdc, TRANSPARENT);
     SetTextColor(hdc, txtCol);
     SetBkColor(hdc, bgCol);
 
     if (filterActive) {
-        DrawTreeItemFilterHighlight(hdc, titleRc, tocItem->title, words, bgCol, txtCol, font);
+        DrawTreeItemFilterHighlight(hdc, titleRect, tocItem->title, words, bgCol, txtCol, font);
     } else {
-        TempWStr titleW = ToWStrTemp(tocItem->title);
-        DrawTextW(hdc, titleW.s, titleW.len, &titleRc,
-                  DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_WORD_ELLIPSIS | DT_LEFT);
+        HdcDrawText(hdc, tocItem->title, titleRect,
+                    DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_WORD_ELLIPSIS | DT_LEFT);
     }
 
     if (showPage && pageW.len > 0) {
-        RECT pageRc = drawRc;
-        InflateRect(&pageRc, -2, -1);
-        pageRc.left = std::max(pageRc.left, pageRc.right - pageSize.cx);
+        Rect pageRect = drawRect;
+        pageRect.Inflate(-2, -1);
+        int right = pageRect.x + pageRect.dx;
+        pageRect.x = std::max(pageRect.x, right - pageSize.dx);
+        pageRect.dx = right - pageRect.x;
         // Slightly muted vs title when not selected (keeps numbers secondary).
         if (!(isTreeSelected && hasFocus)) {
             COLORREF muted =
@@ -1174,7 +1176,7 @@ static void DrawTocItemPostPaint(TreeView::CustomDrawEvent* ev, MainWindow* win)
                     (GetBValue(txtCol) * 2 + GetBValue(bgCol)) / 3);
             SetTextColor(hdc, muted);
         }
-        DrawTextW(hdc, pageW.s, pageW.len, &pageRc, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_RIGHT);
+        HdcDrawText(hdc, pageW, pageRect, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_RIGHT);
     }
 
     if ((cd->uItemState & CDIS_FOCUS) && isTreeSelected && hasFocus) {
@@ -1372,7 +1374,7 @@ static void LayoutTocContainer(MainWindow* win) {
     if (!win->tocLayout) {
         return;
     }
-    Rect rc = WindowRect(win->hwndTocBox);
+    Rect rc = HwndWindowRect(win->hwndTocBox);
     win->tocLayout->Layout(Tight(Size{rc.dx, rc.dy}));
     win->tocLayout->SetBounds(Rect{0, 0, rc.dx, rc.dy});
 }

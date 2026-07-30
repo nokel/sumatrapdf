@@ -287,7 +287,7 @@ void NavFilesInFolderWnd::DrawListBoxItem(ListBox::DrawItemEvent* ev) {
     }
 
     HDC hdc = ev->hdc;
-    RECT rc = ev->itemRect;
+    Rect rc = ev->itemRect;
     NavFileEntry& e = m->entries[ev->itemIndex];
 
     COLORREF colBg = IsSpecialColor(lb->bgColor) ? GetSysColor(COLOR_WINDOW) : lb->bgColor;
@@ -297,7 +297,7 @@ void NavFilesInFolderWnd::DrawListBoxItem(ListBox::DrawItemEvent* ev) {
     }
 
     SetBkColor(hdc, colBg);
-    ExtTextOutW(hdc, 0, 0, ETO_OPAQUE, &rc, nullptr, 0, nullptr);
+    HdcFillRectWithBkColor(hdc, rc);
 
     bool isRtl = HwndIsRtl(lb->hwnd);
     if (isRtl) {
@@ -313,24 +313,23 @@ void NavFilesInFolderWnd::DrawListBoxItem(ListBox::DrawItemEvent* ev) {
     }
 
     int padX = DpiScale(lb->hwnd, 4);
-    rc.left += padX;
-    rc.right -= padX;
+    rc.x += padX;
+    rc.dx -= 2 * padX;
 
     // human readable file size on the right (files only)
-    RECT rcText = rc;
+    Rect rcText = rc;
     TempWStr rightW = nullptr;
     int rightDx = 0;
     if (!e.isDir && e.size > 0) {
         TempStr sizeStr = str::FormatSizeShortTemp(e.size);
         rightW = ToWStrTemp(sizeStr);
-        SIZE szRight{};
-        GetTextExtentPoint32W(hdc, rightW.s, len(rightW), &szRight);
-        rightDx = szRight.cx;
+        rightDx = HdcGetTextExtentPoint32(hdc, sizeStr).dx;
         int gap = DpiScale(lb->hwnd, 8);
         if (isRtl) {
-            rcText.left += rightDx + gap;
+            rcText.x += rightDx + gap;
+            rcText.dx -= rightDx + gap;
         } else {
-            rcText.right -= rightDx + gap;
+            rcText.dx -= rightDx + gap;
         }
     }
 
@@ -338,21 +337,22 @@ void NavFilesInFolderWnd::DrawListBoxItem(ListBox::DrawItemEvent* ev) {
         uint drawFmt = DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS;
         drawFmt |= isRtl ? (DT_RIGHT | DT_RTLREADING) : DT_LEFT;
         TempWStr nameW = ToWStrTemp(e.name);
-        DrawTextW(hdc, nameW.s, -1, &rcText, drawFmt);
+        HdcDrawText(hdc, nameW, rcText, drawFmt);
     }
 
     if (rightW) {
-        RECT rcRight = rc;
+        Rect rcRight = rc;
         uint drawFmt = DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX;
         if (isRtl) {
-            rcRight.right = rc.left + rightDx;
+            rcRight.dx = rightDx;
             drawFmt |= DT_LEFT | DT_RTLREADING;
         } else {
-            rcRight.left = rc.right - rightDx;
+            rcRight.x = rc.x + rc.dx - rightDx;
+            rcRight.dx = rightDx;
             drawFmt |= DT_RIGHT;
         }
         SetTextColor(hdc, AccentColor(colText, 80));
-        DrawTextW(hdc, rightW.s, -1, &rcRight, drawFmt);
+        HdcDrawText(hdc, rightW, rcRight, drawFmt);
         SetTextColor(hdc, colText);
     }
 
@@ -362,8 +362,8 @@ void NavFilesInFolderWnd::DrawListBoxItem(ListBox::DrawItemEvent* ev) {
 }
 
 static void PositionNavFilesWnd(HWND hwnd, HWND hwndRelative) {
-    Rect rRelative = WindowRect(hwndRelative);
-    Rect r = WindowRect(hwnd);
+    Rect rRelative = HwndWindowRect(hwndRelative);
+    Rect r = HwndWindowRect(hwnd);
     int x = rRelative.x + (rRelative.dx / 2) - (r.dx / 2);
     int y = rRelative.y + (rRelative.dy / 2) - (r.dy / 2);
     Rect r2 = ShiftRectToWorkArea({x, y, r.dx, r.dy}, hwndRelative, true);
@@ -461,7 +461,7 @@ bool NavFilesInFolderWnd::Create(MainWindow* mainWin) {
     TempStr dir = path::GetDirTemp(filePath);
     SetDir(dir, filePath);
 
-    auto rc = ClientRect(mainWin->hwndFrame);
+    auto rc = HwndClientRect(mainWin->hwndFrame);
     int dy = rc.dy - 72;
     if (dy < 480) {
         dy = 480;

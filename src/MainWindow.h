@@ -277,6 +277,7 @@ struct MainWindow {
     bool textDragPending = false;  // true when mouse down on selected text, waiting for drag
     bool imageDragPending = false; // true when mouse down on image, waiting for drag
     IPageElement* imageDragElement = nullptr;
+    int imageDragPageNo = -1; // page of imageDragElement for screen-rect / hotspot
 
     /* when dragging the document around, this is previous position of the
        cursor. A delta between previous and current is by how much we
@@ -377,7 +378,7 @@ struct MainWindow {
         };
         Layout layout; // last applied layout state
         // desired visibility of the sidebar / AI chat / audiobook panels;
-        // applied (HwndSetVisibility) by RelayoutFrame
+        // applied (HwndSetVisible) by RelayoutFrame
         bool tocVisible = false;
         bool favVisible = false;
         bool aiChatVisible = false;

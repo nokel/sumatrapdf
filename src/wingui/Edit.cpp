@@ -164,8 +164,7 @@ LRESULT Edit::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
                 // underline so borderless edits stay visible on flat dialog backgrounds
                 HDC hdc = GetDC(hwnd);
                 if (hdc) {
-                    RECT rc{};
-                    GetClientRect(hwnd, &rc);
+                    RECT rc = ToRECT(HwndClientRect(hwnd));
                     COLORREF col = IsSpecialColor(textColor) ? GetSysColor(COLOR_GRAYTEXT) : textColor;
                     // muted line: blend text color toward background
                     if (!IsSpecialColor(bgColor)) {
@@ -242,11 +241,9 @@ Size Edit::GetIdealSize() {
 int Edit::GetLeftTextMargin() {
     int border = 0;
     if (HasBorder()) {
-        POINT clientOrigin{0, 0};
-        ClientToScreen(hwnd, &clientOrigin);
-        RECT wr{};
-        GetWindowRect(hwnd, &wr);
-        border = clientOrigin.x - wr.left;
+        Point clientOrigin = HwndClientToScreen(hwnd, Point());
+        Rect wr = HwndWindowRect(hwnd);
+        border = clientOrigin.x - wr.x;
     }
     DWORD margins = (DWORD)SendMessageW(hwnd, EM_GETMARGINS, 0, 0);
     int leftMargin = (int)LOWORD(margins);

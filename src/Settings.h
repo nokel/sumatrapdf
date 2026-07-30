@@ -141,7 +141,7 @@ struct ClaudeCode {
     // if not in the model list
     Str model;
     // extra Claude model aliases for the dropdown, comma-separated;
-    // sonnet, opus, and haiku are always included
+    // documented Claude Code aliases are always included
     Str models;
     // Claude effort level: 0=Low, 1=Medium, 2=High, 3=Max
     int effort;
@@ -202,10 +202,10 @@ struct Audiobook {
 
 // settings for the Grok Build chat sidebar
 struct GrokBuild {
-    // Grok model ID for --model (e.g. grok-composer-2.5-fast, grok-build)
+    // Grok model ID for --model (e.g. grok-4.5)
     Str model;
-    // extra Grok model IDs for the dropdown, comma-separated;
-    // grok-composer-2.5-fast and grok-build are always included
+    // extra Grok model IDs for the dropdown, comma-separated; used in
+    // addition to models reported by Grok
     Str models;
     // Grok effort level: 0=Low, 1=Medium, 2=High, 3=XHigh, 4=Max
     int effort;
@@ -221,8 +221,8 @@ struct GrokBuild {
 struct CodexBuild {
     // Codex model ID for -m (e.g. gpt-5.5, gpt-5.4, o3)
     Str model;
-    // extra Codex model IDs for the dropdown, comma-separated; gpt-5.5,
-    // gpt-5.4, and o3 are always included
+    // extra Codex model IDs for the dropdown, comma-separated; used in
+    // addition to models reported by Codex
     Str models;
     // Codex sandbox mode: 0=read-only, 1=workspace-write,
     // 2=danger-full-access
@@ -959,9 +959,9 @@ static const FieldInfo gClaudeCodeFields[] = {
 static const StructInfo gClaudeCodeInfo = {
     sizeof(ClaudeCode), 5, gClaudeCodeFields, "Model\0Models\0Effort\0SkipPermissions\0BgColor",
     "Claude model alias for --model (e.g. sonnet, opus, haiku); uses opus if not in the model list\0extra Claude model "
-    "aliases for the dropdown, comma-separated; sonnet, opus, and haiku are always included\0Claude effort level: "
-    "0=Low, 1=Medium, 2=High, 3=Max\0if true, pass --dangerously-skip-permissions to Claude Code\0background color of "
-    "the Claude Code chat panel"};
+    "aliases for the dropdown, comma-separated; documented Claude Code aliases are always included\0Claude effort "
+    "level: 0=Low, 1=Medium, 2=High, 3=Max\0if true, pass --dangerously-skip-permissions to Claude Code\0background "
+    "color of the Claude Code chat panel"};
 
 static const FieldInfo gAudiobookFields[] = {
     {offsetof(Audiobook, useChatterbox), SettingType::Bool, false},
@@ -1000,7 +1000,7 @@ static const StructInfo gAudiobookInfo = {
     "Characters panel docked on the left"};
 
 static const FieldInfo gGrokBuildFields[] = {
-    {offsetof(GrokBuild, model), SettingType::String, (intptr_t)"grok-composer-2.5-fast"},
+    {offsetof(GrokBuild, model), SettingType::String, (intptr_t)"grok-4.5"},
     {offsetof(GrokBuild, models), SettingType::String, (intptr_t)""},
     {offsetof(GrokBuild, effort), SettingType::Int, 1},
     {offsetof(GrokBuild, alwaysApprove), SettingType::Bool, false},
@@ -1008,10 +1008,9 @@ static const FieldInfo gGrokBuildFields[] = {
 };
 static const StructInfo gGrokBuildInfo = {
     sizeof(GrokBuild), 5, gGrokBuildFields, "Model\0Models\0Effort\0AlwaysApprove\0BgColor",
-    "Grok model ID for --model (e.g. grok-composer-2.5-fast, grok-build)\0extra Grok model IDs for the dropdown, "
-    "comma-separated; grok-composer-2.5-fast and grok-build are always included\0Grok effort level: 0=Low, 1=Medium, "
-    "2=High, 3=XHigh, 4=Max\0if true, pass --always-approve to Grok Build (auto-approve tool executions)\0background "
-    "color of the Grok Build chat panel"};
+    "Grok model ID for --model (e.g. grok-4.5)\0extra Grok model IDs for the dropdown, comma-separated; used in "
+    "addition to models reported by Grok\0Grok effort level: 0=Low, 1=Medium, 2=High, 3=XHigh, 4=Max\0if true, pass "
+    "--always-approve to Grok Build (auto-approve tool executions)\0background color of the Grok Build chat panel"};
 
 static const FieldInfo gCodexBuildFields[] = {
     {offsetof(CodexBuild, model), SettingType::String, (intptr_t)"gpt-5.5"},
@@ -1022,8 +1021,8 @@ static const FieldInfo gCodexBuildFields[] = {
 };
 static const StructInfo gCodexBuildInfo = {
     sizeof(CodexBuild), 5, gCodexBuildFields, "Model\0Models\0Sandbox\0SkipSandbox\0BgColor",
-    "Codex model ID for -m (e.g. gpt-5.5, gpt-5.4, o3)\0extra Codex model IDs for the dropdown, comma-separated; "
-    "gpt-5.5, gpt-5.4, and o3 are always included\0Codex sandbox mode: 0=read-only, 1=workspace-write, "
+    "Codex model ID for -m (e.g. gpt-5.5, gpt-5.4, o3)\0extra Codex model IDs for the dropdown, comma-separated; used "
+    "in addition to models reported by Codex\0Codex sandbox mode: 0=read-only, 1=workspace-write, "
     "2=danger-full-access\0if true, pass --dangerously-bypass-approvals-and-sandbox to Codex\0background color of the "
     "OpenAI Codex chat panel"};
 
