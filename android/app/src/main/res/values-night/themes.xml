@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.SumatraReader" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/sum_background_dark</item>
+        <item name="android:statusBarColor">@color/sum_bar_dark</item>
+        <item name="android:navigationBarColor">@color/sum_bar_dark</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+    </style>
+</resources>

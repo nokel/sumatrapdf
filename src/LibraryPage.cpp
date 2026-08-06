@@ -7,6 +7,7 @@
 #include "base/File.h"
 #include "base/Win.h"
 #include "base/GdiPlus.h"
+#include "base/Pixmap.h"
 #include "base/Http.h"
 #include "base/JsonParser.h"
 
@@ -1633,7 +1634,7 @@ static void DrawRail(HDC hdc, MainWindow* win, Rect rail, HFONT fontRow, HFONT f
     COLORREF dim = Mix(text, bg, 45);
     COLORREF sel = Mix(bg, text, 14);
 
-    FillRect(hdc, rail, Mix(bg, text, 5));
+    HdcFillRect(hdc, rail, Mix(bg, text, 5));
 
     int pad = DpiScale(hdc, 12);
     int y = rail.y + pad;
@@ -2329,16 +2330,16 @@ void DrawLibraryPage(MainWindow* win, HDC hdc) {
     DeleteVecMembers(win->staticLinks);
     EnsureModel();
 
-    Rect rc = ClientRect(win->hwndCanvas);
+    Rect rc = HwndClientRect(win->hwndCanvas);
     COLORREF bg = ThemeMainWindowBackgroundColor();
     COLORREF text = ThemeWindowTextColor();
-    FillRect(hdc, rc, bg);
+    HdcFillRect(hdc, rc, bg);
     SetBkMode(hdc, TRANSPARENT);
 
-    HFONT fontHead = CreateSimpleFont(hdc, "MS Shell Dlg", 20);
-    HFONT fontTitle = CreateSimpleFont(hdc, "MS Shell Dlg", 13);
-    HFONT fontSub = CreateSimpleFont(hdc, "MS Shell Dlg", 12);
-    HFONT fontBody = CreateSimpleFont(hdc, "MS Shell Dlg", 13);
+    HFONT fontHead = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 20);
+    HFONT fontTitle = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 13);
+    HFONT fontSub = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 12);
+    HFONT fontBody = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 13);
 
     int railDx = DpiScale(hdc, 210);
     if (railDx > rc.dx / 3) {
@@ -2399,7 +2400,7 @@ void DrawLibraryPage(MainWindow* win, HDC hdc) {
 }
 
 static int VisibleDy(MainWindow* win) {
-    Rect rc = ClientRect(win->hwndCanvas);
+    Rect rc = HwndClientRect(win->hwndCanvas);
     return rc.dy;
 }
 

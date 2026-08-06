@@ -1,0 +1,1843 @@
+[
+ {
+  "stem": "01 The Hitchhiker's Guide to the Galaxy - Douglas Adams",
+  "title": "The Hitchhiker's Guide to the Galaxy",
+  "author": "Douglas Adams",
+  "volumes": [
+   1
+  ],
+  "year": null,
+  "clean": "01 The Hitchhiker's Guide to the Galaxy - Douglas Adams",
+  "poor": false
+ },
+ {
+  "stem": "01-The Invasion",
+  "title": "The Invasion",
+  "author": null,
+  "volumes": [
+   1
+  ],
+  "year": null,
+  "clean": "01-The Invasion",
+  "poor": false
+ },
+ {
+  "stem": "02 The Restaurant at the End of the Universe - Douglas Adams",
+  "title": "The Restaurant at the End of the Universe",
+  "author": "Douglas Adams",
+  "volumes": [
+   2
+  ],
+  "year": null,
+  "clean": "02 The Restaurant at the End of the Universe - Douglas Adams",
+  "poor": false
+ },
+ {
+  "stem": "02-The Visitor",
+  "title": "The Visitor",
+  "author": null,
+  "volumes": [
+   2
+  ],
+  "year": null,
+  "clean": "02-The Visitor",
+  "poor": false
+ },
+ {
+  "stem": "03 Life, the Universe and Everything - Douglas Adams",
+  "title": "Life, the Universe and Everything",
+  "author": "Douglas Adams",
+  "volumes": [
+   3
+  ],
+  "year": null,
+  "clean": "03 Life, the Universe and Everything - Douglas Adams",
+  "poor": false
+ },
+ {
+  "stem": "03-The Encounter",
+  "title": "The Encounter",
+  "author": null,
+  "volumes": [
+   3
+  ],
+  "year": null,
+  "clean": "03-The Encounter",
+  "poor": false
+ },
+ {
+  "stem": "04 So Long, and Thanks For All the Fish - Douglas Adams",
+  "title": "So Long, and Thanks for All the Fish",
+  "author": "Douglas Adams",
+  "volumes": [
+   4
+  ],
+  "year": null,
+  "clean": "04 So Long, and Thanks For All the Fish - Douglas Adams",
+  "poor": false
+ },
+ {
+  "stem": "04-The Message",
+  "title": "The Message",
+  "author": null,
+  "volumes": [
+   4
+  ],
+  "year": null,
+  "clean": "04-The Message",
+  "poor": false
+ },
+ {
+  "stem": "05 - Sourcery_-_Terry_Pratchett",
+  "title": "Sourcery",
+  "author": "Terry Pratchett",
+  "volumes": [
+   5
+  ],
+  "year": null,
+  "clean": "05 - Sourcery - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "05 Mostly Harmless",
+  "title": "Mostly Harmless",
+  "author": null,
+  "volumes": [
+   5
+  ],
+  "year": null,
+  "clean": "05 Mostly Harmless",
+  "poor": false
+ },
+ {
+  "stem": "05-The Predator",
+  "title": "The Predator",
+  "author": null,
+  "volumes": [
+   5
+  ],
+  "year": null,
+  "clean": "05-The Predator",
+  "poor": false
+ },
+ {
+  "stem": "06 And Another Thing",
+  "title": "And Another Thing",
+  "author": null,
+  "volumes": [
+   6
+  ],
+  "year": null,
+  "clean": "06 And Another Thing",
+  "poor": false
+ },
+ {
+  "stem": "06-The Predator",
+  "title": "The Predator",
+  "author": null,
+  "volumes": [
+   6
+  ],
+  "year": null,
+  "clean": "06-The Predator",
+  "poor": false
+ },
+ {
+  "stem": "07 - Pyramids_-_Terry_Pratchett",
+  "title": "Pyramids",
+  "author": "Terry Pratchett",
+  "volumes": [
+   7
+  ],
+  "year": null,
+  "clean": "07 - Pyramids - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "07-The Stranger",
+  "title": "The Stranger",
+  "author": null,
+  "volumes": [
+   7
+  ],
+  "year": null,
+  "clean": "07-The Stranger",
+  "poor": false
+ },
+ {
+  "stem": "08-The Alien",
+  "title": "The Alien",
+  "author": null,
+  "volumes": [
+   8
+  ],
+  "year": null,
+  "clean": "08-The Alien",
+  "poor": false
+ },
+ {
+  "stem": "09-The Secret",
+  "title": "The Secret",
+  "author": null,
+  "volumes": [
+   9
+  ],
+  "year": null,
+  "clean": "09-The Secret",
+  "poor": false
+ },
+ {
+  "stem": "10 - Moving_Pictures_-_Terry_Pratchett",
+  "title": "Moving Pictures",
+  "author": "Terry Pratchett",
+  "volumes": [
+   10
+  ],
+  "year": null,
+  "clean": "10 - Moving Pictures - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "10-The Android",
+  "title": "The Android",
+  "author": null,
+  "volumes": [
+   10
+  ],
+  "year": null,
+  "clean": "10-The Android",
+  "poor": false
+ },
+ {
+  "stem": "101claudecodetips_abattle-testedfieldguideforagenticcoding",
+  "title": "101claudecodetips Abattle-testedfieldguideforagenticcoding",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "101claudecodetips abattle-testedfieldguideforagenticcoding",
+  "poor": false
+ },
+ {
+  "stem": "11 - Reaper_Man_-_Terry_Pratchett",
+  "title": "Reaper Man",
+  "author": "Terry Pratchett",
+  "volumes": [
+   11
+  ],
+  "year": null,
+  "clean": "11 - Reaper Man - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "11-The Forgotten",
+  "title": "The Forgotten",
+  "author": null,
+  "volumes": [
+   11
+  ],
+  "year": null,
+  "clean": "11-The Forgotten",
+  "poor": false
+ },
+ {
+  "stem": "12-The Reaction",
+  "title": "The Reaction",
+  "author": null,
+  "volumes": [
+   12
+  ],
+  "year": null,
+  "clean": "12-The Reaction",
+  "poor": false
+ },
+ {
+  "stem": "13 - Small_Gods_-_Terry_Pratchett",
+  "title": "Small Gods",
+  "author": "Terry Pratchett",
+  "volumes": [
+   13
+  ],
+  "year": null,
+  "clean": "13 - Small Gods - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "13-The Change",
+  "title": "The Change",
+  "author": null,
+  "volumes": [
+   13
+  ],
+  "year": null,
+  "clean": "13-The Change",
+  "poor": false
+ },
+ {
+  "stem": "14-The Unkown",
+  "title": "The Unkown",
+  "author": null,
+  "volumes": [
+   14
+  ],
+  "year": null,
+  "clean": "14-The Unkown",
+  "poor": false
+ },
+ {
+  "stem": "15-The Escape",
+  "title": "The Escape",
+  "author": null,
+  "volumes": [
+   15
+  ],
+  "year": null,
+  "clean": "15-The Escape",
+  "poor": false
+ },
+ {
+  "stem": "16-The Warning",
+  "title": "The Warning",
+  "author": null,
+  "volumes": [
+   16
+  ],
+  "year": null,
+  "clean": "16-The Warning",
+  "poor": false
+ },
+ {
+  "stem": "17-The Underground",
+  "title": "The Underground",
+  "author": null,
+  "volumes": [
+   17
+  ],
+  "year": null,
+  "clean": "17-The Underground",
+  "poor": false
+ },
+ {
+  "stem": "18 - Maskerade_-_Terry_Pratchett",
+  "title": "Maskerade",
+  "author": "Terry Pratchett",
+  "volumes": [
+   18
+  ],
+  "year": null,
+  "clean": "18 - Maskerade - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "18-The Decision",
+  "title": "The Decision",
+  "author": null,
+  "volumes": [
+   18
+  ],
+  "year": null,
+  "clean": "18-The Decision",
+  "poor": false
+ },
+ {
+  "stem": "19-The Departure",
+  "title": "The Departure",
+  "author": null,
+  "volumes": [
+   19
+  ],
+  "year": null,
+  "clean": "19-The Departure",
+  "poor": false
+ },
+ {
+  "stem": "2 - The_Light_Fantastic_-_Terry_Pratchett",
+  "title": "The Light Fantastic",
+  "author": "Terry Pratchett",
+  "volumes": [
+   2
+  ],
+  "year": null,
+  "clean": "2 - The Light Fantastic - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "20-The Discovery",
+  "title": "The Discovery",
+  "author": null,
+  "volumes": [
+   20
+  ],
+  "year": null,
+  "clean": "20-The Discovery",
+  "poor": false
+ },
+ {
+  "stem": "21-The Threat",
+  "title": "The Threat",
+  "author": null,
+  "volumes": [
+   21
+  ],
+  "year": null,
+  "clean": "21-The Threat",
+  "poor": false
+ },
+ {
+  "stem": "22-The Solution",
+  "title": "The Solution",
+  "author": null,
+  "volumes": [
+   22
+  ],
+  "year": null,
+  "clean": "22-The Solution",
+  "poor": false
+ },
+ {
+  "stem": "23-The Pretender",
+  "title": "The Pretender",
+  "author": null,
+  "volumes": [
+   23
+  ],
+  "year": null,
+  "clean": "23-The Pretender",
+  "poor": false
+ },
+ {
+  "stem": "2345",
+  "title": "2345",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "2345",
+  "poor": true
+ },
+ {
+  "stem": "24-The Suspicion",
+  "title": "The Suspicion",
+  "author": null,
+  "volumes": [
+   24
+  ],
+  "year": null,
+  "clean": "24-The Suspicion",
+  "poor": false
+ },
+ {
+  "stem": "25-The Extreme",
+  "title": "The Extreme",
+  "author": null,
+  "volumes": [
+   25
+  ],
+  "year": null,
+  "clean": "25-The Extreme",
+  "poor": false
+ },
+ {
+  "stem": "26-The Attack",
+  "title": "The Attack",
+  "author": null,
+  "volumes": [
+   26
+  ],
+  "year": null,
+  "clean": "26-The Attack",
+  "poor": false
+ },
+ {
+  "stem": "27-The Exposed",
+  "title": "The Exposed",
+  "author": null,
+  "volumes": [
+   27
+  ],
+  "year": null,
+  "clean": "27-The Exposed",
+  "poor": false
+ },
+ {
+  "stem": "28-The Experiment",
+  "title": "The Experiment",
+  "author": null,
+  "volumes": [
+   28
+  ],
+  "year": null,
+  "clean": "28-The Experiment",
+  "poor": false
+ },
+ {
+  "stem": "29-The Sickness",
+  "title": "The Sickness",
+  "author": null,
+  "volumes": [
+   29
+  ],
+  "year": null,
+  "clean": "29-The Sickness",
+  "poor": false
+ },
+ {
+  "stem": "3 6 12 - The_Witches_Trilogy_-_Terry_Pratchett",
+  "title": "The Witches Trilogy",
+  "author": "Terry Pratchett",
+  "volumes": [
+   3,
+   6,
+   12
+  ],
+  "year": null,
+  "clean": "3 6 12 - The Witches Trilogy - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "30-The Reunion",
+  "title": "The Reunion",
+  "author": null,
+  "volumes": [
+   30
+  ],
+  "year": null,
+  "clean": "30-The Reunion",
+  "poor": false
+ },
+ {
+  "stem": "31-The Conspiracy",
+  "title": "The Conspiracy",
+  "author": null,
+  "volumes": [
+   31
+  ],
+  "year": null,
+  "clean": "31-The Conspiracy",
+  "poor": false
+ },
+ {
+  "stem": "32-The Seperation",
+  "title": "The Seperation",
+  "author": null,
+  "volumes": [
+   32
+  ],
+  "year": null,
+  "clean": "32-The Seperation",
+  "poor": false
+ },
+ {
+  "stem": "33 - Going_Postal_Discworld_-_Terry_Pratchett",
+  "title": "Going Postal Discworld",
+  "author": "Terry Pratchett",
+  "volumes": [
+   33
+  ],
+  "year": null,
+  "clean": "33 - Going Postal Discworld - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "33-The Illusion",
+  "title": "The Illusion",
+  "author": null,
+  "volumes": [
+   33
+  ],
+  "year": null,
+  "clean": "33-The Illusion",
+  "poor": false
+ },
+ {
+  "stem": "34-The Prophecy",
+  "title": "The Prophecy",
+  "author": null,
+  "volumes": [
+   34
+  ],
+  "year": null,
+  "clean": "34-The Prophecy",
+  "poor": false
+ },
+ {
+  "stem": "35 - Wintersmith - Terry_Pratchett",
+  "title": "Wintersmith",
+  "author": "Terry Pratchett",
+  "volumes": [
+   35
+  ],
+  "year": null,
+  "clean": "35 - Wintersmith - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "35-The Proposal",
+  "title": "The Proposal",
+  "author": null,
+  "volumes": [
+   35
+  ],
+  "year": null,
+  "clean": "35-The Proposal",
+  "poor": false
+ },
+ {
+  "stem": "36-The Mutation",
+  "title": "The Mutation",
+  "author": null,
+  "volumes": [
+   36
+  ],
+  "year": null,
+  "clean": "36-The Mutation",
+  "poor": false
+ },
+ {
+  "stem": "37-The Weakness",
+  "title": "The Weakness",
+  "author": null,
+  "volumes": [
+   37
+  ],
+  "year": null,
+  "clean": "37-The Weakness",
+  "poor": false
+ },
+ {
+  "stem": "38-The Arrival",
+  "title": "The Arrival",
+  "author": null,
+  "volumes": [
+   38
+  ],
+  "year": null,
+  "clean": "38-The Arrival",
+  "poor": false
+ },
+ {
+  "stem": "39-The Hidden",
+  "title": "The Hidden",
+  "author": null,
+  "volumes": [
+   39
+  ],
+  "year": null,
+  "clean": "39-The Hidden",
+  "poor": false
+ },
+ {
+  "stem": "4 - Mort_-_Terry_Pratchett",
+  "title": "Mort",
+  "author": "Terry Pratchett",
+  "volumes": [
+   4
+  ],
+  "year": null,
+  "clean": "4 - Mort - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "40-The Other",
+  "title": "The Other",
+  "author": null,
+  "volumes": [
+   40
+  ],
+  "year": null,
+  "clean": "40-The Other",
+  "poor": false
+ },
+ {
+  "stem": "41-The Familiar",
+  "title": "The Familiar",
+  "author": null,
+  "volumes": [
+   41
+  ],
+  "year": null,
+  "clean": "41-The Familiar",
+  "poor": false
+ },
+ {
+  "stem": "42-The Journey",
+  "title": "The Journey",
+  "author": null,
+  "volumes": [
+   42
+  ],
+  "year": null,
+  "clean": "42-The Journey",
+  "poor": false
+ },
+ {
+  "stem": "43-The Test",
+  "title": "The Test",
+  "author": null,
+  "volumes": [
+   43
+  ],
+  "year": null,
+  "clean": "43-The Test",
+  "poor": false
+ },
+ {
+  "stem": "44-The Unexpected",
+  "title": "The Unexpected",
+  "author": null,
+  "volumes": [
+   44
+  ],
+  "year": null,
+  "clean": "44-The Unexpected",
+  "poor": false
+ },
+ {
+  "stem": "45-The Revelation",
+  "title": "The Revelation",
+  "author": null,
+  "volumes": [
+   45
+  ],
+  "year": null,
+  "clean": "45-The Revelation",
+  "poor": false
+ },
+ {
+  "stem": "46-The Deception",
+  "title": "The Deception",
+  "author": null,
+  "volumes": [
+   46
+  ],
+  "year": null,
+  "clean": "46-The Deception",
+  "poor": false
+ },
+ {
+  "stem": "47-The Resistance",
+  "title": "The Resistance",
+  "author": null,
+  "volumes": [
+   47
+  ],
+  "year": null,
+  "clean": "47-The Resistance",
+  "poor": false
+ },
+ {
+  "stem": "48-The Return",
+  "title": "The Return",
+  "author": null,
+  "volumes": [
+   48
+  ],
+  "year": null,
+  "clean": "48-The Return",
+  "poor": false
+ },
+ {
+  "stem": "49-The Diversion",
+  "title": "The Diversion",
+  "author": null,
+  "volumes": [
+   49
+  ],
+  "year": null,
+  "clean": "49-The Diversion",
+  "poor": false
+ },
+ {
+  "stem": "50-The Ultimate",
+  "title": "The Ultimate",
+  "author": null,
+  "volumes": [
+   50
+  ],
+  "year": null,
+  "clean": "50-The Ultimate",
+  "poor": false
+ },
+ {
+  "stem": "51-The Absolute",
+  "title": "The Absolute",
+  "author": null,
+  "volumes": [
+   51
+  ],
+  "year": null,
+  "clean": "51-The Absolute",
+  "poor": false
+ },
+ {
+  "stem": "52-The Sacrifice",
+  "title": "The Sacrifice",
+  "author": null,
+  "volumes": [
+   52
+  ],
+  "year": null,
+  "clean": "52-The Sacrifice",
+  "poor": false
+ },
+ {
+  "stem": "53-The Answer",
+  "title": "The Answer",
+  "author": null,
+  "volumes": [
+   53
+  ],
+  "year": null,
+  "clean": "53-The Answer",
+  "poor": false
+ },
+ {
+  "stem": "54-The Beginning",
+  "title": "The Beginning",
+  "author": null,
+  "volumes": [
+   54
+  ],
+  "year": null,
+  "clean": "54-The Beginning",
+  "poor": false
+ },
+ {
+  "stem": "8 - Guards_Guards_-_Terry_Pratchett",
+  "title": "Guards Guards",
+  "author": "Terry Pratchett",
+  "volumes": [
+   8
+  ],
+  "year": null,
+  "clean": "8 - Guards Guards - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "9 - Eric_-_Terry_Pratchett",
+  "title": "Eric",
+  "author": "Terry Pratchett",
+  "volumes": [
+   9
+  ],
+  "year": null,
+  "clean": "9 - Eric - Terry Pratchett",
+  "poor": false
+ },
+ {
+  "stem": "Aleternamorphs",
+  "title": "Aleternamorphs",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "Aleternamorphs",
+  "poor": true
+ },
+ {
+  "stem": "Alternamorphs 2",
+  "title": "Alternamorphs 2",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "Alternamorphs 2",
+  "poor": true
+ },
+ {
+  "stem": "Andalite Chronicles",
+  "title": "Andalite Chronicles",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "Andalite Chronicles",
+  "poor": false
+ },
+ {
+  "stem": "Ellemist Chronicles",
+  "title": "Ellemist Chronicles",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "Ellemist Chronicles",
+  "poor": false
+ },
+ {
+  "stem": "Hork-Bajir Chronicles",
+  "title": "Hork-Bajir Chronicles",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "Hork-Bajir Chronicles",
+  "poor": false
+ },
+ {
+  "stem": "Hugh Howey - Wool (2011",
+  "title": "Wool",
+  "author": "Hugh Howey",
+  "volumes": [],
+  "year": 2011,
+  "clean": "Hugh Howey - Wool (2011",
+  "poor": false
+ },
+ {
+  "stem": "Megamorphs 1",
+  "title": "Megamorphs 1",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "Megamorphs 1",
+  "poor": false
+ },
+ {
+  "stem": "Megamorphs 2",
+  "title": "Megamorphs 2",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "Megamorphs 2",
+  "poor": false
+ },
+ {
+  "stem": "Megamorphs 3",
+  "title": "Megamorphs 3",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "Megamorphs 3",
+  "poor": false
+ },
+ {
+  "stem": "Megamorphs 4",
+  "title": "Megamorphs 4",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "Megamorphs 4",
+  "poor": false
+ },
+ {
+  "stem": "The Silo Saga Omnibus_ Wool, Shift, Dust, and Silo Stories by Hugh Howey",
+  "title": "The Silo Saga Omnibus Wool, Shift, Dust, and Silo Stories",
+  "author": "Hugh Howey",
+  "volumes": [],
+  "year": null,
+  "clean": "The Silo Saga Omnibus Wool, Shift, Dust, and Silo Stories by Hugh Howey",
+  "poor": false
+ },
+ {
+  "stem": "Vegemorphs",
+  "title": "Vegemorphs",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "Vegemorphs",
+  "poor": false
+ },
+ {
+  "stem": "Visser",
+  "title": "Visser",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "Visser",
+  "poor": false
+ },
+ {
+  "stem": "adventuresinraspberrypi",
+  "title": "Adventuresinraspberrypi",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "adventuresinraspberrypi",
+  "poor": true
+ },
+ {
+  "stem": "anolderguysvrfirstlove",
+  "title": "Anolderguysvrfirstlove",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "anolderguysvrfirstlove",
+  "poor": true
+ },
+ {
+  "stem": "embeddedlinuxdevelopmentusingyoctoprojectcookbook",
+  "title": "Embeddedlinuxdevelopmentusingyoctoprojectcookbook",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "embeddedlinuxdevelopmentusingyoctoprojectcookbook",
+  "poor": true
+ },
+ {
+  "stem": "explore8gbraspberrypi4_themagpi_issue94",
+  "title": "Explore8gbraspberrypi4 Themagpi Issue94",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "explore8gbraspberrypi4 themagpi issue94",
+  "poor": false
+ },
+ {
+  "stem": "exploringraspberrypi",
+  "title": "Exploringraspberrypi",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "exploringraspberrypi",
+  "poor": true
+ },
+ {
+  "stem": "hitorijimemyhero10",
+  "title": "Hitorijimemyhero10",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "hitorijimemyhero10",
+  "poor": true
+ },
+ {
+  "stem": "jumpstartingtheraspberrypi_visionmachineleanearningandfacialrecognition",
+  "title": "Jumpstartingtheraspberrypi Visionmachineleanearningandfacialrecognition",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "jumpstartingtheraspberrypi visionmachineleanearningandfacialrecognition",
+  "poor": false
+ },
+ {
+  "stem": "jumpstartingtheraspberrypizerow",
+  "title": "Jumpstartingtheraspberrypizerow",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "jumpstartingtheraspberrypizerow",
+  "poor": true
+ },
+ {
+  "stem": "kalilinux_anethicalhackerscookbook_ebook",
+  "title": "Kalilinux Anethicalhackerscookbook",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "kalilinux anethicalhackerscookbook",
+  "poor": false
+ },
+ {
+  "stem": "learningpythonwithraspberrypi",
+  "title": "Learningpythonwithraspberrypi",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "learningpythonwithraspberrypi",
+  "poor": true
+ },
+ {
+  "stem": "linuxshellprogrammingpocketprimer",
+  "title": "Linuxshellprogrammingpocketprimer",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "linuxshellprogrammingpocketprimer",
+  "poor": true
+ },
+ {
+  "stem": "machinelearningforhackers",
+  "title": "Machinelearningforhackers",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "machinelearningforhackers",
+  "poor": true
+ },
+ {
+  "stem": "make_gettingstartedwithraspberrypi_3rdedition",
+  "title": "Make Gettingstartedwithraspberrypi 3rdedition",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "make gettingstartedwithraspberrypi 3rdedition",
+  "poor": false
+ },
+ {
+  "stem": "make_raspberrypiandavrprojects",
+  "title": "Make Raspberrypiandavrprojects",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "make raspberrypiandavrprojects",
+  "poor": false
+ },
+ {
+  "stem": "masteringinternetofthings",
+  "title": "Masteringinternetofthings",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "masteringinternetofthings",
+  "poor": true
+ },
+ {
+  "stem": "masteringkalilinuxforadvancedpenetrationtesting",
+  "title": "Masteringkalilinuxforadvancedpenetrationtesting",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "masteringkalilinuxforadvancedpenetrationtesting",
+  "poor": true
+ },
+ {
+  "stem": "officialraspberrypibeginnersguide_3rdedition",
+  "title": "Officialraspberrypibeginnersguide 3rdedition",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "officialraspberrypibeginnersguide 3rdedition",
+  "poor": false
+ },
+ {
+  "stem": "officialraspberrypiprojectsbook_volume1",
+  "title": "Officialraspberrypiprojectsbook",
+  "author": null,
+  "volumes": [
+   1
+  ],
+  "year": null,
+  "clean": "officialraspberrypiprojectsbook volume1",
+  "poor": false
+ },
+ {
+  "stem": "officialraspberrypiprojectsbook_volume2",
+  "title": "Officialraspberrypiprojectsbook",
+  "author": null,
+  "volumes": [
+   2
+  ],
+  "year": null,
+  "clean": "officialraspberrypiprojectsbook volume2",
+  "poor": false
+ },
+ {
+  "stem": "officialraspberrypiprojectsbook_volume3",
+  "title": "Officialraspberrypiprojectsbook",
+  "author": null,
+  "volumes": [
+   3
+  ],
+  "year": null,
+  "clean": "officialraspberrypiprojectsbook volume3",
+  "poor": false
+ },
+ {
+  "stem": "officialraspberrypiprojectsbook_volume4",
+  "title": "Officialraspberrypiprojectsbook",
+  "author": null,
+  "volumes": [
+   4
+  ],
+  "year": null,
+  "clean": "officialraspberrypiprojectsbook volume4",
+  "poor": false
+ },
+ {
+  "stem": "officialraspberrypiprojectsbook_volume5",
+  "title": "Officialraspberrypiprojectsbook",
+  "author": null,
+  "volumes": [
+   5
+  ],
+  "year": null,
+  "clean": "officialraspberrypiprojectsbook volume5",
+  "poor": false
+ },
+ {
+  "stem": "onimai_imnowyoursister1",
+  "title": "Onimai Imnowyoursister1",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "onimai imnowyoursister1",
+  "poor": false
+ },
+ {
+  "stem": "onimai_imnowyoursister2",
+  "title": "Onimai Imnowyoursister2",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "onimai imnowyoursister2",
+  "poor": false
+ },
+ {
+  "stem": "onimai_imnowyoursister3",
+  "title": "Onimai Imnowyoursister3",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "onimai imnowyoursister3",
+  "poor": false
+ },
+ {
+  "stem": "onimai_imnowyoursister4",
+  "title": "Onimai Imnowyoursister4",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "onimai imnowyoursister4",
+  "poor": false
+ },
+ {
+  "stem": "onimai_imnowyoursister5",
+  "title": "Onimai Imnowyoursister5",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "onimai imnowyoursister5",
+  "poor": false
+ },
+ {
+  "stem": "onimai_imnowyoursister6",
+  "title": "Onimai Imnowyoursister6",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "onimai imnowyoursister6",
+  "poor": false
+ },
+ {
+  "stem": "onimai_imnowyoursister7",
+  "title": "Onimai Imnowyoursister7",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "onimai imnowyoursister7",
+  "poor": false
+ },
+ {
+  "stem": "raspberrypi3cookbookforpythonprogrammers",
+  "title": "Raspberrypi3cookbookforpythonprogrammers",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "raspberrypi3cookbookforpythonprogrammers",
+  "poor": true
+ },
+ {
+  "stem": "raspberrypi4_yournextdesktoppc_themagpi_issue85",
+  "title": "Raspberrypi4 Yournextdesktoppc Themagpi Issue85",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "raspberrypi4 yournextdesktoppc themagpi issue85",
+  "poor": false
+ },
+ {
+  "stem": "raspberrypi4starterguide_themagpi_issue84",
+  "title": "Raspberrypi4starterguide Themagpi Issue84",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "raspberrypi4starterguide themagpi issue84",
+  "poor": false
+ },
+ {
+  "stem": "raspberrypifordummies",
+  "title": "Raspberrypifordummies",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "raspberrypifordummies",
+  "poor": true
+ },
+ {
+  "stem": "raspberrypiprojects_robinson",
+  "title": "Raspberrypiprojects Robinson",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "raspberrypiprojects robinson",
+  "poor": false
+ },
+ {
+  "stem": "raspberrypiprojectsfordummies",
+  "title": "Raspberrypiprojectsfordummies",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "raspberrypiprojectsfordummies",
+  "poor": true
+ },
+ {
+  "stem": "raspberrypiuserguide",
+  "title": "Raspberrypiuserguide",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "raspberrypiuserguide",
+  "poor": true
+ },
+ {
+  "stem": "rickandmorty_issue1",
+  "title": "Rickandmorty Issue1",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue1",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue10",
+  "title": "Rickandmorty Issue10",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue10",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue11",
+  "title": "Rickandmorty Issue11",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue11",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue12",
+  "title": "Rickandmorty Issue12",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue12",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue13",
+  "title": "Rickandmorty Issue13",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue13",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue14",
+  "title": "Rickandmorty Issue14",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue14",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue15",
+  "title": "Rickandmorty Issue15",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue15",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue16",
+  "title": "Rickandmorty Issue16",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue16",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue17",
+  "title": "Rickandmorty Issue17",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue17",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue18",
+  "title": "Rickandmorty Issue18",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue18",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue19",
+  "title": "Rickandmorty Issue19",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue19",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue2",
+  "title": "Rickandmorty Issue2",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue2",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue20",
+  "title": "Rickandmorty Issue20",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue20",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue21",
+  "title": "Rickandmorty Issue21",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue21",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue22",
+  "title": "Rickandmorty Issue22",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue22",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue23",
+  "title": "Rickandmorty Issue23",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue23",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue24",
+  "title": "Rickandmorty Issue24",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue24",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue25",
+  "title": "Rickandmorty Issue25",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue25",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue26",
+  "title": "Rickandmorty Issue26",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue26",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue27",
+  "title": "Rickandmorty Issue27",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue27",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue28",
+  "title": "Rickandmorty Issue28",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue28",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue29",
+  "title": "Rickandmorty Issue29",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue29",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue3",
+  "title": "Rickandmorty Issue3",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue3",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue30",
+  "title": "Rickandmorty Issue30",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue30",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue31",
+  "title": "Rickandmorty Issue31",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue31",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue32",
+  "title": "Rickandmorty Issue32",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue32",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue33",
+  "title": "Rickandmorty Issue33",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue33",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue34",
+  "title": "Rickandmorty Issue34",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue34",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue35",
+  "title": "Rickandmorty Issue35",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue35",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue36",
+  "title": "Rickandmorty Issue36",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue36",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue37",
+  "title": "Rickandmorty Issue37",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue37",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue38",
+  "title": "Rickandmorty Issue38",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue38",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue39",
+  "title": "Rickandmorty Issue39",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue39",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue4",
+  "title": "Rickandmorty Issue4",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue4",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue40",
+  "title": "Rickandmorty Issue40",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue40",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue41",
+  "title": "Rickandmorty Issue41",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue41",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue42",
+  "title": "Rickandmorty Issue42",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue42",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue43",
+  "title": "Rickandmorty Issue43",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue43",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue44",
+  "title": "Rickandmorty Issue44",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue44",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue45",
+  "title": "Rickandmorty Issue45",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue45",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue46",
+  "title": "Rickandmorty Issue46",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue46",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue47",
+  "title": "Rickandmorty Issue47",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue47",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue48",
+  "title": "Rickandmorty Issue48",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue48",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue49",
+  "title": "Rickandmorty Issue49",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue49",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue5",
+  "title": "Rickandmorty Issue5",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue5",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue50",
+  "title": "Rickandmorty Issue50",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue50",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue51",
+  "title": "Rickandmorty Issue51",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue51",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue52",
+  "title": "Rickandmorty Issue52",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue52",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue53",
+  "title": "Rickandmorty Issue53",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue53",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue54",
+  "title": "Rickandmorty Issue54",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue54",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue55",
+  "title": "Rickandmorty Issue55",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue55",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue56",
+  "title": "Rickandmorty Issue56",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue56",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue57",
+  "title": "Rickandmorty Issue57",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue57",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue58",
+  "title": "Rickandmorty Issue58",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue58",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue59",
+  "title": "Rickandmorty Issue59",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue59",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue6",
+  "title": "Rickandmorty Issue6",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue6",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue60",
+  "title": "Rickandmorty Issue60",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue60",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue7",
+  "title": "Rickandmorty Issue7",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue7",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue8",
+  "title": "Rickandmorty Issue8",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue8",
+  "poor": false
+ },
+ {
+  "stem": "rickandmorty_issue9",
+  "title": "Rickandmorty Issue9",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "rickandmorty issue9",
+  "poor": false
+ },
+ {
+  "stem": "solveyourraspberrypiproblems_themagpi_issue92",
+  "title": "Solveyourraspberrypiproblems Themagpi Issue92",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "solveyourraspberrypiproblems themagpi issue92",
+  "poor": false
+ },
+ {
+  "stem": "sugardoglife",
+  "title": "Sugardoglife",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "sugardoglife",
+  "poor": false
+ },
+ {
+  "stem": "workingwithgrepsedandawk",
+  "title": "Workingwithgrepsedandawk",
+  "author": null,
+  "volumes": [],
+  "year": null,
+  "clean": "workingwithgrepsedandawk",
+  "poor": true
+ }
+]

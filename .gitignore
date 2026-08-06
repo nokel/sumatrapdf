@@ -42,3 +42,16 @@ tests/tmp/
 /terminals
 /mcps/tasks/tools
 /bin/resvg.exe
+# agents.md is maintained per branch locally, so it can describe that branch
+/agents.md
+
+# Android (android/) build output and machine-local toolchain paths
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties
+android/app/release/
+*.apk
+*.aab
+.cxx/

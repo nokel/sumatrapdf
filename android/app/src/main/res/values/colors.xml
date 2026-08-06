@@ -1,0 +1,27 @@
+<resources>
+    <!-- SumatraPDF on Windows is a neutral grey app: light off-white chrome,
+         dark text, the same compact greys the Win32 toolbar uses. We mirror
+         that here so the Android reader doesn't look like a Material app. -->
+    <color name="sum_bar">#F2F2F2</color>
+    <color name="sum_bar_line">#C8C8C8</color>
+    <color name="sum_surface">#FFFFFF</color>
+    <color name="sum_background">#EDEDED</color>
+    <color name="sum_text">#1A1A1A</color>
+    <color name="sum_text_dim">#595959</color>
+    <color name="sum_accent">#2C5AA0</color>
+    <color name="sum_status">#E0E0E0</color>
+
+    <!-- Night-mode chrome. Kept in the same file as the light values so the
+         two palettes stay side by side; values-night/themes.xml selects them. -->
+    <color name="sum_bar_dark">#2B2B2B</color>
+    <color name="sum_bar_line_dark">#3F3F3F</color>
+    <color name="sum_surface_dark">#1E1E1E</color>
+    <color name="sum_background_dark">#121212</color>
+    <color name="sum_text_dark">#E6E6E6</color>
+    <color name="sum_text_dim_dark">#A0A0A0</color>
+    <color name="sum_accent_dark">#7FA8DC</color>
+
+    <!-- The adaptive launcher icon sits the SumatraPDF logo on white, the
+         same way the Windows icon reads against the taskbar. -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>
