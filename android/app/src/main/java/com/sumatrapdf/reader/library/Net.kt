@@ -20,6 +20,13 @@ const val JSON_TTL_MS = 30L * 24 * 3600 * 1000
 const val MISS_TTL_MS = 3L * 24 * 3600 * 1000
 const val OFFLINE_AFTER = 3
 const val OFFLINE_FOR_MS = 120_000L
+const val HOST_GAP_MS = 1_000L
+const val MAX_HOST_GAP_MS = 20_000L
+const val GAP_RELIEF = 0.9
+const val RETRY_AFTER_CAP_MS = 60_000L
+const val BUSY_TRIES = 3
+
+val BUSY_CODES = setOf(429, 503)
 
 object LibraryCache {
     @Volatile
@@ -32,6 +39,8 @@ object Net {
     private val lock = Any()
     private var fails = 0
     private var offlineUntil = 0L
+    private val hostGap = HashMap<String, Long>()
+    private val hostFreeAt = HashMap<String, Long>()
 
     @Volatile
     var allowNetwork = true
@@ -60,32 +69,94 @@ object Net {
         }
     }
 
+    fun hostOf(url: String): String = try {
+        URL(url).host.lowercase()
+    } catch (_: Throwable) {
+        url
+    }
+
+    private fun waitTurn(host: String) {
+        while (true) {
+            val nap = synchronized(lock) {
+                val now = System.currentTimeMillis()
+                val freeAt = hostFreeAt[host] ?: 0L
+                if (now >= freeAt) {
+                    hostFreeAt[host] = now + (hostGap[host] ?: HOST_GAP_MS)
+                    0L
+                } else {
+                    freeAt - now
+                }
+            }
+            if (nap <= 0L) return
+            try {
+                Thread.sleep(minOf(nap, 2_000L))
+            } catch (_: InterruptedException) {
+                return
+            }
+        }
+    }
+
+    private fun easeOff(host: String) = synchronized(lock) {
+        val gap = hostGap[host] ?: HOST_GAP_MS
+        if (gap > HOST_GAP_MS) hostGap[host] = maxOf(HOST_GAP_MS, (gap * GAP_RELIEF).toLong())
+    }
+
+    private fun tooFast(host: String, retryAfter: String?) {
+        val asked = retryAfter?.trim()?.toDoubleOrNull()?.let { (it * 1000).toLong() }
+            ?: (HOST_GAP_MS * 5)
+        val hold = asked.coerceIn(HOST_GAP_MS, RETRY_AFTER_CAP_MS)
+        synchronized(lock) {
+            hostGap[host] = minOf(MAX_HOST_GAP_MS, (hostGap[host] ?: HOST_GAP_MS) * 2)
+            hostFreeAt[host] = maxOf(hostFreeAt[host] ?: 0L, System.currentTimeMillis() + hold)
+        }
+    }
+
     fun fetch(url: String, timeoutMs: Int = NET_TIMEOUT_MS, accept: String? = null): ByteArray? {
         if (offline()) return null
-        var conn: HttpURLConnection? = null
-        return try {
-            conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                connectTimeout = timeoutMs
-                readTimeout = timeoutMs
-                instanceFollowRedirects = true
-                setRequestProperty("User-Agent", USER_AGENT)
-                if (accept != null) setRequestProperty("Accept", accept)
-            }
-            val code = conn.responseCode
-            if (code !in 200..299) {
+        val host = hostOf(url)
+        for (attempt in 0 until BUSY_TRIES) {
+            waitTurn(host)
+            var conn: HttpURLConnection? = null
+            try {
+                conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = timeoutMs
+                    readTimeout = timeoutMs
+                    instanceFollowRedirects = true
+                    setRequestProperty("User-Agent", USER_AGENT)
+                    // Anti-bot systems flag requests that look like raw
+                    // library calls (no Accept header, no language
+                    // preference) and ones that look like modern
+                    // browsers but skip the JS-capable signals. The
+                    // pair below reads as a "real" bot: a tool that
+                    // accepts HTML but doesn't claim the modern
+                    // Sec-CH-UA headers that Anubis and Cloudflare
+                    // fingerprint.
+                    setRequestProperty("Accept", accept
+                        ?: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+                    setRequestProperty("Accept-Language", "en-US,en;q=0.9")
+                    setRequestProperty("Connection", "keep-alive")
+                }
+                val code = conn.responseCode
+                if (code in 200..299) {
+                    val data = conn.inputStream.use { it.readBytes() }
+                    note(true)
+                    easeOff(host)
+                    return data
+                }
+                if (code in BUSY_CODES) {
+                    tooFast(host, conn.getHeaderField("Retry-After"))
+                    if (attempt + 1 < BUSY_TRIES && !offline()) continue
+                }
                 note(code >= 500 || code == 429)
-                null
-            } else {
-                val data = conn.inputStream.use { it.readBytes() }
-                note(true)
-                data
+                return null
+            } catch (t: Throwable) {
+                note(false)
+                return null
+            } finally {
+                try { conn?.disconnect() } catch (_: Throwable) {}
             }
-        } catch (t: Throwable) {
-            note(false)
-            null
-        } finally {
-            try { conn?.disconnect() } catch (_: Throwable) {}
         }
+        return null
     }
 
     private fun cached(path: File, ttl: Long): Pair<Boolean, JSONObject?> {
@@ -143,32 +214,43 @@ object Net {
         val (hit, value) = cached(path, ttl)
         if (hit) return value
         if (offline()) return null
-        var conn: HttpURLConnection? = null
+        val host = hostOf(url)
         var parsed: JSONObject? = null
-        try {
-            conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                doOutput = true
-                connectTimeout = timeoutMs
-                readTimeout = timeoutMs
-                setRequestProperty("User-Agent", USER_AGENT)
-                setRequestProperty("Content-Type", "application/json")
-                headers.forEach { (k, v) -> setRequestProperty(k, v) }
+        for (attempt in 0 until BUSY_TRIES) {
+            waitTurn(host)
+            var conn: HttpURLConnection? = null
+            var again = false
+            try {
+                conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    doOutput = true
+                    connectTimeout = timeoutMs
+                    readTimeout = timeoutMs
+                    setRequestProperty("User-Agent", USER_AGENT)
+                    setRequestProperty("Content-Type", "application/json")
+                    headers.forEach { (k, v) -> setRequestProperty(k, v) }
+                }
+                conn.outputStream.use { it.write(body) }
+                val code = conn.responseCode
+                if (code in 200..299) {
+                    val text = conn.inputStream.use { it.readBytes() }
+                    parsed = JSONObject(String(text, Charsets.UTF_8))
+                    note(true)
+                    easeOff(host)
+                } else {
+                    if (code in BUSY_CODES) {
+                        tooFast(host, conn.getHeaderField("Retry-After"))
+                        again = attempt + 1 < BUSY_TRIES && !offline()
+                    }
+                    if (!again) note(code >= 500 || code == 429)
+                }
+            } catch (_: Throwable) {
+                note(false)
+                if (offline()) return null
+            } finally {
+                try { conn?.disconnect() } catch (_: Throwable) {}
             }
-            conn.outputStream.use { it.write(body) }
-            val code = conn.responseCode
-            if (code in 200..299) {
-                val text = conn.inputStream.use { it.readBytes() }
-                parsed = JSONObject(String(text, Charsets.UTF_8))
-                note(true)
-            } else {
-                note(code >= 500 || code == 429)
-            }
-        } catch (_: Throwable) {
-            note(false)
-            if (offline()) return null
-        } finally {
-            try { conn?.disconnect() } catch (_: Throwable) {}
+            if (!again) break
         }
         store(path, url, parsed)
         return parsed
