@@ -4,6 +4,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import com.sumatrapdf.reader.FileHistory
+import com.sumatrapdf.reader.FileHistoryEntry
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.neverEqualPolicy
@@ -22,7 +25,7 @@ import java.io.File
 // sweeps (covers, then online metadata) run after a scan exactly as the
 // desktop's _sweep does.
 
-enum class LibraryTab { Overview, Characters, Family, Places, Knows, Screen }
+enum class LibraryTab { Overview, Characters, Family, Places, Knows, Screen, Info }
 
 class BookDetail(val book: Book) {
     var meta by mutableStateOf<BookMeta?>(null)
@@ -38,9 +41,15 @@ class BookDetail(val book: Book) {
     var knowers by mutableStateOf<List<WikiKnower>>(emptyList())
     var tab by mutableStateOf(LibraryTab.Overview)
     var openChapters by mutableStateOf<Set<String>>(emptySet())
+    var created by mutableStateOf(-1L)
+    var checksum by mutableStateOf<String?>(null)
+    var checksumWorking by mutableStateOf(false)
+    var words by mutableStateOf<Int?>(null)
+    var wordsWorking by mutableStateOf(false)
+    var wordsFailed by mutableStateOf(false)
 }
 
-class LibraryModel(context: Context, private val scope: CoroutineScope) {
+class LibraryModel(context: Context, private val scope: CoroutineScope, private val history: FileHistory) {
     private val app = context.applicationContext
     val store = LibraryStore(app)
 
@@ -66,15 +75,19 @@ class LibraryModel(context: Context, private val scope: CoroutineScope) {
     var search by mutableStateOf("")
     var deskpanOpen by mutableStateOf(false)
     var deskShowIgnored by mutableStateOf(false)
-    var deskChosen by mutableStateOf<Set<String>>(emptySet())
-    var deskAnchor by mutableStateOf(-1)
     var deskWorking by mutableStateOf(false)
+    var selecting by mutableStateOf(false)
+    var selected by mutableStateOf<Set<String>>(emptySet())
     var detail by mutableStateOf<BookDetail?>(null)
+    val gridState = LazyGridState()
+    val deskGridState = LazyGridState()
 
     private var sweepJob: Job? = null
     private var stopSweep = false
 
     val books: List<Book> get() = index?.books ?: emptyList()
+
+    fun historyFor(path: String): FileHistoryEntry? = history.findByPath(path)
 
     val bookCount: Int get() = books.count { it.kind == KIND_BOOK }
     val documentCount: Int get() = books.count { it.kind == KIND_DOCUMENT }
@@ -100,7 +113,7 @@ class LibraryModel(context: Context, private val scope: CoroutineScope) {
         for (r in rows) {
             if (row.key !in r.chain) continue
             for (b in r.members) {
-                if (b.kind == activeKind && seen.add(b.id)) count++
+                if (b.kind == KIND_BOOK && seen.add(b.id)) count++
             }
         }
         return count
@@ -110,8 +123,7 @@ class LibraryModel(context: Context, private val scope: CoroutineScope) {
         deskpanOpen = !deskpanOpen
         filterKey = null
         filterName = null
-        deskChosen = emptySet()
-        deskAnchor = -1
+        stopSelecting()
     }
 
     fun deskFiles(): List<Book> {
@@ -123,37 +135,36 @@ class LibraryModel(context: Context, private val scope: CoroutineScope) {
     fun deskShow(ignored: Boolean) {
         if (deskShowIgnored == ignored) return
         deskShowIgnored = ignored
-        deskChosen = emptySet()
-        deskAnchor = -1
+        stopSelecting()
     }
 
-    fun deskTick(files: List<Book>, at: Int) {
-        val f = files.getOrNull(at) ?: return
-        deskChosen = if (f.path in deskChosen) deskChosen - f.path else deskChosen + f.path
-        deskAnchor = at
+    fun startSelecting(book: Book) {
+        selecting = true
+        selected = setOf(book.path)
     }
 
-    fun deskPick(files: List<Book>, at: Int, run: Boolean) {
-        val f = files.getOrNull(at) ?: return
-        if (run && deskAnchor in files.indices) {
-            val from = minOf(deskAnchor, at)
-            val to = maxOf(deskAnchor, at)
-            deskChosen = deskChosen + files.subList(from, to + 1).map { it.path }
-            return
-        }
-        val onlyOne = f.path in deskChosen && deskChosen.size == 1
-        deskChosen = if (onlyOne) emptySet() else setOf(f.path)
-        deskAnchor = at
+    fun toggleSelected(book: Book) {
+        selected = if (book.path in selected) selected - book.path else selected + book.path
+        selecting = selected.isNotEmpty()
     }
 
-    fun deskPickAll(files: List<Book>) {
-        deskChosen = if (deskChosen.isEmpty()) files.map { it.path }.toSet() else emptySet()
-        deskAnchor = -1
+    fun selectAll(files: List<Book>) {
+        selected = if (selected.size >= files.size) emptySet() else files.map { it.path }.toSet()
+        selecting = selected.isNotEmpty()
+    }
+
+    fun stopSelecting() {
+        selecting = false
+        selected = emptySet()
     }
 
     fun moveOneFile(path: String, kind: String) = moveFiles(setOf(path), kind)
 
-    fun moveDeskChosen(kind: String) = moveFiles(deskChosen, kind)
+    fun moveSelected(kind: String) {
+        val wanted = selected
+        stopSelecting()
+        moveFiles(wanted, kind)
+    }
 
     private fun moveFiles(wanted: Set<String>, kind: String) {
         if (wanted.isEmpty() || deskWorking) return
@@ -167,8 +178,7 @@ class LibraryModel(context: Context, private val scope: CoroutineScope) {
                 }
                 withContext(Dispatchers.IO) { store.saveIndex(have) }
             }
-            deskChosen = emptySet()
-            deskAnchor = -1
+            stopSelecting()
             deskWorking = false
             reshelve()
         }
@@ -245,6 +255,13 @@ class LibraryModel(context: Context, private val scope: CoroutineScope) {
         val have = index ?: return
         stopSweep = false
         sweepJob = scope.launch(Dispatchers.IO) {
+            sweeping = "checksum cache"
+            // Before anything online runs, pre-fill the per-book meta
+            // cache from any duplicate with the same content hash.
+            // Re-adding a deleted book and copying a book under a new
+            // filename are both "same book, different key" — the
+            // checksum survives the rename, the cache key doesn't.
+            if (!stopSweep) promoteChecksumCache(have.books)
             sweeping = "covers"
             val stale = !coversArePicked()
             val made = if (stale) {
@@ -260,7 +277,8 @@ class LibraryModel(context: Context, private val scope: CoroutineScope) {
             }
             sweeping = if (stopSweep) null else "series"
             if (!stopSweep) {
-                val found = seriesSweep(have.books, stop = { stopSweep })
+                var found = seriesSweep(have.books, stop = { stopSweep })
+                found += agreeWithFolder(have.books, stop = { stopSweep })
                 if (found > 0) {
                     withContext(Dispatchers.Main) { reshelveNow() }
                     store.saveIndex(have)
@@ -289,6 +307,42 @@ class LibraryModel(context: Context, private val scope: CoroutineScope) {
             found++
         }
         return found
+    }
+
+    private fun folderWinners(books: List<Book>): Map<String, String> {
+        val votes = HashMap<String, HashMap<String, Int>>()
+        for (b in books) {
+            val name = b.apiSeries ?: continue
+            val here = votes.getOrPut(b.folder.lowercase()) { HashMap() }
+            here[name] = (here[name] ?: 0) + 1
+        }
+        val out = HashMap<String, String>()
+        for ((folder, names) in votes) {
+            val top = names.maxByOrNull { it.value } ?: continue
+            if (top.value >= FOLDER_AGREE) out[folder] = top.key
+        }
+        return out
+    }
+
+    private suspend fun agreeWithFolder(books: List<Book>, stop: () -> Boolean = { false }): Int {
+        val winners = folderWinners(books)
+        if (winners.isEmpty()) return 0
+        var fixed = 0
+        for (b in books) {
+            if (stop()) break
+            val want = winners[b.folder.lowercase()] ?: continue
+            if (b.apiSeries == want) continue
+            if (Net.offline()) break
+            val hit = seriesFor(b, setOf(squashName(want))) ?: continue
+            if (hit.name != want) continue
+            b.apiSeries = hit.name
+            b.apiSeriesIndex = hit.index
+            b.apiSeriesSource = hit.source
+            b.apiAuthor = hit.author
+            b.apiSubjects = hit.subjects
+            fixed++
+        }
+        return fixed
     }
 
     // A hand-picked cover retrains the cover model, so every cover the
@@ -320,6 +374,7 @@ class LibraryModel(context: Context, private val scope: CoroutineScope) {
     fun selectRow(row: SeriesRow?) {
         filterKey = row?.key
         filterName = row?.name
+        stopSelecting()
     }
 
     fun openBook(book: Book) {
@@ -341,6 +396,61 @@ class LibraryModel(context: Context, private val scope: CoroutineScope) {
 
     fun closeDetail() {
         detail = null
+    }
+
+    fun ensureInfo(d: BookDetail) {
+        if (d.created < 0L) {
+            d.created = 0L
+            scope.launch {
+                val at = withContext(Dispatchers.IO) { fileCreated(d.book.path) }
+                d.created = at
+            }
+        }
+        if (d.checksum == null && !d.checksumWorking) {
+            val known = d.book.checksum
+            if (known != null) {
+                d.checksum = known
+            } else {
+                d.checksumWorking = true
+                scope.launch {
+                    val sum = withContext(Dispatchers.IO) { fileChecksum(d.book.path) }
+                    if (sum != null) {
+                        d.book.checksum = sum
+                        saveIndex()
+                    }
+                    d.checksum = sum
+                    d.checksumWorking = false
+                }
+            }
+        }
+        if (d.words == null && !d.wordsWorking && !d.wordsFailed) {
+            val known = d.book.words
+            if (known != null) {
+                d.words = known
+            } else {
+                d.wordsWorking = true
+                scope.launch {
+                    val count = withContext(Dispatchers.IO) { countWords(d.book.path) }
+                    if (count != null) {
+                        d.book.words = count
+                        saveIndex()
+                    }
+                    d.words = count
+                    d.wordsFailed = count == null
+                    d.wordsWorking = false
+                }
+            }
+        }
+    }
+
+    private fun saveIndex() {
+        val have = index ?: return
+        scope.launch(Dispatchers.IO) {
+            try {
+                store.saveIndex(have)
+            } catch (_: Throwable) {
+            }
+        }
     }
 
     fun ensureChapters(d: BookDetail) {
@@ -467,28 +577,21 @@ object CoverCache {
         revision++
     }
 
-    suspend fun cover(book: Book): Bitmap? {
-        cache.get(book.id)?.let { return it }
-        if (book.id in missing) return null
-        return gate.withPermit {
-            cache.get(book.id)?.let { return@withPermit it }
-            val bitmap = withContext(Dispatchers.IO) {
-                buildCover(book)?.let { decode(it) }
-            }
-            if (bitmap == null) missing.add(book.id) else cache.put(book.id, bitmap)
-            bitmap
-        }
-    }
+    suspend fun cover(book: Book): Bitmap? = load(book.id) { buildCover(book) }
+
+    suspend fun deskCover(book: Book): Bitmap? = load(book.id) { buildDeskCover(book) }
 
     suspend fun poster(url: String): Bitmap? {
         val key = "poster:" + Net.keyFor(url)
+        return load(key) { buildPoster(url) }
+    }
+
+    private suspend fun load(key: String, build: () -> File?): Bitmap? {
         cache.get(key)?.let { return it }
         if (key in missing) return null
         return gate.withPermit {
             cache.get(key)?.let { return@withPermit it }
-            val bitmap = withContext(Dispatchers.IO) {
-                buildPoster(url)?.let { decode(it) }
-            }
+            val bitmap = withContext(Dispatchers.IO) { build()?.let { decode(it) } }
             if (bitmap == null) missing.add(key) else cache.put(key, bitmap)
             bitmap
         }

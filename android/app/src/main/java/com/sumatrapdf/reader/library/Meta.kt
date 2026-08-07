@@ -12,6 +12,7 @@ import kotlin.math.round
 
 const val OPENLIBRARY_SEARCH = "https://openlibrary.org/search.json"
 const val OPENLIBRARY_WORK = "https://openlibrary.org/works/%s.json"
+const val OPENLIBRARY_RATINGS = "https://openlibrary.org/works/%s/ratings.json"
 const val OPENLIBRARY_COVER_ID = "https://covers.openlibrary.org/b/id/%s-L.jpg"
 const val OPENLIBRARY_COVER_ISBN = "https://covers.openlibrary.org/b/isbn/%s-L.jpg"
 const val GOOGLE_BOOKS = "https://www.googleapis.com/books/v1/volumes"
@@ -33,6 +34,9 @@ data class BookMeta(
     var key: String? = null,
     var pages: Int? = null,
     var googleCover: String? = null,
+    var rating: Double? = null,
+    var ratingCount: Int? = null,
+    var ratingSource: String? = null,
 )
 
 private val WORD = Regex("""[a-z0-9']+""")
@@ -152,6 +156,17 @@ fun workDescription(key: String?): String? {
     return describeText(value)
 }
 
+fun workRating(key: String?): Pair<Double, Int>? {
+    if (key.isNullOrBlank()) return null
+    val ident = key.substringAfterLast('/')
+    val data = Net.fetchJson(OPENLIBRARY_RATINGS.format(ident)) ?: return null
+    val summary = data.optJSONObject("summary") ?: return null
+    if (summary.isNull("average")) return null
+    val average = summary.optDouble("average", 0.0)
+    if (average <= 0.0) return null
+    return average to summary.optInt("count", 0)
+}
+
 fun googleBooks(title: String?, author: String? = null): JSONObject? {
     if (title.isNullOrBlank()) return null
     val terms = mutableListOf("intitle:\"$title\"")
@@ -187,8 +202,13 @@ fun lookupMeta(title: String?, author: String? = null, context: String? = null):
         out.key = doc.optString("key", "").takeIf { it.isNotBlank() }
         out.pages = doc.optInt("number_of_pages_median", 0).takeIf { it > 0 }
         out.description = workDescription(out.key)
+        workRating(out.key)?.let { (average, count) ->
+            out.rating = average
+            out.ratingCount = count
+            out.ratingSource = "openlibrary"
+        }
     }
-    if (out.description == null || out.author == null) {
+    if (out.description == null || out.author == null || out.rating == null) {
         val info = googleBooks(out.title, out.author ?: author)
         if (info != null) {
             if (out.source == null) out.source = "googlebooks"
@@ -203,6 +223,14 @@ fun lookupMeta(title: String?, author: String? = null, context: String? = null):
                 out.year = m?.groupValues?.get(1)?.toIntOrNull()
             }
             if (out.subjects.isEmpty()) out.subjects = stringList(info.optJSONArray("categories")).take(12)
+            if (out.rating == null) {
+                val average = info.optDouble("averageRating", 0.0)
+                if (average > 0.0) {
+                    out.rating = average
+                    out.ratingCount = info.optInt("ratingsCount", 0)
+                    out.ratingSource = "googlebooks"
+                }
+            }
             val links = info.optJSONObject("imageLinks")
             out.googleCover = links?.optString("thumbnail", "")?.takeIf { it.isNotBlank() }
                 ?: links?.optString("smallThumbnail", "")?.takeIf { it.isNotBlank() }
@@ -236,6 +264,10 @@ fun metaToJson(m: BookMeta): JSONObject {
     o.put("key", m.key ?: JSONObject.NULL)
     o.put("pages", m.pages ?: JSONObject.NULL)
     if (m.googleCover != null) o.put("google_cover", m.googleCover)
+    o.put("rating", m.rating ?: JSONObject.NULL)
+    o.put("rating_count", m.ratingCount ?: JSONObject.NULL)
+    o.put("rating_source", m.ratingSource ?: JSONObject.NULL)
+    o.put("rating_asked", true)
     return o
 }
 
@@ -251,6 +283,9 @@ fun metaFromJson(o: JSONObject): BookMeta = BookMeta(
     key = o.optString("key", "").takeIf { it.isNotBlank() },
     pages = if (o.isNull("pages")) null else o.optInt("pages").takeIf { it > 0 },
     googleCover = o.optString("google_cover", "").takeIf { it.isNotBlank() },
+    rating = if (o.isNull("rating")) null else o.optDouble("rating").takeIf { it > 0.0 },
+    ratingCount = if (o.isNull("rating_count")) null else o.optInt("rating_count").takeIf { it > 0 },
+    ratingSource = o.optString("rating_source", "").takeIf { it.isNotBlank() },
 )
 
 private fun metaPathFor(bookId: String): File = File(LibraryCache.dir("meta"), "$bookId.json")
@@ -258,14 +293,17 @@ private fun metaPathFor(bookId: String): File = File(LibraryCache.dir("meta"), "
 fun metaForBook(book: Book, refresh: Boolean = false, context: String? = null): BookMeta {
     val where = context ?: book.series
     val path = metaPathFor(book.id)
+    var cached: BookMeta? = null
     if (path.exists() && !refresh) {
         try {
-            return metaFromJson(JSONObject(path.readText()))
+            val stored = JSONObject(path.readText())
+            cached = metaFromJson(stored)
+            if (stored.optBoolean("rating_asked", false)) return cached
         } catch (_: Throwable) {
         }
     }
     val info = lookupMeta(book.title, book.author, where)
-    if (Net.offline() && info.source == null) return info
+    if (Net.offline() && info.source == null) return cached ?: info
     try {
         path.writeText(metaToJson(info).toString())
     } catch (_: Throwable) {
@@ -284,4 +322,42 @@ fun metaSweep(books: List<Book>, log: ((String) -> Unit)? = null, stop: () -> Bo
         log?.invoke("meta: ${b.title}")
     }
     return done
+}
+
+// The cache key is the book id (the file path), so re-adding a deleted
+// book (different path) and adding a duplicate copy of a book with
+// a different filename both miss the cache. The MD5 of the contents
+// (`b.checksum`) survives that — two files with the same content
+// hash to the same string regardless of what they're called or where
+// they live. Before the meta sweep runs, walk the index once and
+// for every book whose own cache file is missing but whose checksum
+// matches a book that already has one, copy the cached JSON into
+// place. The existing `cachedSubjects(b.id)` skip in `metaSweep` then
+// finds it on the next iteration, so the online lookup never runs.
+// audiobook/pdfbook.py::book_hash is the same idea — the BookNLP
+// cache directory is keyed on the content hash for the same reason.
+internal fun promoteChecksumCache(books: List<Book>, log: ((String) -> Unit)? = null): Int {
+    val byChecksum = books.mapNotNull { b ->
+        b.checksum?.takeIf { it.isNotBlank() }?.let { it to b }
+    }.groupBy({ it.first }, { it.second })
+    var promoted = 0
+    for (b in books) {
+        val sum = b.checksum?.takeIf { it.isNotBlank() } ?: continue
+        val myCache = metaPathFor(b.id)
+        if (myCache.exists()) continue
+        val peers = byChecksum[sum].orEmpty().filter { it.id != b.id }
+        for (peer in peers) {
+            val peerCache = metaPathFor(peer.id)
+            if (!peerCache.exists()) continue
+            try {
+                myCache.parentFile?.mkdirs()
+                myCache.writeText(peerCache.readText())
+                promoted++
+                log?.invoke("cache promote: ${b.title} ← ${peer.title}")
+                break
+            } catch (_: Throwable) {
+            }
+        }
+    }
+    return promoted
 }
