@@ -326,6 +326,7 @@ const sumatraFiles: FileGroup[] = [
       "InstallerCommon.cpp",
       "JxlReader.*",
       "LibraryPage.*",
+      "LibraryScan.*",
       "MainWindow.*",
       "Menu.*",
       "Notifications.*",

@@ -24,6 +24,7 @@ constexpr const char* kLinkOpenFile = "<File,Open>";
 constexpr const char* kLinkShowList = "<View,ShowList>";
 constexpr const char* kLinkHideList = "<View,HideList>";
 constexpr const char* kLinkNextTip = "<NextTip>";
+constexpr const char* kLinkHomeLibrary = "<HomePage,Library>";
 constexpr const char* kLinkHomeListView = "<HomePage,ListView>";
 constexpr const char* kLinkHomeThumbnailView = "<HomePage,ThumbnailView>";
 constexpr const char* kLinkHomeRemoveFilePrefix = "<HomePage,RemoveFile>";

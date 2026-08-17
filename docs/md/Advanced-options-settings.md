@@ -803,6 +803,15 @@ FileStates [
     ; number of times this document has been opened recently
     OpenCount = 0
 
+    ; furthest page reached in this document
+    MaxPageReached = 0
+
+    ; total time spent reading this document, in milliseconds
+    TimeSpentMs = 0
+
+    ; when this document was last read, as unix time in milliseconds
+    LastReadAt = 0
+
     ; data required to open a password protected document without having to ask
     ; for the password again
     DecryptionKey =

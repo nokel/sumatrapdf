@@ -466,6 +466,18 @@ void SwitchToDisplayMode(MainWindow* win, DisplayMode displayMode, bool keepCont
     UpdateToolbarState(win);
 }
 
+static void RememberDefaultDisplayMode(MainWindow* win) {
+    if (!win->IsDocLoaded() || win->presentation != PM_DISABLED) {
+        return;
+    }
+    DisplayMode mode = win->ctrl->GetDisplayMode();
+    if (mode == DisplayMode::Automatic || mode == gGlobalPrefs->defaultDisplayModeEnum) {
+        return;
+    }
+    gGlobalPrefs->defaultDisplayModeEnum = mode;
+    SaveSettings();
+}
+
 static WindowTab* FindTabByController(DocController* ctrl) {
     for (MainWindow* win : gWindows) {
         for (WindowTab* tab : win->Tabs()) {
@@ -760,6 +772,21 @@ static void UpdateSidebarDisplayState(WindowTab* tab, FileState* fs) {
     *fs->tocState = tab->tocState;
 }
 
+void BankTabReadingTime(WindowTab* tab, bool keepReading) {
+    if (!tab || !tab->ctrl) {
+        return;
+    }
+    i64 now = ReadingTimeNowMs();
+    if (tab->readingSince > 0 && now > tab->readingSince) {
+        FileState* fs = gFileHistory.FindByPath(tab->filePath);
+        if (fs) {
+            fs->timeSpentMs += now - tab->readingSince;
+            fs->lastReadAt = now;
+        }
+    }
+    tab->readingSince = keepReading ? now : 0;
+}
+
 void UpdateTabFileDisplayStateForTab(WindowTab* tab) {
     if (!tab || !tab->ctrl) {
         return;
@@ -767,6 +794,7 @@ void UpdateTabFileDisplayStateForTab(WindowTab* tab) {
     MainWindow* win = tab->win;
     // TODO: this is called multiple times for each tab
     RememberDefaultWindowPosition(win);
+    BankTabReadingTime(tab, tab == win->CurrentTab());
     Str fp = tab->filePath;
     FileState* fs = gFileHistory.FindByPath(fp);
     if (!fs) {
@@ -1782,6 +1810,11 @@ static void UpdateUiForCurrentTab(MainWindow* win) {
 
     HwndSetText(win->hwndFrame, win->CurrentTab()->frameTitle);
 
+    WindowTab* currTab = win->CurrentTab();
+    if (currTab->ctrl && currTab->readingSince == 0) {
+        currTab->readingSince = ReadingTimeNowMs();
+    }
+
     bool onlyNumbers = !win->ctrl || !win->ctrl->HasPageLabels();
     HwndSetWindowStyle(win->hwndPageEdit, ES_NUMBER, onlyNumbers);
 }
@@ -1846,7 +1879,6 @@ static void ReplaceDocumentInCurrentTab(LoadArgs* args, DocController* ctrl, Fil
 
     if (fs) {
         ss.page = fs->pageNo;
-        displayMode = DisplayModeFromString(fs->displayMode, DisplayMode::Automatic);
         showAsFullScreen = WIN_STATE_FULLSCREEN == fs->windowState;
         if (fs->windowState == WIN_STATE_NORMAL) {
             showType = SW_NORMAL;
@@ -5454,8 +5486,8 @@ static bool RelayoutFrame(MainWindow* win, bool updateToolbars, int sidebarDx) {
             HwndSetVisible(win->aiChatSplitter->hwnd, ui.aiChatVisible);
         }
         if (win->hwndAudiobookBox) {
-            HwndSetVisibility(win->hwndAudiobookBox, ui.audiobookVisible);
-            HwndSetVisibility(win->audiobookSplitter->hwnd, ui.audiobookVisible);
+            HwndSetVisible(win->hwndAudiobookBox, ui.audiobookVisible);
+            HwndSetVisible(win->audiobookSplitter->hwnd, ui.audiobookVisible);
         }
     }
 
@@ -6284,6 +6316,7 @@ static void ToggleContinuousView(MainWindow* win) {
             break;
     }
     SwitchToDisplayMode(win, newMode);
+    RememberDefaultDisplayMode(win);
 }
 
 static void ToggleMangaMode(MainWindow* win) {
@@ -6472,6 +6505,7 @@ static void ChangeZoomLevel(MainWindow* win, float newZoom, bool pagesContinuous
 
         if (mode != newMode) {
             SwitchToDisplayMode(win, newMode);
+            RememberDefaultDisplayMode(win);
         }
         OnMenuZoom(win, CmdIdFromVirtualZoom(newZoom));
 
@@ -6487,6 +6521,7 @@ static void ChangeZoomLevel(MainWindow* win, float newZoom, bool pagesContinuous
     } else if (win->CurrentTab()->prevZoomVirtual != kInvalidZoom) {
         float prevZoom = win->CurrentTab()->prevZoomVirtual;
         SwitchToDisplayMode(win, win->CurrentTab()->prevDisplayMode);
+        RememberDefaultDisplayMode(win);
         SmartZoom(win, prevZoom, nullptr, true);
     }
 }
@@ -9192,16 +9227,19 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
 
         case CmdSinglePageView:
             SwitchToDisplayMode(win, DisplayMode::SinglePage, true);
+            RememberDefaultDisplayMode(win);
             ShowViewModeNotification(win, cmdId);
             break;
 
         case CmdFacingView:
             SwitchToDisplayMode(win, DisplayMode::Facing, true);
+            RememberDefaultDisplayMode(win);
             ShowViewModeNotification(win, cmdId);
             break;
 
         case CmdBookView:
             SwitchToDisplayMode(win, DisplayMode::BookView, true);
+            RememberDefaultDisplayMode(win);
             ShowViewModeNotification(win, cmdId);
             break;
 
@@ -12421,10 +12459,18 @@ LRESULT CALLBACK WndProcSumatraFrame(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
         case WM_ACTIVATE:
             if (wp != WA_INACTIVE) {
                 gLastActiveFrameHwnd = hwnd;
+                if (win) {
+                    WindowTab* tab = win->CurrentTab();
+                    if (tab && tab->ctrl && tab->readingSince == 0) {
+                        tab->readingSince = ReadingTimeNowMs();
+                    }
+                }
             } else if (win) {
                 // hide the topmost citation-hover popup when switching to
                 // another application (no WM_MOUSELEAVE is generated then)
                 RefHoverHide(win->refHover, win->hwndCanvas);
+                // time spent in another window isn't time spent reading
+                BankTabReadingTime(win->CurrentTab(), false);
             }
             break;
 

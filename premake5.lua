@@ -1024,8 +1024,12 @@ workspace "SumatraPDF"
     -- LzSA decoder (LzmaDecode + x86 BCJ) for LzmaSimpleArchive. Not in
     -- libsumatrapdf/libarchive so the installer can extract without the delay-loaded DLL.
     files { "ext/lzma/C/Bra86.c", "ext/lzma/C/LzmaDec.c" }
+    -- raw LZMA2 codec for BookBlob (single-threaded: no LzFindMt/MtCoder/Threads)
+    files { "ext/lzma/C/LzmaEnc.c", "ext/lzma/C/LzFind.c", "ext/lzma/C/Lzma2Enc.c", "ext/lzma/C/Lzma2Dec.c" }
+    defines { "_7ZIP_ST" }
     filter { "files:ext/lzma/C/**" }
       enablepch "Off"
+      disablewarnings { "4005", "4131", "4244", "4245", "4267", "4456", "4457", "4838", "4996" }
     filter {}
     setup_base_pch()
 
@@ -1231,7 +1235,7 @@ workspace "SumatraPDF"
     manifest("Off")
     defines { "LIBARCHIVE_STATIC" }
     includedirs { "src", "mupdf/include" }
-    includedirs { "ext/synctex", "ext/djvudec", "ext/chmdec", "ext/libarchive", "ext/zopfli/src" }
+    includedirs { "ext/synctex", "ext/djvudec", "ext/chmdec", "ext/libarchive", "ext/zopfli/src", "ext/lzma/C" }
     includedirs { "ext/cmark-gfm/src", "ext/cmark-gfm/extensions", "mupdf/scripts/cmark-gfm" }
     includedirs { "ext/heicdec", "ext/libwebp/src", "ext/jxldec" }
 
@@ -1337,7 +1341,7 @@ workspace "SumatraPDF"
     manifest("Off")
     defines { "LIBARCHIVE_STATIC" }
     includedirs { "src", "mupdf/include" }
-    includedirs { "ext/synctex", "ext/djvudec", "ext/chmdec", "ext/libarchive", "ext/zopfli/src" }
+    includedirs { "ext/synctex", "ext/djvudec", "ext/chmdec", "ext/libarchive", "ext/zopfli/src", "ext/lzma/C" }
     includedirs { "ext/darkmodelib/include" }
     -- headers only: webp/jxl/heic/chm symbols come from libsumatrapdf.dll (libsumatrapdf.def)
     includedirs { "ext/heicdec", "ext/libwebp/src", "ext/jxldec" }

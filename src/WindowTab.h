@@ -53,6 +53,10 @@ struct WindowTab {
     Rect canvasRc;
     // whether to auto-reload the document when the tab is selected
     bool reloadOnFocus = false;
+    // unix time in ms when this tab last became the visible, active document;
+    // 0 when the clock isn't running. BankTabReadingTime() folds the elapsed
+    // time into FileState::timeSpentMs
+    i64 readingSince = 0;
     // FileWatcher token for unsubscribing
     WatchedFile* watcher = nullptr;
     // list of rectangles of the last rectangular, text or image selection

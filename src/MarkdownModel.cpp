@@ -731,6 +731,7 @@ void MarkdownModel::GetDisplayState(FileState* fs) {
     str::ReplaceWithCopy(&fs->displayMode, DisplayModeToString(GetDisplayMode()));
     ZoomToString(&fs->zoom, GetZoomVirtual(), fs);
     fs->pageNo = CurrentPageNo();
+    fs->maxPageReached = std::max(fs->maxPageReached, fs->pageNo);
     SaveHtmlScrollPos();
     fs->scrollPos = htmlScrollPos;
 }

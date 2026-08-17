@@ -123,6 +123,15 @@ FileState* FileHistory::FindByName(Str filePath, int* idxOut) const {
     return (*states)[idFound];
 }
 
+i64 ReadingTimeNowMs() {
+    FILETIME ft{};
+    GetSystemTimeAsFileTime(&ft);
+    ULARGE_INTEGER u{};
+    u.LowPart = ft.dwLowDateTime;
+    u.HighPart = ft.dwHighDateTime;
+    return (i64)((u.QuadPart - 116444736000000000ULL) / 10000ULL);
+}
+
 FileState* FileHistory::MarkFileLoaded(Str filePath) const {
     ReportIf(!filePath);
     // if a history entry with the same name already exists,
@@ -138,6 +147,7 @@ FileState* FileHistory::MarkFileLoaded(Str filePath) const {
     }
     states->InsertAt(0, fs);
     fs->openCount++;
+    fs->lastReadAt = ReadingTimeNowMs();
     return fs;
 }
 

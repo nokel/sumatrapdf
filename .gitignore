@@ -48,3 +48,5 @@ translations/
 /terminals
 /mcps/tasks/tools
 /bin/resvg.exe
+# agents.md is maintained per branch locally, so it can describe that branch
+/agents.md

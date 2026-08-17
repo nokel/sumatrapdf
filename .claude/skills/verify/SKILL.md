@@ -7,7 +7,7 @@ description: Build, launch and drive SumatraPDF on Windows to verify a change en
 
 ## Build & launch
 
-- Build: `bun ./cmd/build.ts` → `out/dbg64/SumatraPDF-dll.exe` (NOT `SumatraPDF.exe`, which is a stale static target).
+- Build: `bun ./cmd/build.ts` → `out/dbg64/SumatraPDF.exe` (the link line ends `/OUT:...\out\dbg64\SumatraPDF.exe`; there is no `SumatraPDF-dll.exe` in this tree).
 - If new source files were added to `premake5.files.lua` / `premake5.lua`, run `bun cmd/premake.ts` first to regenerate `vs2022/*.vcxproj`, or the build fails with stale projects / link errors.
 - Always launch with `-for-testing` (fresh instance, no session restore, doesn't touch user settings).
 - Capture engine/app logs: `-log -log-to-file <path>` (collects `logf`/`logfa` output).
@@ -48,6 +48,10 @@ postMessage(frame, 0x0010 /*WM_CLOSE*/, 0, 0);
   + `file::WriteFile`, view, then remove the harness).
 
 - `out/dbg64/SumatraPDF-settings.txt` exists (portable mode): the dbg build **loads** it even under `-for-testing` (which only prevents saving). Stale values there change app behavior in tests — e.g. a non-default `PdfDocumentColorMode` silently alters rendering. Check it when the app behaves unexpectedly at startup; it's written only by non-`-for-testing` (manual) launches.
+
+- `launchSumatra` returns a child of the bun process: when that bun script exits (or the tool call times out and kills it), the app dies with it. Do the whole launch → drive → capture → `WM_CLOSE` sequence inside one script rather than launching in one call and clicking in the next.
+
+- `enumWindows(visit)` takes a visitor callback and is not iterable: `enumWindows((h) => { ...; return false; })` to stop early.
 
 - Unit tests: `bun cmd/run-unit-tests.ts -dbg` (but verification = driving the app, not tests).
 - PdfFilter/PdfPreview link mupdf through `src/libsumatrapdf.def`; new `fz_*`/`pdf_*` calls in code they compile need exports added there.

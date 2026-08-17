@@ -473,6 +473,16 @@ struct FileState {
     // that the Frequently Read list hopefully better reflects the
     // currently relevant documents
     int openCount;
+    // the furthest page the reader has reached in this document, which is
+    // what the percent-read figure is calculated from (PageNo can move
+    // backwards)
+    int maxPageReached;
+    // total milliseconds this document has been the visible tab, summed
+    // over every session
+    i64 timeSpentMs;
+    // unix time in milliseconds when this document was last open, used to
+    // merge reading stats that travel with the file between devices
+    i64 lastReadAt;
     // Hex encoded MD5 fingerprint of file content (32 chars) followed by
     // crypt key (64 chars) - only applies for PDF documents
     Str decryptionKey;
@@ -1237,6 +1247,9 @@ static const FieldInfo gFileStateFields[] = {
     {offsetof(FileState, isPinned), SettingType::Bool, false},
     {offsetof(FileState, isMissing), SettingType::Bool, false},
     {offsetof(FileState, openCount), SettingType::Int, 0},
+    {offsetof(FileState, maxPageReached), SettingType::Int, 0},
+    {offsetof(FileState, timeSpentMs), SettingType::Int64, 0},
+    {offsetof(FileState, lastReadAt), SettingType::Int64, 0},
     {offsetof(FileState, decryptionKey), SettingType::String, 0},
     {offsetof(FileState, useDefaultState), SettingType::Bool, false},
     {offsetof(FileState, displayMode), SettingType::String, (intptr_t)"automatic"},
@@ -1255,23 +1268,26 @@ static const FieldInfo gFileStateFields[] = {
     {offsetof(FileState, tocState), SettingType::IntArray, 0},
 };
 static StructInfo gFileStateInfo = {
-    sizeof(FileState), 21, gFileStateFields,
-    "FilePath\0Favorites\0IsPinned\0IsMissing\0OpenCount\0DecryptionKey\0UseDefaultState\0DisplayMode\0ScrollPos\0PageN"
-    "o\0Zoom\0Rotation\0WindowState\0WindowPos\0ShowToc\0SidebarDx\0DisplayR2L\0BgCol\0TabCol\0ReparseIdx\0TocState",
+    sizeof(FileState), 24, gFileStateFields,
+    "FilePath\0Favorites\0IsPinned\0IsMissing\0OpenCount\0MaxPageReached\0TimeSpentMs\0LastReadAt\0DecryptionKey\0UseDe"
+    "faultState\0DisplayMode\0ScrollPos\0PageNo\0Zoom\0Rotation\0WindowState\0WindowPos\0ShowToc\0SidebarDx\0DisplayR2L"
+    "\0BgCol\0TabCol\0ReparseIdx\0TocState",
     "path of the document\0Values which are persisted for bookmarks/favorites\0a document can be \"pinned\" to the "
     "Frequently Read list so that it isn't displaced by recently opened documents\0if true, the file is considered "
-    "missing and won't be shown in any list\0number of times this document has been opened recently\0data required to "
-    "open a password protected document without having to ask for the password again\0if true, we use global defaults "
-    "when opening this file (instead of the values below)\0layout of pages. valid values: automatic, single page, "
-    "facing, book view, continuous, continuous facing, continuous book view\0how far this document has been scrolled "
-    "(in x and y direction)\0number of the last read page\0zoom (in %) or one of those values: fit page, fit width, "
-    "fit height, fit content\0how far pages have been rotated as a multiple of 90 degrees\0state of the window. 1 is "
-    "normal, 2 is maximized, 3 is fullscreen, 4 is minimized\0default position (can be on any monitor)\0if true, we "
-    "show table of contents (Bookmarks) sidebar if it's present in the document\0width of the left sidebar panel "
-    "containing the table of contents\0if true, the document is displayed right-to-left in facing and book view modes "
-    "(only used for comic book documents)\0if given, overrides the background color for this document\0if given, "
-    "overrides the tab color for this document\0data required to restore the last read page in the ebook UI\0data "
-    "required to determine which parts of the table of contents have been expanded"};
+    "missing and won't be shown in any list\0number of times this document has been opened recently\0furthest page "
+    "reached in this document\0total time spent reading this document, in milliseconds\0when this document was last "
+    "read, as unix time in milliseconds\0data required to open a password protected document without having to ask for "
+    "the password again\0if true, we use global defaults when opening this file (instead of the values below)\0layout "
+    "of pages. valid values: automatic, single page, facing, book view, continuous, continuous facing, continuous book "
+    "view\0how far this document has been scrolled (in x and y direction)\0number of the last read page\0zoom (in %) "
+    "or one of those values: fit page, fit width, fit height, fit content\0how far pages have been rotated as a "
+    "multiple of 90 degrees\0state of the window. 1 is normal, 2 is maximized, 3 is fullscreen, 4 is "
+    "minimized\0default position (can be on any monitor)\0if true, we show table of contents (Bookmarks) sidebar if "
+    "it's present in the document\0width of the left sidebar panel containing the table of contents\0if true, the "
+    "document is displayed right-to-left in facing and book view modes (only used for comic book documents)\0if given, "
+    "overrides the background color for this document\0if given, overrides the tab color for this document\0data "
+    "required to restore the last read page in the ebook UI\0data required to determine which parts of the table of "
+    "contents have been expanded"};
 
 static const FieldInfo gPointF_1_Fields[] = {
     {offsetof(PointF, x), SettingType::Float, (intptr_t)"0"},

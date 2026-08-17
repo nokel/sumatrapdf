@@ -29,6 +29,10 @@ struct FileHistory {
 
 extern FileHistory gFileHistory;
 
+// current time as unix time in milliseconds, the unit FileState::lastReadAt
+// and FileState::timeSpentMs are stored in (matches Android)
+i64 ReadingTimeNowMs();
+
 int RecentlyCloseDocumentsCount();
 void RememberRecentlyClosedDocument(Str path);
 Str PopRecentlyClosedDocument();
