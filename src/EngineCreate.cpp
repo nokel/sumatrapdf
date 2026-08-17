@@ -5,10 +5,10 @@
 #include "base/Crypto.h"
 #include "base/File.h"
 #include "base/GuessFileType.h"
-#include "base/Dpi.h"
+#include "gui/Dpi.h"
 #include "base/Timer.h"
 
-#include "wingui/UIModels.h"
+#include "gui/UIModels.h"
 
 #include "Settings.h"
 #include "SumatraPDF.h"
@@ -16,6 +16,7 @@
 #include "EngineBase.h"
 #include "EngineAll.h"
 #include "GlobalPrefs.h"
+#include "LitDoc.h"
 #include "StressTesting.h"
 
 static bool gEnableEpubWithPdfEngine = true;
@@ -114,22 +115,31 @@ static TempStr MaybeCopyCbxToLocalCache(Str path) {
     return cachePath;
 }
 
+/* EngineCreate.cpp */
 bool IsSupportedFileType(FileType kind, bool enableEngineEbooks) {
     if (kind == FileType::Unknown) {
         return false;
     }
     if (IsEngineMupdfSupportedFileType(kind)) {
         return true;
-    } else if (IsEngineDjVuSupportedFileType(kind)) {
+    }
+    if (IsEngineDjVuSupportedFileType(kind)) {
         return true;
-    } else if (IsEngineImageSupportedFileType(kind)) {
+    }
+    if (IsEngineImageSupportedFileType(kind)) {
         return true;
-    } else if (kind == FileType::Directory) {
+    }
+    if (kind == FileType::Directory) {
         // TODO: more complex
         return false;
-    } else if (IsEngineCbxSupportedFileType(kind)) {
+    }
+    if (IsEngineCbxSupportedFileType(kind)) {
         return true;
-    } else if (IsEnginePsSupportedFileType(kind)) {
+    }
+    if (IsEnginePsSupportedFileType(kind)) {
+        return true;
+    }
+    if (kind == FileType::Lit) {
         return true;
     }
 
@@ -139,17 +149,23 @@ bool IsSupportedFileType(FileType kind, bool enableEngineEbooks) {
 
     if (kind == FileType::Epub) {
         return true;
-    } else if (kind == FileType::Fb2) {
+    }
+    if (kind == FileType::Fb2) {
         return true;
-    } else if (kind == FileType::Fb2z) {
+    }
+    if (kind == FileType::Fb2z) {
         return true;
-    } else if (kind == FileType::Mobi) {
+    }
+    if (kind == FileType::Mobi) {
         return true;
-    } else if (kind == FileType::PalmDoc) {
+    }
+    if (kind == FileType::PalmDoc) {
         return true;
-    } else if (kind == FileType::HTML) {
+    }
+    if (kind == FileType::HTML) {
         return true;
-    } else if (kind == FileType::Txt) {
+    }
+    if (kind == FileType::Txt) {
         return true;
     }
     return false;
@@ -160,7 +176,7 @@ static EngineBase* CreateEngineForKind(FileType kind, FileType contentHintKind, 
     if (kind == FileType::Unknown) {
         return nullptr;
     }
-    int dpi = DpiGet(nullptr);
+    int dpi = DpiGet();
     EngineBase* engine = nullptr;
     // markdown has no native SumatraPDF engine; always use mupdf (cmark-gfm),
     // regardless of gEnableEpubWithPdfEngine.
@@ -197,6 +213,9 @@ static EngineBase* CreateEngineForKind(FileType kind, FileType contentHintKind, 
     if (IsEnginePsSupportedFileType(kind)) {
         engine = CreateEnginePsFromFile(path);
         return engine;
+    }
+    if (kind == FileType::Lit) {
+        return CreateEngineLitFromFile(path, pwdUI);
     }
     if (enableChmEngine && (kind == FileType::Chm)) {
         engine = CreateEngineChmFromFile(path);
@@ -244,7 +263,7 @@ static EngineBase* CreateEngineForKind(FileType kind, FileType contentHintKind, 
 EngineBase* CreateEngineFromFile(Str path, PasswordUI* pwdUI, bool enableChmEngine) {
     ReportIf(len(path) == 0);
 
-    if (str::EndsWithI(path, ".p7m")) {
+    if (str::EndsWithI(path, StrL(".p7m"))) {
         Str fileData = file::ReadFile(path);
         Str extracted = ExtractP7m(fileData);
         str::Free(fileData);

@@ -6,7 +6,7 @@
 #include "PdfDarkMode.h"
 
 static int PdfDarkModeFeatureColorBuckets(const DarkImageFeatures& f) {
-    return (int)(f.colorBucketRatio * 4096.f + 0.5f);
+    return (int)lroundf(f.colorBucketRatio * 4096.f);
 }
 
 // Mirrors PdfDarkModeStatsLookLikePhoto in PdfDarkModeImageStats.cpp.
@@ -138,7 +138,7 @@ bool PdfDarkModeShouldPreserveImageFeatures(const DarkImageFeatures& f, float pa
 }
 
 void PdfDarkModeCompressPhotoHighlights(float r, float g, float b, float* outR, float* outG, float* outB) {
-    float lum = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+    float lum = (0.2126f * r) + (0.7152f * g) + (0.0722f * b);
     const float knee = 0.82f;
     const float cap = 0.90f;
     if (lum <= knee) {
@@ -148,10 +148,8 @@ void PdfDarkModeCompressPhotoHighlights(float r, float g, float b, float* outR, 
         return;
     }
     float t = (lum - knee) / (1.f - knee);
-    if (t > 1.f) {
-        t = 1.f;
-    }
-    float targetLum = knee + (cap - knee) * t;
+    t = std::min(t, 1.f);
+    float targetLum = knee + ((cap - knee) * t);
     float scale = lum > 0.0001f ? targetLum / lum : 1.f;
     *outR = r * scale;
     *outG = g * scale;
@@ -174,6 +172,7 @@ const char* PdfDarkModeKindDebugLabel(DarkImageKind kind) {
     }
 }
 
+// Phase 4: edge-connected light background removal for LightBackgroundArtwork.
 bool PdfDarkModeShouldBlendLightBackground(const DarkImageAnalysis& analysis) {
     if (analysis.kind != DarkImageKind::LightBackgroundArtwork) {
         return false;

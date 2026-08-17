@@ -5,7 +5,7 @@
 #include "base/ByteReaderWriter.h"
 #include "base/GuessFileType.h"
 
-#include "wingui/UIModels.h"
+#include "gui/UIModels.h"
 
 #include "GumboHelpers.h"
 
@@ -21,7 +21,7 @@ constexpr int kInvalidSize = -1;
 #define COMPRESSION_NONE 1
 #define COMPRESSION_PALM 2
 #define COMPRESSION_HUFF 17480
-#define COMPRESSION_UNSUPPORTED_DRM -1
+#define COMPRESSION_UNSUPPORTED_DRM (-1)
 
 #define ENCRYPTION_NONE 0
 #define ENCRYPTION_OLD 1
@@ -214,7 +214,7 @@ bool HuffDicDecompressor::DecodeOne(u32 code, str::Builder& dst) {
         return false;
     }
     code &= ((1 << (codeLength)) - 1);
-    u16 offset = UInt16BE(dicts[dict] + code * 2);
+    u16 offset = UInt16BE(dicts[dict] + ((size_t)code * 2));
 
     if ((u32)offset + 2 > dictSize[dict]) {
         logf("invalid offset\n");
@@ -289,10 +289,10 @@ bool HuffDicDecompressor::Decompress(u8* src, int srcSize, str::Builder& dst) {
                     logf("code len > 32 bits\n");
                     return false;
                 }
-                baseVal = baseTable[codeLen * 2 - 2];
+                baseVal = baseTable[(codeLen * 2) - 2];
                 code = (bits >> (32 - codeLen));
             } while (baseVal > code);
-            code = baseTable[codeLen * 2 - 1] - (bits >> (32 - codeLen));
+            code = baseTable[(codeLen * 2) - 1] - (bits >> (32 - codeLen));
         }
 
         if (!DecodeOne(code, dst)) {
@@ -345,11 +345,11 @@ bool HuffDicDecompressor::SetHuffData(u8* huffData, int huffDataLen) {
         return false;
     }
     // we conservatively use the big-endian version of the data,
-    for (int i = 0; i < kCacheItemCount; i++) {
-        cacheTable[i] = d.UInt32BE();
+    for (u32& v : cacheTable) {
+        v = d.UInt32BE();
     }
-    for (int i = 0; i < kBaseTableItemCount; i++) {
-        baseTable[i] = d.UInt32BE();
+    for (u32& v : baseTable) {
+        v = d.UInt32BE();
     }
     ReportIf(d.Offset() != kHuffRecordMinLen);
     return true;
@@ -367,6 +367,9 @@ bool HuffDicDecompressor::AddCdicData(u8* cdicData, u32 cdicDataLen) {
     }
     u32 hdrLen = UInt32BE(cdicData + 4);
     u32 codeLen = UInt32BE(cdicData + 12);
+    if (codeLen == 0 || codeLen > 16) {
+        return false;
+    }
     if (0 == codeLength) {
         codeLength = codeLen;
     } else {
@@ -380,7 +383,7 @@ bool HuffDicDecompressor::AddCdicData(u8* cdicData, u32 cdicDataLen) {
     u32 size = cdicDataLen - hdrLen;
 
     u32 maxSize = 2u * (1u << codeLength);
-    if (maxSize >= size) {
+    if (maxSize > size) {
         return false;
     }
     dicts[dictsCount] = cdicData + hdrLen;
@@ -443,7 +446,7 @@ static void DecodeMobiDocHeader(const u8* buf, int bufLen, MobiHeader* hdr) {
     d.Bytes(hdr->reserved2, 62);
     hdr->extraDataFlags = d.UInt16BE();
     if (hdr->hdrLen >= 232) {
-        hdr->indxRec = d.UInt32BE();
+        hdr->indxRec = (i32)d.UInt32BE();
     }
 }
 
@@ -509,7 +512,12 @@ bool MobiDoc::ParseHeader() {
         // cf. https://code.google.com/archive/p/sumatrapdf/issues/2529
         docRecCount--;
     }
-    docUncompressedSize = palmDocHdr.uncompressedDocSize;
+    constexpr u32 kMaxMobiTextSize = 256 * 1024 * 1024;
+    if (palmDocHdr.uncompressedDocSize > kMaxMobiTextSize) {
+        logf("MOBI text is too large\n");
+        return false;
+    }
+    docUncompressedSize = (int)palmDocHdr.uncompressedDocSize;
 
     if (kPalmDocHeaderLen == recSize) {
         // TODO: calculate imageFirstRec / imagesCount
@@ -536,7 +544,7 @@ bool MobiDoc::ParseHeader() {
         AddPropOwned(props, DocProp::UnsupportedFeatures, v);
         str::Free(v);
     }
-    textEncoding = mobiHdr.textEncoding;
+    textEncoding = (int)mobiHdr.textEncoding;
 
     if (pdbReader->GetRecordCount() > (int)mobiHdr.imageFirstRec) {
         imageFirstRec = (int)mobiHdr.imageFirstRec;
@@ -653,7 +661,7 @@ bool MobiDoc::DecodeExthHeader(const u8* data, int dataLen) {
             case 201:
                 if (length == 12 && imageFirstRec) {
                     d.Unskip(4);
-                    coverImageRec = imageFirstRec + d.UInt32BE();
+                    coverImageRec = imageFirstRec + (int)d.UInt32BE();
                 }
                 continue;
             case 503:
@@ -857,7 +865,7 @@ bool MobiDoc::LoadForPdbReader(PdbReader* pdbReader) {
 
     ReportIf(len(doc) != 0);
     doc.Reset();
-    doc.cap = (u32)docUncompressedSize; // capacity hint, same trick as ByteWriter ctor
+    doc.cap = docUncompressedSize; // capacity hint, same trick as ByteWriter ctor
     int nFailed = 0;
     for (int i = 1; i <= docRecCount; i++) {
         if (!LoadDocRecordIntoBuffer(i, doc)) {
@@ -957,7 +965,7 @@ bool MobiDoc::HasToc() {
         if (filepos) {
             unsigned int pos;
             if (!str::IsNull(str::Parse(Str(filepos->value), "%u%$", &pos))) {
-                docTocIndex = pos;
+                docTocIndex = (int)pos;
             }
         }
     }

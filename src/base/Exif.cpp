@@ -35,7 +35,7 @@ struct TagDef {
     Str name;
 };
 
-static const TagDef kImageTags[] = {
+const TagDef kImageTags[] = {
     {0x010E, "ImageDescription"},
     {0x010F, "Make"},
     {0x0110, "Model"},
@@ -65,7 +65,7 @@ static const TagDef kImageTags[] = {
     {0x0202, "JPEGInterchangeFormatLength"},
 };
 
-static const TagDef kExifTags[] = {
+const TagDef kExifTags[] = {
     {0x829A, "ExposureTime"},
     {0x829D, "FNumber"},
     {0x8822, "ExposureProgram"},
@@ -120,7 +120,7 @@ static const TagDef kExifTags[] = {
     {0x8830, "SensitivityType"},
 };
 
-static const TagDef kGpsTags[] = {
+const TagDef kGpsTags[] = {
     {0x0000, "GPSVersionID"},
     {0x0001, "GPSLatitudeRef"},
     {0x0002, "GPSLatitude"},
@@ -140,23 +140,23 @@ static const TagDef kGpsTags[] = {
     {0x001B, "GPSProcessingMethod"},
 };
 
-static const TagDef kInteropTags[] = {
+const TagDef kInteropTags[] = {
     {0x0001, "InteroperabilityIndex"},
     {0x0002, "InteroperabilityVersion"},
     {0x1001, "RelatedImageWidth"},
     {0x1002, "RelatedImageLength"},
 };
 
-static Str LookupTagName(const TagDef* tags, int n, u16 id) {
+Str LookupTagName(const TagDef* tags, int n, u16 id) {
     for (int i = 0; i < n; i++) {
         if (tags[i].id == id) {
-            return Str(tags[i].name);
+            return {tags[i].name};
         }
     }
     return {};
 }
 
-static Str GroupPrefix(IfdGroup g) {
+Str GroupPrefix(IfdGroup g) {
     switch (g) {
         case IfdGroup::Image:
             return StrL("Image");
@@ -174,7 +174,7 @@ static Str GroupPrefix(IfdGroup g) {
     return StrL("");
 }
 
-static Str TypeName(u16 type) {
+Str TypeName(u16 type) {
     switch (type) {
         case TiffByte:
             return StrL("Byte");
@@ -201,7 +201,7 @@ static Str TypeName(u16 type) {
     }
 }
 
-static int TypeElemSize(u16 type) {
+int TypeElemSize(u16 type) {
     switch (type) {
         case TiffByte:
         case TiffAscii:
@@ -222,7 +222,7 @@ static int TypeElemSize(u16 type) {
     }
 }
 
-static const TagDef* TagsForGroup(IfdGroup g, int& n) {
+const TagDef* TagsForGroup(IfdGroup g, int& n) {
     switch (g) {
         case IfdGroup::Image:
         case IfdGroup::Thumbnail:
@@ -245,20 +245,20 @@ static const TagDef* TagsForGroup(IfdGroup g, int& n) {
     return nullptr;
 }
 
-static Str TagName(IfdGroup g, u16 tag) {
+Str TagName(IfdGroup g, u16 tag) {
     int n;
     const TagDef* tags = TagsForGroup(g, n);
     return tags ? LookupTagName(tags, n, tag) : Str{};
 }
 
-static Str LookupEnum(SeqStrings names, u32 val) {
+Str LookupEnum(SeqStrings names, u32 val) {
     if (val <= (u32)INT_MAX) {
         return SeqStrByIndex(names, (int)val);
     }
     return {};
 }
 
-static Str FormatOrientation(u32 val) {
+Str FormatOrientation(u32 val) {
     static SeqStrings names =
         "Horizontal (normal)\0"
         "Mirrored horizontal\0"
@@ -271,7 +271,7 @@ static Str FormatOrientation(u32 val) {
     return val > 0 ? LookupEnum(names, val - 1) : Str{};
 }
 
-static Str FormatExposureProgram(u32 val) {
+Str FormatExposureProgram(u32 val) {
     static SeqStrings names =
         "Unidentified\0"
         "Manual\0"
@@ -285,7 +285,7 @@ static Str FormatExposureProgram(u32 val) {
     return LookupEnum(names, val);
 }
 
-static Str FormatMeteringMode(u32 val) {
+Str FormatMeteringMode(u32 val) {
     static SeqStrings names =
         "Unidentified\0"
         "Average\0"
@@ -297,7 +297,7 @@ static Str FormatMeteringMode(u32 val) {
     return LookupEnum(names, val);
 }
 
-static Str FormatColorSpace(u32 val) {
+Str FormatColorSpace(u32 val) {
     if (val == 1) {
         return StrL("sRGB");
     }
@@ -307,21 +307,21 @@ static Str FormatColorSpace(u32 val) {
     return {};
 }
 
-static Str FormatWhiteBalance(u32 val) {
+Str FormatWhiteBalance(u32 val) {
     return val == 0 ? StrL("Auto") : StrL("Manual");
 }
 
-static Str FormatExposureMode(u32 val) {
+Str FormatExposureMode(u32 val) {
     static SeqStrings names = "Auto Exposure\0Manual Exposure\0Auto Bracket\0";
     return LookupEnum(names, val);
 }
 
-static Str FormatSceneCaptureType(u32 val) {
+Str FormatSceneCaptureType(u32 val) {
     static SeqStrings names = "Standard\0Landscape\0Portrait\0Night\0";
     return LookupEnum(names, val);
 }
 
-static Str FormatGainControl(u32 val) {
+Str FormatGainControl(u32 val) {
     static SeqStrings names =
         "None\0"
         "Low gain up\0"
@@ -331,16 +331,16 @@ static Str FormatGainControl(u32 val) {
     return LookupEnum(names, val);
 }
 
-static Str FormatContrastSatSharp(u32 val) {
+Str FormatContrastSatSharp(u32 val) {
     static SeqStrings names = "Normal\0Soft\0Hard\0";
     return LookupEnum(names, val);
 }
 
-static Str FormatCustomRendered(u32 val) {
+Str FormatCustomRendered(u32 val) {
     return val == 0 ? StrL("Normal") : StrL("Custom");
 }
 
-static Str FormatSensitivityType(u32 val) {
+Str FormatSensitivityType(u32 val) {
     static SeqStrings names =
         "Unknown\0"
         "Standard Output Sensitivity\0"
@@ -353,7 +353,7 @@ static Str FormatSensitivityType(u32 val) {
     return LookupEnum(names, val);
 }
 
-static Str FormatResolutionUnit(u32 val) {
+Str FormatResolutionUnit(u32 val) {
     if (val == 2) {
         return StrL("Pixels/Inch");
     }
@@ -363,11 +363,11 @@ static Str FormatResolutionUnit(u32 val) {
     return {};
 }
 
-static Str FormatYCbCrPositioning(u32 val) {
+Str FormatYCbCrPositioning(u32 val) {
     return val == 1 ? StrL("Centered") : StrL("Co-sited");
 }
 
-static Str FormatCompression(u32 val) {
+Str FormatCompression(u32 val) {
     if (val == 6) {
         return StrL("JPEG (old-style)");
     }
@@ -377,15 +377,15 @@ static Str FormatCompression(u32 val) {
     return {};
 }
 
-static Str FormatFileSource(u8 val) {
+Str FormatFileSource(u8 val) {
     return val == 3 ? StrL("Digital Camera") : Str{};
 }
 
-static Str FormatSceneType(u8 val) {
+Str FormatSceneType(u8 val) {
     return val == 1 ? StrL("Directly Photographed") : Str{};
 }
 
-static Str FormatFlash(u32 val) {
+Str FormatFlash(u32 val) {
     switch (val) {
         case 0:
             return StrL("Flash did not fire");
@@ -408,21 +408,23 @@ static Str FormatFlash(u32 val) {
     }
 }
 
-static bool IsXpProp(ExifProp prop) {
+bool IsXpProp(ExifProp prop) {
     return prop == ExifProp::XPTitle || prop == ExifProp::XPComment || prop == ExifProp::XPAuthor ||
            prop == ExifProp::XPKeywords || prop == ExifProp::XPSubject;
 }
 
-static bool IsAsciiUndefinedProp(ExifProp prop) {
+bool IsAsciiUndefinedProp(ExifProp prop) {
     return prop == ExifProp::ExifVersion || prop == ExifProp::FlashpixVersion;
 }
 
-static u16 ReadLE16(const u8* p) {
+u16 ReadLE16(const u8* p) {
     return (u16)(p[0] | (p[1] << 8));
 }
 
-static TempStr Utf16LeToUtf8Temp(Str data) {
-    str::Builder out;
+TempStr Utf16LeToUtf8Temp(Str data) {
+    // UTF-8 is at most 3x UTF-16 code units for BMP; EXIF strings are usually short.
+    char outScratch[512]{};
+    str::Builder out(Str(outScratch, sizeofi(outScratch)));
     int n = data.len & ~1;
     for (int i = 0; i + 1 < n; i += 2) {
         u32 c = ReadLE16((const u8*)data.s + i);
@@ -444,7 +446,7 @@ static TempStr Utf16LeToUtf8Temp(Str data) {
     return ToStrTemp(out);
 }
 
-static TempStr TrimmedAsciiTemp(ByteReader r, int off, u32 count) {
+TempStr TrimmedAsciiTemp(ByteReader r, int off, u32 count) {
     if (off < 0 || off >= r.len) {
         return str::DupTemp("");
     }
@@ -458,7 +460,7 @@ static TempStr TrimmedAsciiTemp(ByteReader r, int off, u32 count) {
     return strconv::AnsiToUtf8Temp(Str((char*)(r.d + off), n));
 }
 
-static const ExifEntry* FindEntry(const ExifParser& parser, ExifProp prop) {
+const ExifEntry* FindEntry(const ExifParser& parser, ExifProp prop) {
     u16 tag = (u16)prop;
     for (const ExifEntry& entry : parser.entries) {
         if (entry.tag == tag) {
@@ -468,19 +470,20 @@ static const ExifEntry* FindEntry(const ExifParser& parser, ExifProp prop) {
     return nullptr;
 }
 
-static u16 ReadWord(const ExifParser& parser, int off) {
+u16 ReadWord(const ExifParser& parser, int off) {
     return ByteReader(parser.exifBlob).UInt16(off, parser.isBE);
 }
 
-static u32 ReadDWord(const ExifParser& parser, int off) {
+u32 ReadDWord(const ExifParser& parser, int off) {
     return ByteReader(parser.exifBlob).UInt32(off, parser.isBE);
 }
 
-static bool EntryBoundsOk(const ExifParser& parser, const ExifEntry& entry, int bytes) {
-    return entry.dataOff >= 0 && entry.dataOff + bytes <= parser.exifBlob.len;
+bool EntryBoundsOk(const ExifParser& parser, const ExifEntry& entry, int bytes) {
+    return entry.dataOff >= 0 && bytes >= 0 && entry.dataOff <= parser.exifBlob.len &&
+           bytes <= parser.exifBlob.len - entry.dataOff;
 }
 
-static int ValueOffset(const ExifParser& parser, u16 type, u32 count, u32 inlineVal, int entryOff) {
+int ValueOffset(const ExifParser& parser, u16 type, u32 count, u32 inlineVal, int entryOff) {
     int elemSize = TypeElemSize(type);
     if (elemSize == 0) {
         return 0;
@@ -489,10 +492,11 @@ static int ValueOffset(const ExifParser& parser, u16 type, u32 count, u32 inline
     if (total <= 4) {
         return entryOff + 8;
     }
-    return (int)inlineVal + parser.tiffBase;
+    i64 off = (i64)inlineVal + parser.tiffBase;
+    return off <= INT_MAX ? (int)off : -1;
 }
 
-static void AppendLine(ExifParser& parser, IfdGroup g, u16 tag, u16 type, TempStr value) {
+void AppendLine(ExifParser& parser, IfdGroup g, u16 tag, u16 type, TempStr value) {
     Str prefix = GroupPrefix(g);
     Str name = TagName(g, tag);
     char tagNameBuf[32];
@@ -504,7 +508,7 @@ static void AppendLine(ExifParser& parser, IfdGroup g, u16 tag, u16 type, TempSt
     parser.dumpLines.Append(line);
 }
 
-static TempStr FormatRationalPair(u32 num, u32 den, bool asFraction) {
+TempStr FormatRationalPair(u32 num, u32 den, bool asFraction) {
     if (den == 0) {
         return str::DupTemp("0");
     }
@@ -520,11 +524,13 @@ static TempStr FormatRationalPair(u32 num, u32 den, bool asFraction) {
     return fmt("%u/%u", num, den);
 }
 
-static TempStr FormatComponentsConfig(ByteReader r, int off, u32 count) {
+TempStr FormatComponentsConfig(ByteReader r, int off, u32 count) {
     static SeqStrings compNames = "Y\0Cb\0Cr\0R\0G\0B\0";
-    str::Builder s;
+    // "Y, Cb, Cr" etc. — a few components.
+    char sScratch[64]{};
+    str::Builder s(Str(sScratch, sizeofi(sScratch)));
     for (u32 i = 0; i < count && off + (int)i < r.len; i++) {
-        u8 c = r.UInt8(off + i);
+        u8 c = r.UInt8(off + (int)i);
         if (c == 0) {
             break;
         }
@@ -542,7 +548,7 @@ static TempStr FormatComponentsConfig(ByteReader r, int off, u32 count) {
     return ToStrTemp(s);
 }
 
-static TempStr FormatUndefinedBytesTemp(ByteReader r, int off, u32 count, bool asList) {
+TempStr FormatUndefinedBytesTemp(ByteReader r, int off, u32 count, bool asList) {
     if (count == 0) {
         return str::DupTemp("");
     }
@@ -551,7 +557,7 @@ static TempStr FormatUndefinedBytesTemp(ByteReader r, int off, u32 count, bool a
     }
     bool isAscii = true;
     for (u32 i = 0; i < count; i++) {
-        u8 b = r.UInt8(off + i);
+        u8 b = r.UInt8(off + (int)i);
         if (b == 0) {
             break;
         }
@@ -566,7 +572,9 @@ static TempStr FormatUndefinedBytesTemp(ByteReader r, int off, u32 count, bool a
     if (!asList) {
         return fmt("[%u bytes]", count);
     }
-    str::Builder s;
+    // At most 20 bytes as "255, " ~ 80 chars + brackets.
+    char sScratch[128]{};
+    str::Builder s(Str(sScratch, sizeofi(sScratch)));
     s.Append("[");
     u32 show = count > 20 ? 20 : count;
     for (u32 i = 0; i < show; i++) {
@@ -582,7 +590,7 @@ static TempStr FormatUndefinedBytesTemp(ByteReader r, int off, u32 count, bool a
     return ToStrTemp(s);
 }
 
-static bool ReadRational(const ExifParser& parser, int off, ExifRational* valOut, bool isSigned) {
+bool ReadRational(const ExifParser& parser, int off, ExifRational* valOut, bool isSigned) {
     if (off + 8 > parser.exifBlob.len) {
         return false;
     }
@@ -596,7 +604,7 @@ static bool ReadRational(const ExifParser& parser, int off, ExifRational* valOut
     return true;
 }
 
-static TempStr FormatValuesTemp(const ExifParser& parser, IfdGroup g, u16 tag, u16 type, u32 count, int off) {
+TempStr FormatValuesTemp(const ExifParser& parser, IfdGroup g, u16 tag, u16 type, u32 count, int off) {
     ByteReader r(parser.exifBlob);
     if (count == 0) {
         return str::DupTemp("");
@@ -673,10 +681,12 @@ static TempStr FormatValuesTemp(const ExifParser& parser, IfdGroup g, u16 tag, u
     }
 
     if (type == TiffRational || type == TiffSRational) {
-        str::Builder s;
+        // Multi-rational lists (GPS DMS, lens) are usually a few short fractions.
+        char sScratch[256]{};
+        str::Builder s(Str(sScratch, sizeofi(sScratch)));
         bool sr = type == TiffSRational;
         for (u32 i = 0; i < count; i++) {
-            int eoff = off + (int)i * 8;
+            int eoff = off + ((int)i * 8);
             ExifRational rat;
             if (!ReadRational(parser, eoff, &rat, sr)) {
                 break;
@@ -716,9 +726,10 @@ static TempStr FormatValuesTemp(const ExifParser& parser, IfdGroup g, u16 tag, u
     }
 
     if (type == TiffShort || type == TiffSShort) {
-        str::Builder s;
+        char sScratch[256]{};
+        str::Builder s(Str(sScratch, sizeofi(sScratch)));
         for (u32 i = 0; i < count; i++) {
-            int eoff = off + (int)i * 2;
+            int eoff = off + ((int)i * 2);
             if (i > 0) {
                 s.Append(", ");
             }
@@ -742,9 +753,10 @@ static TempStr FormatValuesTemp(const ExifParser& parser, IfdGroup g, u16 tag, u
     }
 
     if (type == TiffLong || type == TiffSLong) {
-        str::Builder s;
+        char sScratch[256]{};
+        str::Builder s(Str(sScratch, sizeofi(sScratch)));
         for (u32 i = 0; i < count; i++) {
-            int eoff = off + (int)i * 4;
+            int eoff = off + ((int)i * 4);
             if (i > 0) {
                 s.Append(", ");
             }
@@ -758,7 +770,8 @@ static TempStr FormatValuesTemp(const ExifParser& parser, IfdGroup g, u16 tag, u
     }
 
     if (type == TiffByte || type == TiffSByte) {
-        str::Builder s;
+        char sScratch[256]{};
+        str::Builder s(Str(sScratch, sizeofi(sScratch)));
         s.Append("[");
         for (u32 i = 0; i < count; i++) {
             if (i > 0) {
@@ -773,7 +786,7 @@ static TempStr FormatValuesTemp(const ExifParser& parser, IfdGroup g, u16 tag, u
     return str::DupTemp("");
 }
 
-static void AddEntry(ExifParser& parser, IfdGroup group, u16 tag, u16 type, u32 count, int dataOff) {
+void AddEntry(ExifParser& parser, IfdGroup group, u16 tag, u16 type, u32 count, int dataOff) {
     ExifEntry entry;
     entry.tag = tag;
     entry.type = type;
@@ -783,9 +796,9 @@ static void AddEntry(ExifParser& parser, IfdGroup group, u16 tag, u16 type, u32 
     parser.entries.Append(entry);
 }
 
-static void ParseIfd(ExifParser& parser, IfdGroup group, int ifdRel, int makerNoteEndian = 0);
+static void ParseIfd(ExifParser& parser, IfdGroup group, int ifdRel, int makerNoteEndian = 0, int depth = 0);
 
-static void ParseMakerNote(ExifParser& parser, int dataOff, u32 count) {
+void ParseMakerNote(ExifParser& parser, int dataOff, u32 count, int depth) {
     ByteReader r(parser.exifBlob);
     if (dataOff >= r.len || count < 6) {
         return;
@@ -814,17 +827,21 @@ static void ParseMakerNote(ExifParser& parser, int dataOff, u32 count) {
     parser.isBE = makerNoteEndian == 'M';
     int ifdRel = (int)ReadDWord(parser, dataOff + mnOff);
     parser.tiffBase = mnBase;
-    ParseIfd(parser, IfdGroup::MakerNote, ifdRel, makerNoteEndian);
+    ParseIfd(parser, IfdGroup::MakerNote, ifdRel, makerNoteEndian, depth + 1);
     parser.tiffBase = savedBase;
     parser.isBE = savedBE;
 }
 
-static void ParseIfd(ExifParser& parser, IfdGroup group, int ifdRel, int makerNoteEndian) {
-    ByteReader r(parser.exifBlob);
-    int ifdAbs = parser.tiffBase + ifdRel;
-    if (ifdAbs + 2 > r.len) {
+void ParseIfd(ExifParser& parser, IfdGroup group, int ifdRel, int makerNoteEndian, int depth) {
+    if (depth >= 32) {
         return;
     }
+    ByteReader r(parser.exifBlob);
+    i64 ifdAbs64 = (i64)parser.tiffBase + ifdRel;
+    if (ifdAbs64 < 0 || ifdAbs64 > r.len - 2) {
+        return;
+    }
+    int ifdAbs = (int)ifdAbs64;
     bool savedBE = parser.isBE;
     if (makerNoteEndian) {
         parser.isBE = makerNoteEndian == 'M';
@@ -832,7 +849,7 @@ static void ParseIfd(ExifParser& parser, IfdGroup group, int ifdRel, int makerNo
     u16 nTags = ReadWord(parser, ifdAbs);
     int nextIfdOff = 0;
     for (u16 i = 0; i < nTags; i++) {
-        int ent = ifdAbs + 2 + i * 12;
+        int ent = ifdAbs + 2 + (i * 12);
         if (ent + 12 > r.len) {
             break;
         }
@@ -859,23 +876,23 @@ static void ParseIfd(ExifParser& parser, IfdGroup group, int ifdRel, int makerNo
         if (group == IfdGroup::Image || group == IfdGroup::Exif) {
             if (tag == (u16)ExifProp::ExifOffset && type == TiffLong && count >= 1) {
                 u32 rel = ReadDWord(parser, dataOff);
-                ParseIfd(parser, IfdGroup::Exif, (int)rel);
+                ParseIfd(parser, IfdGroup::Exif, (int)rel, 0, depth + 1);
                 continue;
             }
             if (tag == (u16)ExifProp::GpsInfo && type == TiffLong && count >= 1) {
                 u32 rel = ReadDWord(parser, dataOff);
-                ParseIfd(parser, IfdGroup::Gps, (int)rel);
+                ParseIfd(parser, IfdGroup::Gps, (int)rel, 0, depth + 1);
                 continue;
             }
             if (tag == (u16)ExifProp::InteroperabilityOffset && type == TiffLong && count >= 1) {
                 u32 rel = ReadDWord(parser, dataOff);
-                ParseIfd(parser, IfdGroup::Interop, (int)rel);
+                ParseIfd(parser, IfdGroup::Interop, (int)rel, 0, depth + 1);
                 continue;
             }
         }
 
         if (group == IfdGroup::Exif && tag == (u16)ExifProp::MakerNote) {
-            ParseMakerNote(parser, dataOff, count);
+            ParseMakerNote(parser, dataOff, count, depth);
             continue;
         }
 
@@ -883,17 +900,17 @@ static void ParseIfd(ExifParser& parser, IfdGroup group, int ifdRel, int makerNo
         AppendLine(parser, group, tag, type, val);
     }
 
-    if (ifdAbs + 2 + nTags * 12 + 4 <= r.len) {
-        nextIfdOff = (int)ReadDWord(parser, ifdAbs + 2 + nTags * 12);
+    if (ifdAbs + 2 + (nTags * 12) + 4 <= r.len) {
+        nextIfdOff = (int)ReadDWord(parser, ifdAbs + 2 + (nTags * 12));
     }
     parser.isBE = savedBE;
 
     if (group == IfdGroup::Image && nextIfdOff != 0) {
-        ParseIfd(parser, IfdGroup::Thumbnail, nextIfdOff);
+        ParseIfd(parser, IfdGroup::Thumbnail, nextIfdOff, 0, depth + 1);
     }
 }
 
-static bool ParseTiff(ExifParser& parser) {
+bool ParseTiff(ExifParser& parser) {
     ByteReader r(parser.exifBlob);
     if (r.len < 8) {
         return false;
@@ -917,7 +934,7 @@ static bool ParseTiff(ExifParser& parser) {
     return len(parser.entries) > 0 || len(parser.dumpLines) > 0;
 }
 
-static bool ExtractJpegExif(Str d, Str& out) {
+bool ExtractJpegExif(Str d, Str& out) {
     ByteReader r(d);
     if (r.len < 4 || r.UInt8(0) != 0xFF || r.UInt8(1) != 0xD8) {
         return false;
@@ -949,11 +966,11 @@ static bool ExtractJpegExif(Str d, Str& out) {
     }
 }
 
-static bool HasWebpSignature(Str d) {
+bool HasWebpSignature(Str d) {
     return d.len >= 12 && memeq(d.s, "RIFF", 4) && memeq(d.s + 8, "WEBP", 4);
 }
 
-static bool ExtractWebpExif(Str d, Str& out) {
+bool ExtractWebpExif(Str d, Str& out) {
     if (!HasWebpSignature(d)) {
         return false;
     }
@@ -981,7 +998,7 @@ static bool ExtractWebpExif(Str d, Str& out) {
     return false;
 }
 
-static bool LooksLikeTiffExif(const u8* p, int n) {
+bool LooksLikeTiffExif(const u8* p, int n) {
     if (n < 12) {
         return false;
     }
@@ -999,12 +1016,10 @@ static bool LooksLikeTiffExif(const u8* p, int n) {
     return nTags > 0 && nTags < 512;
 }
 
-static bool CopyTiffBlob(const u8* data, int n, int tiffOff, Str& out, u8** ownedOut) {
+bool CopyTiffBlob(const u8* data, int n, int tiffOff, Str& out, u8** ownedOut) {
     int blobLen = n - tiffOff;
     constexpr int kMaxExifBytes = 256 * 1024;
-    if (blobLen > kMaxExifBytes) {
-        blobLen = kMaxExifBytes;
-    }
+    blobLen = std::min(blobLen, kMaxExifBytes);
     u8* copy = (u8*)malloc((size_t)blobLen);
     if (!copy) {
         return false;
@@ -1015,7 +1030,7 @@ static bool CopyTiffBlob(const u8* data, int n, int tiffOff, Str& out, u8** owne
     return true;
 }
 
-static bool ExtractHeifExifFromBytes(Str d, Str& out, u8** ownedOut) {
+bool ExtractHeifExifFromBytes(Str d, Str& out, u8** ownedOut) {
     *ownedOut = nullptr;
     const u8* data = (u8*)d.s;
     int n = d.len;
@@ -1059,7 +1074,7 @@ static bool ExtractHeifExifFromBytes(Str d, Str& out, u8** ownedOut) {
     return false;
 }
 
-static bool ExtractExifBlob(Str d, Str& out, u8** ownedOut) {
+bool ExtractExifBlob(Str d, Str& out, u8** ownedOut) {
     *ownedOut = nullptr;
     FileType kind = GuessFileTypeFromData(d);
     if (kind == FileType::Jpeg) {
@@ -1149,9 +1164,8 @@ TempStr ExifParser::GetStringProp(ExifProp prop, ExifProp altProp) const {
         return str::IsEmptyOrWhiteSpace(res) && altProp != ExifProp::None ? GetStringProp(altProp) : res;
     }
     TempStr res = nullptr;
-    if (entry->type == TiffAscii) {
-        res = TrimmedAsciiTemp(r, entry->dataOff, entry->count);
-    } else if (entry->type == TiffUndefined && IsAsciiUndefinedProp(prop)) {
+    bool isAsciiText = entry->type == TiffAscii || (entry->type == TiffUndefined && IsAsciiUndefinedProp(prop));
+    if (isAsciiText) {
         res = TrimmedAsciiTemp(r, entry->dataOff, entry->count);
     } else if (prop == ExifProp::UserComment && entry->type == TiffUndefined && EntryBoundsOk(*this, *entry, 8)) {
         Str bytes((char*)(r.d + entry->dataOff), (int)entry->count);

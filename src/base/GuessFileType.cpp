@@ -3,7 +3,7 @@
    License: Simplified BSD (see COPYING.BSD) */
 
 // This file must only contain code that doesn't depend on
-// external libraries (mupdf/, ext/). GuessFileTypeFromFile.cpp has
+// external libraries (ext/). GuessFileTypeFromFile.cpp has
 // the parts that need base/Archive.h (and thus ext/libarchive).
 
 #include "base/Base.h"
@@ -31,6 +31,7 @@
     V(".ps", FileType::PS)             \
     V(".ps.gz", FileType::PS)          \
     V(".eps", FileType::PS)            \
+    V(".lit", FileType::Lit)           \
     V(".fb2", FileType::Fb2)           \
     V(".fb2z", FileType::Fb2z)         \
     V(".fbz", FileType::Fb2z)          \
@@ -103,16 +104,29 @@ static FileType gExtsType[] = {DEF_EXT_KIND(KIND)};
 #undef KIND
 
 static FileType GetTypeByFileExt(Str path) {
-    TempStr ext = path::GetExtTemp(path);
-    int idx = SeqStrIndexIS(gFileExts, ext);
-    if (idx < 0) {
+    // Prefer the longest registered suffix so multi-dot names like
+    // "book.fb2.zip" map to Fb2z rather than Zip (path::GetExtTemp only
+    // returns the last ".zip" component).
+    int n = dimofi(gExtsType);
+    int bestIdx = -1;
+    int bestLen = 0;
+    for (int i = 0; i < n; i++) {
+        TempStr ext = SeqStrByIndex(gFileExts, i);
+        if (len(ext) == 0) {
+            continue;
+        }
+        if (!str::EndsWithI(path, ext)) {
+            continue;
+        }
+        if (len(ext) > bestLen) {
+            bestLen = len(ext);
+            bestIdx = i;
+        }
+    }
+    if (bestIdx < 0) {
         return FileType::Unknown;
     }
-    int n = (int)dimof(gExtsType);
-    if (idx >= n) {
-        return FileType::Unknown;
-    }
-    return gExtsType[idx];
+    return gExtsType[bestIdx];
 }
 
 TempStr GetExtForFileTypeTemp(FileType ft) {
@@ -121,17 +135,6 @@ TempStr GetExtForFileTypeTemp(FileType ft) {
         return SeqStrByIndex(gFileExts, idx);
     }
     return {};
-}
-
-// ensure gFileExts and gExtsType match
-static bool gDidVerifyExtsMatch = false;
-static void VerifyExtsMatch() {
-    if (gDidVerifyExtsMatch) {
-        return;
-    }
-    ReportIf(FileType::Epub != GetTypeByFileExt("foo.epub"));
-    ReportIf(FileType::Jp2 != GetTypeByFileExt("foo.JP2"));
-    gDidVerifyExtsMatch = true;
 }
 
 int FileTypeIndexOf(const FileType* types, int nTypes, FileType ft) {
@@ -148,6 +151,7 @@ int FileTypeIndexOf(const FileType* types, int nTypes, FileType ft) {
     V(0, "Rar!\x1A\x07\x01\x00", FileType::Rar)           \
     V(0, "7z\xBC\xAF\x27\x1C", FileType::SevenZ)          \
     V(0, "PK\x03\x04", FileType::Zip)                     \
+    V(0, "ITOLITLS", FileType::Lit)                       \
     V(0, "ITSF", FileType::Chm)                           \
     V(0x3c, "BOOKMOBI", FileType::Mobi)                   \
     V(0x3c, "TEXtREAd", FileType::PalmDoc)                \
@@ -206,20 +210,20 @@ static bool IsPSFileContent(Str d) {
         return false;
     }
     // Windows-format EPS file - cf. http://partners.adobe.com/public/developer/en/ps/5002.EPSF_Spec.pdf
-    if (str::StartsWith(header, "\xC5\xD0\xD3\xC6")) {
+    if (str::StartsWith(header, StrL("\xC5\xD0\xD3\xC6"))) {
         DWORD psStart = ByteReader(d).UInt32LE(4);
         if ((int)psStart >= n - 12) {
             return true;
         }
         Str sub = Str(header.s + psStart, header.len - (int)psStart);
-        return str::StartsWith(sub, "%!PS-Adobe-");
+        return str::StartsWith(sub, StrL("%!PS-Adobe-"));
     }
-    if (str::StartsWith(header, "%!PS-Adobe-")) {
+    if (str::StartsWith(header, StrL("%!PS-Adobe-"))) {
         return true;
     }
     // PJL (Printer Job Language) files containing Postscript data
     // https://developers.hp.com/system/files/PJL_Technical_Reference_Manual.pdf
-    bool isPJL = str::StartsWith(header, "\x1B%-12345X@PJL");
+    bool isPJL = str::StartsWith(header, StrL("\x1B%-12345X@PJL"));
     if (isPJL && !str::Contains(header, StrL("%!PS-Adobe-"))) {
         isPJL = false;
     }
@@ -248,27 +252,27 @@ static FileType DetectHicAndAvif(Str d) {
         'mif1' also happens?
     */
     // TODO: support more ftyp types?
-    if (str::StartsWith(hdr, "ftypheic")) {
+    if (str::StartsWith(hdr, StrL("ftypheic"))) {
         return FileType::Heic;
     }
-    if (str::StartsWith(hdr, "ftypheix")) {
+    if (str::StartsWith(hdr, StrL("ftypheix"))) {
         return FileType::Heic;
     }
-    if (str::StartsWith(hdr, "ftypmif1")) {
+    if (str::StartsWith(hdr, StrL("ftypmif1"))) {
         return FileType::Heic;
     }
-    if (str::StartsWith(hdr, "ftypavif")) {
+    if (str::StartsWith(hdr, StrL("ftypavif"))) {
         return FileType::Avif;
     }
     hdr = Str(s.s + 16, s.len - 16);
-    if (str::StartsWith(hdr, "mif1heic")) {
+    if (str::StartsWith(hdr, StrL("mif1heic"))) {
         return FileType::Heic;
     }
     return FileType::Unknown;
 }
 
 static bool HasWebpSignature(Str d) {
-    return d.len > 12 && str::StartsWith(d, "RIFF") && str::StartsWith(Str(d.s + 8, d.len - 8), "WEBP");
+    return d.len > 12 && str::StartsWith(d, StrL("RIFF")) && str::StartsWith(Str(d.s + 8, d.len - 8), StrL("WEBP"));
 }
 
 static bool HasJxlSignature(Str d) {
@@ -276,8 +280,8 @@ static bool HasJxlSignature(Str d) {
     static const u8 jxlContainer[] = {0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a};
 
     const u8* data = (const u8*)d.s;
-    return (d.len >= (int)sizeof(jxlCodestream) && memeq(data, jxlCodestream, (int)sizeof(jxlCodestream))) ||
-           (d.len >= (int)sizeof(jxlContainer) && memeq(data, jxlContainer, (int)sizeof(jxlContainer)));
+    return (d.len >= sizeofi(jxlCodestream) && memeq(data, jxlCodestream, sizeofi(jxlCodestream))) ||
+           (d.len >= sizeofi(jxlContainer) && memeq(data, jxlContainer, sizeofi(jxlContainer)));
 }
 
 #pragma pack(push, 1)
@@ -366,7 +370,7 @@ static FileType DetectFileTypeFromData(Str d) {
     // TODO: sniff .fb2 content
     u8* data = (u8*)d.s;
     int dataLen = d.len;
-    int n = (int)dimof(gFileSigs);
+    int n = dimofi(gFileSigs);
 
     for (int i = 0; i < n; i++) {
         Str sig = gFileSigs[i].sig;
@@ -477,7 +481,7 @@ static bool JpegSizeFromExif(ByteReader r, int tiffBase, FileTypeInfo& res) {
     int exifIfdOff = 0;
     // scan IFD0 for ExifIFD pointer (tag 0x8769)
     for (u16 i = 0; i < count; i++) {
-        int entryOff = ifdAbs + 2 + i * 12;
+        int entryOff = ifdAbs + 2 + (i * 12);
         if (entryOff + 12 > n) {
             break;
         }
@@ -497,7 +501,7 @@ static bool JpegSizeFromExif(ByteReader r, int tiffBase, FileTypeInfo& res) {
     }
     count = r.UInt16(exifAbs, isBE);
     for (u16 i = 0; i < count; i++) {
-        int entryOff = exifAbs + 2 + i * 12;
+        int entryOff = exifAbs + 2 + (i * 12);
         if (entryOff + 12 > n) {
             break;
         }
@@ -646,7 +650,14 @@ static Size TiffIfdSize(ByteReader r, int off, bool isBE, bool isJxr) {
             continue;
         }
         u16 type = r.UInt16(idx + 2, isBE);
-        int typeSize = type == 1 ? 1 : type == 3 ? 2 : type == 4 ? 4 : 0;
+        int typeSize = 0;
+        if (type == 1) {
+            typeSize = 1;
+        } else if (type == 3) {
+            typeSize = 2;
+        } else if (type == 4) {
+            typeSize = 4;
+        }
         u32 nVals = r.UInt32(idx + 4, isBE);
         if (typeSize == 0 || nVals == 0) {
             continue;
@@ -698,7 +709,7 @@ static void ParseTiff(ByteReader r, FileTypeInfo& res, bool isJxr) {
         AppendImageSize(res, nIfds, cap, size.dx, size.dy);
         nIfds++;
         u16 nEntries = r.UInt16((int)off, isBE);
-        int nextOff = (int)off + 2 + nEntries * 12;
+        int nextOff = (int)off + 2 + (nEntries * 12);
         if (nextOff + 4 > r.len) {
             break;
         }
@@ -804,7 +815,7 @@ static int ExifOrientationFromTiff(ByteReader r, int tiffBase) {
     }
     u16 count = r.UInt16(ifdAbs, isBE);
     for (u16 i = 0; i < count; i++) {
-        int entryOff = ifdAbs + 2 + i * 12;
+        int entryOff = ifdAbs + 2 + (i * 12);
         if (entryOff + 12 > n) {
             break;
         }
@@ -1257,13 +1268,12 @@ EmbeddedPdfName ParseEmbeddedPdfName(Str path) {
     return res;
 }
 
-FileType GuessFileTypeFromName(Str path) {
-    VerifyExtsMatch();
-
+// path::IsDirectory() is expensive on network drives so we can pass notDir=true if we know the path is not a directory
+FileType GuessFileTypeFromName(Str path, bool notDir) {
     if (!path) {
         return FileType::Unknown;
     }
-    if (path::IsDirectory(path)) {
+    if (!notDir && path::IsDirectory(path)) {
         return FileType::Directory;
     }
     FileType res = GetTypeByFileExt(path);
@@ -1328,6 +1338,8 @@ TempStr GfxFileExtFromDataTemp(Str d) {
 
 // compares the guessed type's canonical extension (the first extension
 // registered for it, e.g. ".pdf" for sample.ai) to expectedExt
+// Headless test helper: compare GuessFileTypeFromName's canonical extension
+// to an expected one (e.g. "sample.ai" -> ".pdf").
 TempStr FileKindResultTemp(Str path, Str expectedExt, int* exitCodeOut) {
     str::Builder out;
     auto fail = [&](Str msg) -> Str {

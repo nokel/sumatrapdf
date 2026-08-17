@@ -18,7 +18,7 @@ Str gLogFilePath;
 static Mutex gLogMutex;
 static bool gDestroyedLogging = false;
 
-static void log2(Str s, bool) {
+static void log2(Str s, bool /*always*/) {
     if (!s || gDestroyedLogging) {
         return;
     }
@@ -29,7 +29,8 @@ static void log2(Str s, bool) {
 
     if (!gLogBuf) {
         gLogAllocator = ArenaNew();
-        gLogBuf = new str::Builder(32 * 1024, gLogAllocator);
+        gLogBuf = new str::Builder(32 * 1024);
+        gLogBuf->a = gLogAllocator;
     }
     gLogBuf->Append(s);
 
@@ -83,4 +84,9 @@ void DestroyLogging() {
     gLogAllocator = nullptr;
     gLogMutex.Unlock();
     str::FreePtr(&gLogFilePath);
+}
+
+// Walk parent PIDs and log path + command line for each (startup diagnostics).
+void LogParentProcessChain() {
+    // TODO: implement with getppid / /proc on POSIX if needed
 }

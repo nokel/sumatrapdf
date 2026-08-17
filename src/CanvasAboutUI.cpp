@@ -2,10 +2,14 @@
    License: GPLv3 */
 
 #include "base/Base.h"
+#include "base/File.h"
 #include "base/Timer.h"
 #include "base/Win.h"
 
-#include "wingui/FrameRateWnd.h"
+#include "gui/UIModels.h"
+#include "gui/Layout.h"
+#include "gui/win/WinGui.h"
+#include "gui/Gfx.h"
 
 #include "Settings.h"
 #include "GlobalPrefs.h"
@@ -32,36 +36,36 @@ static void OnPaintAbout(MainWindow* win) {
     GlobalPrefs* prefs = gGlobalPrefs;
     bool hasPerms = HasPermission(Perm::SavePreferences | Perm::DiskAccess);
     bool drawHome = hasPerms && prefs->rememberOpenedFiles && prefs->showStartPage;
+    Gfx* gfx = GfxCreate(bufDC);
     if (LibraryHomeEnabled()) {
         HomePageDestroySearch(win);
         DrawLibraryPage(win, bufDC);
     } else if (drawHome) {
-        DrawHomePage(win, bufDC);
+        DrawHomePage(win, gfx);
     } else {
         HomePageDestroySearch(win);
-        DrawAboutPage(win, bufDC);
+        // DrawAboutPage swaps the canvas root's child from the home page's
+        // chrome to the About page's controls
+        DrawAboutPage(win, gfx);
     }
+    delete gfx;
     win->buffer->Flush(hdc);
     DrawCanvasKeyboardFocusIfNeeded(win, hdc);
 
     EndPaint(win->hwndCanvas, &ps);
-    if (gShowFrameRate) {
-        win->frameRateWnd->ShowFrameRateDur(TimeSinceInMs(t));
-    }
+    win->ShowFrameRateDur(TimeSinceInMs(t));
 }
 
-static void OnMouseLeftButtonDownAbout(MainWindow* win, int x, int y, WPARAM) {
-    // lf("Left button clicked on %d %d", x, y);
-
-    if (LibraryHomeEnabled() && LibraryOnLeftButtonDown(win, x, y)) {
-        str::FreePtr(&win->urlOnLastButtonDown);
-        return;
-    }
-    // remember a link under so that on mouse up we only activate
-    // link if mouse up is on the same link as mouse down
-    str::ReplaceWithCopy(&win->urlOnLastButtonDown, GetStaticLinkAtTemp(win->staticLinks, x, y, nullptr));
+static void OnMouseMoveAbout(HWND hwnd) {
+    TRACKMOUSEEVENT tme{sizeof(TRACKMOUSEEVENT)};
+    tme.dwFlags = TME_LEAVE;
+    tme.hwndTrack = hwnd;
+    TrackMouseEvent(&tme);
 }
 
+// The library start page draws itself and keeps its own hit targets in
+// win->staticLinks, so it handles the canvas mouse messages instead of the
+// home page's VirtCtrl tree.
 static bool IsLink(Str url) {
     if (str::StartsWithI(url, "http:")) {
         return true;
@@ -75,26 +79,18 @@ static bool IsLink(Str url) {
     return false;
 }
 
-static void OnMouseMoveAbout(MainWindow* win, HWND hwnd, int x, int y) {
-    if (LibraryHomeEnabled()) {
-        LibraryOnMouseMove(win, x, y);
-    } else {
-        HomePageUpdateCloseButton(win, x, y);
-    }
-    TRACKMOUSEEVENT tme{sizeof(TRACKMOUSEEVENT)};
-    tme.dwFlags = TME_LEAVE;
-    tme.hwndTrack = hwnd;
-    TrackMouseEvent(&tme);
-}
-
-static void OnMouseLeftButtonUpAbout(MainWindow* win, int x, int y, WPARAM) {
-    if (LibraryHomeEnabled() && LibraryOnLeftButtonUp(win)) {
+static void OnLibraryLeftButtonDown(MainWindow* win, int x, int y) {
+    if (LibraryOnLeftButtonDown(win, x, y)) {
         str::FreePtr(&win->urlOnLastButtonDown);
         return;
     }
-    // a click on the thumbnail's ✕ close button removes the file instead of
-    // opening it
-    if (!LibraryHomeEnabled() && HomePageOnCloseButtonClick(win, x, y)) {
+    // remember a link under so that on mouse up we only activate
+    // link if mouse up is on the same link as mouse down
+    str::ReplaceWithCopy(&win->urlOnLastButtonDown, GetStaticLinkAtTemp(win->staticLinks, x, y, nullptr));
+}
+
+static void OnLibraryLeftButtonUp(MainWindow* win, int x, int y) {
+    if (LibraryOnLeftButtonUp(win)) {
         str::FreePtr(&win->urlOnLastButtonDown);
         return;
     }
@@ -109,42 +105,6 @@ static void OnMouseLeftButtonUpAbout(MainWindow* win, int x, int y, WPARAM) {
     }
     if (str::Eq(url, kLinkOpenFile)) {
         HwndSendCommand(win->hwndFrame, CmdOpenFile);
-    } else if (str::Eq(url, kLinkHideList)) {
-        gGlobalPrefs->showStartPage = false;
-        win->RedrawAll(true);
-    } else if (str::Eq(url, kLinkShowList)) {
-        gGlobalPrefs->showStartPage = true;
-        win->RedrawAll(true);
-    } else if (str::Eq(url, kLinkNextTip)) {
-        PickAnotherRandomPromotion();
-        win->RedrawAll(true);
-    } else if (str::Eq(url, kLinkHomeLibrary)) {
-        SetLibraryHomeEnabled(true);
-        SaveSettings();
-        win->homePageScrollY = 0;
-        win->RedrawAll(true);
-    } else if (str::Eq(url, kLinkHomeListView)) {
-        SetHomePageListView(true);
-        win->homePageScrollY = 0;
-        SaveSettings();
-        win->RedrawAll(true);
-    } else if (str::Eq(url, kLinkHomeThumbnailView)) {
-        SetHomePageListView(false);
-        win->homePageScrollY = 0;
-        SaveSettings();
-        win->RedrawAll(true);
-    } else if (str::StartsWith(url, kLinkHomeRemoveFilePrefix)) {
-        int prefixLen = len(kLinkHomeRemoveFilePrefix);
-        ForgetFileFromFrequentlyRead(win, Str(url.s + prefixLen, url.len - prefixLen));
-    } else if (str::StartsWith(url, kLinkHomePinFilePrefix)) {
-        int prefixLen = len(kLinkHomePinFilePrefix);
-        FileState* fs = gFileHistory.FindByPath(Str(url.s + prefixLen, url.len - prefixLen));
-        if (fs) {
-            fs->isPinned = !fs->isPinned;
-            SaveSettings();
-            win->DeleteToolTip();
-            win->RedrawAll(true);
-        }
     } else if (str::StartsWith(url, "Cmd")) {
         int cmdId = GetCommandIdByName(url);
         if (cmdId > 0) {
@@ -165,16 +125,52 @@ static void OnMouseLeftButtonUpAbout(MainWindow* win, int x, int y, WPARAM) {
         args.activateExistingInWindow = true;
         StartLoadDocument(&args);
     }
-    // HwndSetFocus(win->hwndFrame);
 }
 
-static void OnMouseRightButtonDownAbout(MainWindow* win, int x, int y, WPARAM) {
+// returns true when the library page consumed the message
+static bool LibraryOnCanvasMessage(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    if (!LibraryHomeEnabled()) {
+        return false;
+    }
+    int x = GET_X_LPARAM(lp);
+    int y = GET_Y_LPARAM(lp);
+    switch (msg) {
+        case WM_MOUSEMOVE:
+            LibraryOnMouseMove(win, x, y);
+            OnMouseMoveAbout(hwnd);
+            return true;
+
+        case WM_CAPTURECHANGED:
+            LibraryOnCaptureLost(win);
+            return true;
+
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONDBLCLK:
+            OnLibraryLeftButtonDown(win, x, y);
+            return true;
+
+        case WM_LBUTTONUP:
+            OnLibraryLeftButtonUp(win, x, y);
+            return true;
+
+        case WM_VSCROLL:
+            LibraryOnVScroll(win, wp);
+            return true;
+
+        case WM_MOUSEWHEEL:
+            LibraryOnMouseWheel(win, GET_WHEEL_DELTA_WPARAM(wp), (short)LOWORD(lp), (short)HIWORD(lp));
+            return true;
+    }
+    return false;
+}
+
+static void OnMouseRightButtonDownAbout(MainWindow* win, int x, int y, WPARAM /*key*/) {
     // lf("Right button clicked on %d %d", x, y);
     HwndSetFocus(win->hwndFrame);
     win->dragStart = Point(x, y);
 }
 
-static void OnMouseRightButtonUpAbout(MainWindow* win, int x, int y, WPARAM) {
+static void OnMouseRightButtonUpAbout(MainWindow* win, int x, int y, WPARAM /*key*/) {
     int isDrag = IsDragDistance(x, win->dragStart.x, y, win->dragStart.y);
     if (isDrag) {
         return;
@@ -186,69 +182,94 @@ static void OnMouseRightButtonUpAbout(MainWindow* win, int x, int y, WPARAM) {
 }
 
 static LRESULT OnSetCursorAbout(MainWindow* win, HWND hwnd) {
-    Point pt = HwndGetCursorPos(hwnd);
-    if (!pt.IsEmpty()) {
-        StaticLink* link;
-        if (GetStaticLinkAtTemp(win->staticLinks, pt.x, pt.y, &link)) {
-            win->ShowToolTip(link->tooltip, link->rect);
-            SetCursorCached(IDC_HAND);
-        } else {
-            win->DeleteToolTip();
-            SetCursorCached(IDC_ARROW);
-        }
+    LRESULT res = 0;
+    if (HomePageOnCanvasMessage(win, WM_SETCURSOR, 0, 0, res)) {
         return TRUE;
     }
-
+    Point pt = HwndGetCursorPos(hwnd);
+    if (pt.IsEmpty()) {
+        win->DeleteToolTip();
+        return FALSE;
+    }
+    // not over any virtual control: plain arrow, and drop the hover tip. The
+    // keyboard selection outline stays
     win->DeleteToolTip();
-    return FALSE;
+    SetCursorCached(IDC_ARROW);
+    return TRUE;
 }
 
 LRESULT WndProcCanvasAbout(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     int x = GET_X_LPARAM(lp);
     int y = GET_Y_LPARAM(lp);
+    // the library start page draws itself and owns the canvas mouse input
+    // while it is on
+    if (LibraryOnCanvasMessage(win, hwnd, msg, wp, lp)) {
+        return 0;
+    }
+    // the home page's virtual controls (header, view buttons, "Open a
+    // document...", help button) handle their own hover / click / cursor
     switch (msg) {
-        case WM_CTLCOLOREDIT:
-            if ((HWND)lp == win->hwndHomeSearch) {
-                HDC hdcEdit = (HDC)wp;
-                SetTextColor(hdcEdit, ThemeWindowTextColor());
-                SetBkColor(hdcEdit, ThemeControlBackgroundColor());
-                if (!win->brControlBgColor) {
-                    win->brControlBgColor = CreateSolidBrush(ThemeControlBackgroundColor());
-                }
-                return (LRESULT)win->brControlBgColor;
+        case WM_MOUSEMOVE:
+        case WM_MOUSELEAVE:
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONUP:
+        case WM_LBUTTONDBLCLK: {
+            LRESULT res = 0;
+            if (HomePageOnCanvasMessage(win, msg, wp, lp, res)) {
+                return res;
             }
             break;
-
-        case WM_COMMAND:
-            if (HIWORD(wp) == EN_CHANGE && (HWND)lp == win->hwndHomeSearch) {
-                win->homePageScrollY = 0;
-                HwndInvalidate(win->hwndCanvas);
-                return 0;
+        }
+    }
+    // the search box's own messages (WM_CTLCOLOREDIT, EN_CHANGE, focus) are
+    // reflected back to it by WndProcCanvas; it colors itself from SetColors()
+    // and calls the handlers HomePage.cpp gave it
+    switch (msg) {
+        case WM_KEYDOWN:
+            // keyboard navigation of the file list (issue #1136). These keys are
+            // routed here by MaybeTranslateAccelerator instead of scrolling
+            switch (wp) {
+                case VK_LEFT:
+                    HomePageMoveSelection(win, -1, 0);
+                    return 0;
+                case VK_RIGHT:
+                    HomePageMoveSelection(win, 1, 0);
+                    return 0;
+                case VK_UP:
+                    HomePageMoveSelection(win, 0, -1);
+                    return 0;
+                case VK_DOWN:
+                    HomePageMoveSelection(win, 0, 1);
+                    return 0;
+                case VK_RETURN: {
+                    Str path = HomePageSelectedFilePathTemp(win);
+                    if (!path) {
+                        return 0;
+                    }
+                    LoadArgs args(path, win);
+                    // ctrl forces always opening, as for a click
+                    args.activateExisting = !IsCtrlPressed();
+                    args.activateExistingInWindow = true;
+                    StartLoadDocument(&args);
+                    return 0;
+                }
+                case VK_DELETE: {
+                    // remove the keyboard-selected entry from file history (not from disk)
+                    Str path = HomePageSelectedFilePathTemp(win);
+                    if (path) {
+                        ForgetFileFromFrequentlyRead(win, path);
+                    }
+                    return 0;
+                }
             }
             break;
 
         case WM_MOUSEMOVE:
-            OnMouseMoveAbout(win, hwnd, x, y);
+            OnMouseMoveAbout(hwnd);
             return 0;
 
         case WM_MOUSELEAVE:
-            HomePageOnCanvasMouseLeave();
-            return 0;
-
-        case WM_CAPTURECHANGED:
-            LibraryOnCaptureLost(win);
-            return 0;
-
-        case WM_LBUTTONDOWN:
-            OnMouseLeftButtonDownAbout(win, x, y, wp);
-            return 0;
-
-        case WM_LBUTTONUP:
-            OnMouseLeftButtonUpAbout(win, x, y, wp);
-            return 0;
-
-        case WM_LBUTTONDBLCLK:
-            OnMouseLeftButtonDownAbout(win, x, y, wp);
+            HomePageClearActiveEntry(win);
             return 0;
 
         case WM_RBUTTONDOWN:
@@ -277,22 +298,14 @@ LRESULT WndProcCanvasAbout(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, LPAR
             return 0;
 
         case WM_VSCROLL:
-            HomePageHideCloseButton();
-            if (LibraryHomeEnabled()) {
-                LibraryOnVScroll(win, wp);
-            } else {
-                HomePageOnVScroll(win, wp);
-            }
+            HomePageClearActiveEntry(win);
+            HomePageOnVScroll(win, wp);
             return 0;
 
         case WM_MOUSEWHEEL: {
-            HomePageHideCloseButton();
+            HomePageClearActiveEntry(win);
             int delta = GET_WHEEL_DELTA_WPARAM(wp);
-            if (LibraryHomeEnabled()) {
-                LibraryOnMouseWheel(win, delta, (short)LOWORD(lp), (short)HIWORD(lp));
-            } else {
-                HomePageOnMouseWheel(win, delta);
-            }
+            HomePageOnMouseWheel(win, delta);
             return 0;
         }
 

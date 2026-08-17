@@ -23,14 +23,18 @@ CmdDuplicateInNewTab,,Open Current Document In New Tab,ver 3.6+
 CmdExit,Ctrl + Q,Exit Application,
 CmdMoveFrameFocus,F6,Move Frame Focus,
 CmdNewWindow,Ctrl + N,Open New SumatraPDF Window,
-CmdOpenFile,Ctrl + O,Open File...,
+CmdOpenFile,Ctrl + O,Open File...,"uses the Windows file picker or Navigate Files in Folder according to the `FilePicker` advanced setting (empty/os = Windows, sumatrapdf = in-app), ver 3.7+"
+CmdOpenFileWithOSFilePicker,,Open File With Windows File Picker...,"always the standard Windows multi-select file open dialog, ver 3.7+"
+CmdToggleFilePicker,,SumatraPDF File Picker,"checkbox under File and Settings; toggles `FilePicker` empty/os ↔ sumatrapdf, ver 3.7+"
+CmdToggleBoolSetting,,Toggle Boolean Setting,"custom shortcuts: `CmdToggleBoolSetting <SettingName>` toggles a boolean advanced setting (case-insensitive leaf or dotted path), e.g. `Fullscreen.ShowMenubar` (fixes #5912), ver 3.7+"
+CmdFixDefaultApp,,Fix Default App For Extension,"`CmdFixDefaultApp .pdf` opens the OS dialog to set the default app for that extension; used by the home-page bottom bar when Sumatra is no longer the default, ver 3.7+"
 CmdOpenNextFileInFolder,Shift + Ctrl + Right,Open Next File In Folder,
-CmdNavigateFilesInFolder,,Navigate Files in Folder,"floating window listing openable files and directories in the current file's folder, ver 3.7+"
+CmdNavigateFilesInFolder,Shift + Ctrl + Up,Navigate Files in Folder,"directory browser for openable files in the current file's folder (stays open; Enter/double-click replaces the current tab, Ctrl+Enter/Ctrl+double-click switches to the tab already showing the file or opens a new tab, Alt+Up goes to the parent directory, Del moves the selected file to the recycle bin, F5 re-reads the directory); also used when `FilePicker = sumatrapdf`, ver 3.7+"
 CmdOpenPrevFileInFolder,Shift + Ctrl + Left,Open Previous File In Folder,
 CmdOpenSelectedDocument,,Open Selected Document,
 CmdPinSelectedDocument,,Pin Selected Document,
 CmdPrint,Ctrl + P,Print Document...,
-CmdProperties,Ctrl + D,Show Document Properties...,
+CmdProperties,Ctrl + D,Document Properties...,
 CmdReloadDocument,r,Reload Document,
 CmdRenameFile,F2,Rename File...,
 CmdReopenLastClosedFile,Shift + Ctrl + T,Reopen Last Closed,
@@ -50,12 +54,18 @@ CmdOpenEmbeddedPDF,,Open Embedded PDF,
 CmdSaveEmbeddedFile,,Save Embedded File...,
 CmdCreateShortcutToFile,,Create .lnk Shortcut,
 CmdSelectAll,Ctrl + A,Select All,
+CmdExtendSelectionCharLeft,,Extend Selection One Character Left,"ver 3.7+, no default shortcut; grows or shrinks the existing text selection (see below)"
+CmdExtendSelectionCharRight,,Extend Selection One Character Right,"ver 3.7+, no default shortcut; grows or shrinks the existing text selection (see below)"
+CmdExtendSelectionWordLeft,,Extend Selection One Word Left,"ver 3.7+, no default shortcut; grows or shrinks the existing text selection (see below)"
+CmdExtendSelectionWordRight,,Extend Selection One Word Right,"ver 3.7+, no default shortcut; grows or shrinks the existing text selection (see below)"
 CmdCopyComment,,Copy Comment,
 CmdCopyImage,,Copy Image,
 CmdCopyLinkTarget,,Copy Link Target,
 CmdCopySelection,"Ctrl + C, Ctrl + Insert",Copy Selection,
 CmdCopyFilePath,,Copy File Path,ver 3.5+
 CmdDeleteFile,,Delete Currently Opened File, ver 3.6+
+CmdDeleteFileAndOpenNext,,Delete File And Open Next,"moves the current file to the Recycle Bin after the next file opens successfully, ver 3.7+"
+CmdShowGeneratedHTML,,Show Generated HTML,"available for Markdown files; saves the generated HTML to a temporary .html file and opens it in Notepad, ver 3.7+"
 ```
 
 ## Search
@@ -75,25 +85,29 @@ CmdFindPrevSel,Shift + Ctrl + F3,Find Previous Selection,
 
 ```commands
 Command IDs,Keyboard shortcuts,Command Palette,Notes
-CmdBookView,Ctrl + 8,Book View,
-CmdFacingView,Ctrl + 7,Facing View,
+CmdBookView,"Ctrl + 8, Ctrl + Numpad 8",Book View,
+CmdFacingView,"Ctrl + 7, Ctrl + Numpad 7",Facing View,
 CmdInvertColors,Shift + I,Invert Colors,was `i` before 3.6
 CmdRotateLeft,"[, Shift + Ctrl + Subtract",Rotate Left,
 CmdRotateRight,"], Shift + Ctrl + Add",Rotate Right,
-CmdSinglePageView,Ctrl + 6,Single Page View,
+CmdSinglePageView,"Ctrl + 6, Ctrl + Numpad 6",Single Page View,
 CmdToggleContinuousView,c,Toggle Continuous View,
+CmdSelectTextViaKeyboard,F7,Select Text With Keyboard,"ver 3.7+, caret browsing: puts a text caret in the page which the arrow keys move; Shift + arrows extend the selection, v toggles visual mode (arrows select without Shift), Home/End go to the line ends, Ctrl + Home/End to the document ends, Ctrl + arrows move by word, Ctrl + C or y copies, Esc or F7 leaves the mode. Not available for documents with no extractable text (fixes #4684, #4116)"
+CmdToggleKeyboardLinkFollowing,Shift + F,Follow Link With Keyboard,"ver 3.7+, numbers the links visible on screen 1..9; pressing a digit follows that link, Esc or Shift + F again leaves the mode. Not available for comic books, image folders and images (fixes #2629)"
 CmdToggleFullscreen,"f, Shift + Ctrl + L, F11",Toggle Fullscreen,
-CmdToggleMangaMode,,Toggle Manga Mode,
+CmdToggleMangaMode,,Toggle Manga Mode,"Right-to-left facing/book layout for fixed-page documents; before 3.7 this was limited to comic books"
 CmdToggleMenuBar,F9,Toggle Menu Bar,
 CmdTogglePageInfo,i,Show / Hide Current Page Number,was Shift + i before 3.6
 CmdChangeScrollbar,,Change Scrollbar,"Opens dialog to choose scrollbar mode (windows/smart/overlay/hidden)"
 CmdChangeBackgroundColor,,Change Background Color,"Opens color picker to change document background color"
+CmdChangeEbookSettings,,Change eBook Settings,"ver 3.7+, opens a dialog for the font, size, line spacing and CSS of a reflowable document (EPUB, MOBI, FB2, ...), for that document only or for all ebooks. Not shown for fixed-page documents. See Customize-eBook-UI.md"
 CmdToggleToolbar,F8,Toggle Toolbar,
-CmdToggleToolbarPosition,,Toggle Toolbar Position,"ver 3.7+, moves the toolbar between the top and bottom of the window (works in both show and overlay modes)"
 CmdAIChatWithClaudeCode,,AI Chat with document using Claude Code,"Toggle Claude Code chat sidebar, ver 3.7+. See AI-Chat-with-document.md"
 CmdAIChatWithGrokBuild,,AI Chat with document using Grok Build,"Toggle Grok Build chat sidebar, ver 3.7+. See AI-Chat-with-document.md#grok-build"
 CmdAIChatWithOpenAICodex,,AI Chat with document using OpenAI Codex,"Toggle OpenAI Codex chat sidebar, ver 3.7+. See AI-Chat-with-document.md#openai-codex"
-CmdSelectNextTheme,,Select Next Theme,ver 3.5+
+CmdAIChatWithAntiGravity,,AI Chat with document using Antigravity,"Toggle Antigravity chat sidebar, ver 3.7+. See AI-Chat-with-document.md#antigravity"
+CmdTranslateSelectionWithAntiGravity,,Translate Selection with Antigravity,"Translate selected text with Antigravity CLI, ver 3.7+"
+CmdChangeTheme,,Change Theme...,"ver 3.7+, opens a dialog to pick a UI theme and optionally how document colors follow the theme (`DocumentColorsFollowTheme`)"
 CmdToggleLightDarkTheme,,Toggle Light/Dark Theme,"ver 3.7+, switches between the last used light and dark themes (see `LastLightTheme` / `LastDarkTheme` advanced settings)"
 CmdToggleEngineeringDrawingEnhance,,Toggle Engineering Drawing Enhancement,"ver 3.7+, toggles CAD/engineering-drawing line enhancement for the current PDF (see the `EngineeringDrawingEnhance` advanced setting)"
 CmdSetDocumentColorsFollowTheme,,Set Document Colors Follow Theme,"ver 3.7+, opens a dialog to pick how MuPDF-rendered documents follow the UI theme (`DocumentColorsFollowTheme`: off, smart, legacy)"
@@ -101,6 +115,8 @@ CmdTogglePreservePdfImages,,Toggle Preserve PDF Image Colors in Dark Mode,"ver 3
 CmdToggleLinks,,Toggle Show Links,"Toggle drawing blue rectangle around links, ver 3.6+"
 CmdToggleLibraryHome,,Toggle Library Start Page,"ver 3.7+, switch the start page between the library of your books (cover art, series, per-book page) and the classic Frequently Read page. Books are found under the `Audiobook.LibraryRoots` advanced setting"
 CmdLibraryRescan,,Rescan the Library,"ver 3.7+, look for newly added books under the library roots. Only enabled while the library start page is on"
+CmdToggleDisableLinks,,Toggle Disable Links,"ver 3.7+, palette-only; toggles `DisableLinks` so clicks, hover and keyboard following ignore document links (fixes #5939)"
+CmdToggleHoverPreview,,Toggle Hover Preview,"ver 3.7+, palette-only; toggles the citation/reference hover popup (`CitationHoverDelay`: 300 ms when on, -1 when off)"
 ```
 
 ## Tabs
@@ -165,6 +181,7 @@ Command IDs,Keyboard shortcuts,Command Palette,Notes
 CmdTogglePresentationMode,"Ctrl + L, Shift + F11, F5",View: Presentation Mode,
 CmdPresentationBlackBackground,.,Presentation Black Background,
 CmdPresentationWhiteBackground,w,Presentation White Background,
+CmdToggleLaserPointer,,Toggle Laser Pointer,"ver 3.7+, replaces the mouse cursor over the document with a glowing red laser dot for pointing things out. No default shortcut, assign your own. Stays visible in presentation mode (the cursor doesn't auto-hide while it's on)"
 ```
 
 ## Annotations
@@ -194,6 +211,7 @@ CmdDeleteAnnotation,Delete,Delete Annotation,
 CmdEditAnnotations,,Edit Annotations,
 CmdSaveAnnotations,Shift + Ctrl + S,Save Annotations to existing PDF,
 CmdSaveAnnotationsNewFile,,Save Annotations to new PDF,ver 3.6+
+CmdDiscardChanges,,Discard Changes,"reloads the document from disk, discarding unsaved annotations and form changes; also on the tab context menu when there are unsaved changes, ver 3.7+ (renamed from `CmdDiscardAnnotations`)"
 CmdShowAnnotations,,Show Annotations,"ver 3.6+, for current document"
 CmdHideAnnotations,,Hide Annotations,"ver 3.6+, for current document"
 CmdToggleShowAnnotations,,Toggle Showing Annotations,"ver 3.6+, for current document"
@@ -204,13 +222,14 @@ CmdToggleShowAnnotations,,Toggle Showing Annotations,"ver 3.6+, for current docu
 ```commands
 Command IDs,Keyboard shortcuts,Command Palette,Notes
 CmdToggleZoom,z,Toggle Zoom,
-CmdZoomActualSize,Ctrl + 1,Zoom: Actual Size,
+CmdZoomActualSize,"Ctrl + 1, Ctrl + Numpad 1",Zoom: Actual Size,
 CmdZoomCustom,Ctrl + Y,Zoom: Custom...,
-CmdZoomFitContent,Ctrl + 3,Zoom: Fit Content,
+CmdZoomFitContent,"Ctrl + 3, Ctrl + Numpad 3",Zoom: Fit Content,
+CmdZoomToSelection,"Ctrl + 4, Ctrl + Numpad 4",Zoom: To Selection,"ver 3.7+, zooms so the current selection (Ctrl + drag rectangle or selected text) fills the window and centers it; the selection is kept so it can still be copied, and Navigate Back (Alt + Left) returns to the view it was zoomed from. Also in the Zoom menu and the right-click menu (fixes #1699)"
 CmdZoomShrinkToFit,,Zoom: Shrink To Fit,"Shows at 100% if page is smaller than view area, otherwise fits page"
-CmdZoomFitPage,Ctrl + 0,Zoom: Fit Page,
+CmdZoomFitPage,"Ctrl + 0, Ctrl + Numpad 0",Zoom: Fit Page,
 CmdZoomFitPageAndSinglePage,,Zoom: Fit Page and Single Page,
-CmdZoomFitWidth,Ctrl + 2,Zoom: Fit Width,
+CmdZoomFitWidth,"Ctrl + 2, Ctrl + Numpad 2",Zoom: Fit Width,
 CmdZoomFitHeight,,Zoom: Fit Height,"Scale so the page fills the window height (may scroll horizontally); useful for landscape pages on portrait screens (fixes #1714), ver 3.7+"
 CmdZoomFitByOrientation,,Zoom: Fit Page or Width by Orientation,"Fit width when the view is wider than tall (landscape), fit page otherwise (portrait); re-evaluated as the window/screen is resized or rotated"
 CmdZoomFitWidthAndContinuous,,Zoom: Fit Width And Continuous,
@@ -256,11 +275,12 @@ CmdOpenWithHtmlHelp,,Open in Microsoft HTML Help,
 CmdOpenWithPdfDjvuBookmarker,,Open in Pdf&Djvu Bookmarker,
 CmdOpenWithPdfXchange,,Open in PDF-XChange,
 CmdOpenWithXpsViewer,,Open in Microsoft Xps Viewer,
+CmdTranslateSelection,,Translate Selection...,"ver 3.7+, opens a dialog to translate the selected text (edit text, pick languages and engine); used from the selection context menu and command palette"
 CmdTranslateSelectionWithDeepL,,Translate Selection With DeepL,
 CmdTranslateSelectionWithGoogle,,Translate Selection with Google,
-CmdTranslateSelectionWithGrokBuild,,Translate Selection with Grok Build,
-CmdTranslateSelectionWithClaudeCode,,Translate Selection with Claude Code,
-CmdTranslateSelectionWithOpenAICodex,,Translate Selection with OpenAI Codex,
+CmdTranslateSelectionWithGrokBuild,,Translate Selection with Grok Build,"ver 3.7+, requires the Grok Build CLI"
+CmdTranslateSelectionWithClaudeCode,,Translate Selection with Claude Code,"ver 3.7+, requires the Claude Code CLI"
+CmdTranslateSelectionWithOpenAICodex,,Translate Selection with OpenAI Codex,"ver 3.7+, requires the OpenAI Codex CLI"
 CmdSearchSelectionWithBing,,Search Selection with Bing,
 CmdSearchSelectionWithGoogle,,Search Selection with Google,
 CmdSearchSelectionWithWikipedia,,Search Selection with Wikipedia,ver 3.6+
@@ -280,6 +300,7 @@ CmdChangeLanguage,,Change Language...,
 CmdCheckUpdate,,Check For Updates,
 CmdClearHistory,,Clear History,Clears history of opened files (for recently opened list in home page)
 CmdRemoveDeletedFilesFromHistory,,Remove Deleted Files From History,"ver 3.7+, removes from history entries for files that no longer exist on disk"
+CmdDeleteCachedFiles,,Delete Cached Files,"ver 3.7+, deletes local copies of comic book archives cached under cbx-cache when opened from a network drive"
 CmdContributeTranslation,,Contribute Translation,
 CmdForgetSelectedDocument,,Remove Selected Document From History,
 CmdListPrinters,,List Printers,ver 3.7+
@@ -289,7 +310,8 @@ CmdScreenshot,,Take Screenshot,"ver 3.7+, requires Shortcuts entry (e.g. Key = P
 CmdCropImage,,Crop Image,ver 3.7+
 CmdResizeImage,,Resize Image,ver 3.7+
 CmdSaveImage,,Save Image,"Save image from context menu, ver 3.7+"
-CmdConvertImageToPdf,,Convert Image To PDF,"Save the image under the cursor (or the current image document) as a new PDF, ver 3.7+"
+CmdConvertImageToPdf,,Convert Page To PDF,"Save the image under the cursor (or the current image document page) as a new PDF via the image editor, ver 3.7+"
+CmdConvertToPDF,,Convert To PDF,"Convert a comic book, image folder, or single image to a multi-page PDF (dialog picks a unique .pdf path), ver 3.7+ (fixes #4118, #5532). Docs: Convert-to-PDF.md"
 CmdPasteClipboardImage,,Paste Image From Clipboard,"Paste image from clipboard and open it, ver 3.7+"
 CmdShowErrors,,Show Errors,"Show mupdf warnings/errors in right-click context menu, ver 3.7+"
 CmdShowLog,,Show Logs,
@@ -344,6 +366,7 @@ CmdDebugTogglePredictiveRender,,Debug: Toggle Predictive Rendering,
 CmdDebugToggleRenderInfo,,Debug: Toggle Render Queue Info,
 CmdDebugToggleCacheInfo,,Debug: Toggle Cache Info,
 CmdDebugToggleRtl,,Debug: Toggle Rtl,
+CmdDebugShowFitContentArea,,Debug: Show Fit Content Area,"outlines in red the area Fit Content zoom would fit to (whole page if no content box was detected), without changing the zoom, ver 3.7+"
 CmdNone,,Do nothing,
 ```
 
@@ -351,6 +374,8 @@ CmdNone,,Do nothing,
 
 ```commands
 Command IDs,Keyboard shortcuts,Command Palette,Notes
+CmdInstallPrereleaseUpdate,,internal,"used by the pre-release update notification link (Download and install latest version); not for user shortcuts or DDE"
+CmdTogglePdfPreviewLogging,,internal,"toggles PDF shell-preview logging for debugging the Windows preview handler; not for normal use"
 CmdDebugCorruptMemory,,don't use,
 CmdOpenWithKnownExternalViewerFirst,,don't use,
 CmdOpenWithKnownExternalViewerLast,,don't use,
@@ -359,7 +384,7 @@ CmdSetTheme,,don't use,
 CmdViewWithExternalViewer,,don't use,
 CmdSaveAttachment,,don't use,
 CmdOpenAttachment,,don't use,
-CmdExec,,don't use,
+CmdExec,,internal,"runs an external program with optional filter; used internally (e.g. selection handlers), not for normal shortcuts or DDE"
 ```
 
 `CmdFindMatch` is an old name for `CmdFindToggleMatchCase`. It is not a generated command ID, but SumatraPDF still accepts it in old shortcut settings for compatibility.
@@ -396,6 +421,29 @@ For boolean arguments name is the same as `true` value i.e. `openedit` is the sa
 For default arguments you can skip the name. For example: `color` is a default `CmdCreateAnnotHighlight` argument so `CmdCreateAnnotHighlight #fafafa` is the same as `CmdCreateAnnotHighlight color: #fafafa`
 
 You can combine those rules: `CmdCreateAnnotHighlight #fafafa openedit` is the same as `CmdCreateAnnotHighlight color: #fafafa openedit: true`.
+
+## `CmdExtendSelectionCharLeft` and other `CmdExtendSelection*`
+
+**Ver 3.7+**
+
+`CmdExtendSelectionCharLeft`, `CmdExtendSelectionCharRight`, `CmdExtendSelectionWordLeft` and `CmdExtendSelectionWordRight` move the free end of the current text selection by one character or one word, the way `Shift + Left/Right` and `Ctrl + Shift + Left/Right` do in a text editor. Moving toward the selection's anchor shrinks it, moving away grows it, and the selection continues across page boundaries.
+
+They have no default shortcut because the obvious keys are already taken (`Ctrl + Shift + Left/Right` navigate between files), so assign your own:
+
+```
+Shortcuts [
+    [
+        Cmd = CmdExtendSelectionWordRight
+        Key = Ctrl + Shift + Right
+    ]
+    [
+        Cmd = CmdExtendSelectionWordLeft
+        Key = Ctrl + Shift + Left
+    ]
+]
+```
+
+The selection can come from anywhere: dragging with the mouse, double-clicking a word, `Ctrl + A` or keyboard selection (`F7`). While `F7` keyboard selection is active these commands move the caret, so it stays at the end of the selection. Without a selection they do nothing, and they're not available for documents with no extractable text.
 
 ## `CmdScrollUp`, `CmdScrollDown`
 
@@ -465,10 +513,48 @@ Arguments for `CmdCreateAnnotHighlight` plus:
 - `bgcolor` : background color of annotation, fully transparent if not given
 - `textsize` : size of annotation text, 12 if not given
 - `borderwidth` : border width, 1 if not given
+- `alignment` : **ver 3.7+**, how free text is aligned in its box: `left`, `center` or `right`. Left if not given
 - `opacity` : opacity of annotation, 0 - fully transparent (i.e. invisible), 100 - fully opaque (default if not given)
 - `interiorcolor` : interior color for circle, square etc. annotations, fully transparent if not given
 - `focusedit` : boolean, when annotation edit window opens, focus the contents edit control
 - `focuslist` : boolean, when annotation edit window opens, focus the annotations list
+
+## `CmdToggleBoolSetting`
+
+**Ver 3.7+**
+
+Arguments:
+
+- `name` : default, string — name of a boolean advanced setting (case-insensitive leaf name or dotted path, e.g. `Fullscreen.ShowMenubar`)
+
+Toggles that setting between `true` and `false`. Useful for custom shortcuts or toolbar buttons. Unknown setting names show a warning when the shortcut is defined and when the command runs.
+
+Example: toggle fullscreen menubar with `t`:
+
+```
+Shortcuts [
+	[
+		Cmd = CmdToggleBoolSetting Fullscreen.ShowMenubar
+		Key = t
+		Name = Toggle Fullscreen Menubar
+	]
+]
+```
+
+Add `ToolbarText` to the same entry to also get a toolbar button for it. Example: turn the reading mode of [`MouseWheelTurnsPage`](Advanced-options-settings.md) on and off with `w` or from the toolbar:
+
+```
+Shortcuts [
+	[
+		Cmd = CmdToggleBoolSetting MouseWheelTurnsPage
+		Key = w
+		Name = Wheel Turns Page
+		ToolbarText = Wheel Turns Page
+	]
+]
+```
+
+The same works for any other boolean advanced setting, e.g. `CmdToggleBoolSetting RememberViewOffsetOnPageTurn` or `CmdToggleBoolSetting ClickEdgeToTurnPage`.
 
 ## `CmdZoomCustom`
 
@@ -547,6 +633,7 @@ These toggle commands accept an optional `state` boolean argument that forces an
 - `CmdToggleMenuBar`
 - `CmdToggleContinuousView`
 - `CmdToggleTableOfContents`, `CmdToggleBookmarks`
+- `CmdToggleDisableLinks`
 
 Arguments:
 

@@ -7,15 +7,19 @@
 #include <mmsystem.h>
 #include "base/File.h"
 #include "base/Win.h"
+#include "gui/Dpi.h"
 #include "base/GuessFileType.h"
 #include "base/UITask.h"
 
-#include "wingui/UIModels.h"
-#include "wingui/Layout.h"
-#include "wingui/WinGui.h"
+#include "gui/UIModels.h"
+#include "gui/Layout.h"
+#include "gui/win/WinGui.h"
 
-#include "wingui/LabelWithCloseWnd.h"
-#include "wingui/FrameRateWnd.h"
+#include "gui/PlatformFont.h"
+#include "gui/Gfx.h"
+#include "gui/VirtCtrl.h"
+#include "gui/win/TabsCtrl.h"
+#include "gui/win/FrameRateWnd.h"
 
 #include "Settings.h"
 #include "DocController.h"
@@ -50,6 +54,7 @@ static void SafeDeleteTabsCtrl(TabsCtrl* tabsCtrl) {
 }
 #include "Theme.h"
 #include "Canvas.h"
+#include "HomePage.h"
 
 struct LinkHandler : ILinkHandler {
     MainWindow* win = nullptr;
@@ -60,15 +65,15 @@ struct LinkHandler : ILinkHandler {
     }
     ~LinkHandler() override;
 
-    void GotoLink(IPageDestination*) override;
-    void GotoNamedDest(Str) override;
+    void GotoLink(IPageDestination* dest) override;
+    void GotoNamedDest(Str name) override;
     void GoToPage(int pageNo, bool addNavPoint) override;
     bool GoToNextPage() override;
     bool GoToPrevPage(bool toBottom = false) override;
-    void ScrollTo(IPageDestination*) override;
+    void ScrollTo(IPageDestination* dest) override;
     void ScrollTo(int pageNo, RectF rect, float zoom) override;
-    void LaunchURL(Str) override;
-    void LaunchFile(Str path, IPageDestination*) override;
+    void LaunchURL(Str uri) override;
+    void LaunchFile(Str path, IPageDestination* remoteLink) override;
     TocItem* FindTocItem(TocItem* item, Str name, bool partially) override;
 };
 
@@ -124,7 +129,10 @@ MainWindow::~MainWindow() {
     str::Free(urlOnLastButtonDown);
     str::Free(homeSearchQuery);
 
+    DeleteVecMembers(staticLinks);
+
     UnsubclassToc(this);
+    HomePageDestroyChrome(this);
 
     OverlayScrollbarDestroy(overlayScrollV);
     OverlayScrollbarDestroy(overlayScrollH);
@@ -160,11 +168,13 @@ MainWindow::~MainWindow() {
     // stop the find-bar match-count background thread before we're freed
     // (it reads our fields; a pending CountEndTask closes the handle later)
     if (findCountThread) {
-        InterlockedIncrement(&findCountEpoch);
+        AtomicIntInc(&findCountEpoch);
         WaitForSingleObject(findCountThread, INFINITE);
         findCountThread = nullptr;
     }
     str::FreePtr(&findCountText);
+    str::FreePtr(&findPageRangeText);
+    str::FreePtr(&findCountRangeText);
     str::FreePtr(&findCountPendingText);
     str::FreePtr(&browserFindTerm);
     ClearFindMatches(this);
@@ -174,7 +184,6 @@ MainWindow::~MainWindow() {
     delete linkHandler;
     delete buffer;
     delete tabSelectionHistory;
-    DeleteVecMembers(staticLinks);
     ShutdownAIChatForMainWindow(this);
     auto tabs = Tabs();
     DeleteVecMembers(tabs);
@@ -197,20 +206,25 @@ MainWindow::~MainWindow() {
     delete frameRateWnd;
     ReadAloudPlaybackBarDestroy(this);
     delete infotip;
-    // tocLayout (VBox) owns tocLabelWithClose, tocFilterEdit and tocTreeView
+    // tocLayout (VBox) owns the header, tocFilterEdit and tocTreeView; the
+    // root only points at the header's virtual controls, so it outlives them
     delete tocLayout;
+    delete tocRoot;
     delete tocFilteredTree;
     if (favTreeView) {
         delete favTreeView->treeModel;
     }
-    // favLayout (VBox) owns favLabelWithClose, favFilterEdit and favTreeView
+    // favLayout (VBox) owns the header, favFilterEdit and favTreeView
     delete favLayout;
+    delete favRoot;
 
     DestroyAIChatPanel(this);
     DestroyAudiobookPanel(this);
 
-    delete sidebarSplitter;
-    delete favSplitter;
+    // owns chrome, the content row, the splitters and the slots
+    delete chromeLayout;
+    // the splitters tell the root they are going away, so it goes last
+    delete frameRoot;
 }
 
 void ClearMouseState(MainWindow* win) {
@@ -230,7 +244,7 @@ bool MainWindow::HasDocsLoaded() const {
         return true;
     }
     for (int i = 0; i < nTabs; i++) {
-        auto tab = GetTab(i);
+        auto* tab = GetTab(i);
         if (!tab->IsAboutTab()) {
             // logf("HasDocsLoaded: true because GetTab(i) !IsAboutTab()\n");
             return true;
@@ -355,10 +369,10 @@ Size MainWindow::GetViewPortSize() const {
 
     DWORD style = GetWindowLong(hwndCanvas, GWL_STYLE);
     if ((style & WS_VSCROLL)) {
-        size.dx += GetSystemMetrics(SM_CXVSCROLL);
+        size.dx += DpiGetSystemMetrics(SM_CXVSCROLL);
     }
     if ((style & WS_HSCROLL)) {
-        size.dy += GetSystemMetrics(SM_CYHSCROLL);
+        size.dy += DpiGetSystemMetrics(SM_CYHSCROLL);
     }
     ReportIf((style & (WS_VSCROLL | WS_HSCROLL)) && !AsFixed());
     return size;
@@ -446,11 +460,23 @@ void MainWindow::MoveDocBy(int dx, int dy) const {
 }
 
 void MainWindow::ShowToolTip(Str text, Rect& rc, bool multiline) const {
-    if (len(text) == 0) {
+    if (len(text) == 0 || IsIconic(hwndFrame)) {
+        // Track-mode tips are WS_EX_TOPMOST popups; never show while minimized
+        // or they stick on the desktop (often at 0,0) — issue #5928.
         DeleteToolTip();
         return;
     }
     infotip->SetSingle(text, rc, multiline);
+}
+
+// Track-mode tip at a fixed screen position (keyboard home-page selection).
+// maxRightScreen > 0 clamps the bubble so it does not extend past that x.
+void MainWindow::ShowToolTipAt(Str text, const Rect& rc, Point screenPos, bool multiline, int maxRightScreen) const {
+    if (len(text) == 0 || IsIconic(hwndFrame)) {
+        DeleteToolTip();
+        return;
+    }
+    infotip->SetSingleAt(text, rc, screenPos, multiline, maxRightScreen);
 }
 
 void MainWindow::DeleteToolTip() const {
@@ -513,7 +539,7 @@ void LinkHandler::GotoLink(IPageDestination* dest) {
         return;
     }
     if (kindDestinationLaunchURL == kind) {
-        auto d = (PageDestinationURL*)dest;
+        auto* d = (PageDestinationURL*)dest;
         LaunchURL(d->url);
         return;
     }
@@ -602,14 +628,13 @@ void LinkHandler::ScrollTo(int pageNo, RectF rect, float zoom) {
 // Convert file:// / file:/// / file: URIs to a local path (+ optional #fragment).
 // Returns false if uri is not a file: scheme.
 static bool PathFromFileUriTemp(Str uri, TempStr* pathOut, Str* fragmentOut) {
-    if (!str::StartsWithI(uri, "file:")) {
+    if (!str::StartsWithI(uri, StrL("file:"))) {
         return false;
     }
-    // Skip "file:" case-insensitively (str::Skip is case-sensitive).
+    // Skip "file:" case-insensitively (str::TrimPrefix is case-sensitive).
     Str rest = Str(uri.s + 5, uri.len - 5);
     // file://host/path or file:///path → drop authority (// or ///)
-    if (str::StartsWith(rest, "//")) {
-        rest = Str(rest.s + 2, rest.len - 2);
+    if (str::TrimPrefix(rest, StrL("//"))) {
         // empty host: next char is / of absolute path
         if (rest && rest.s[0] == '/') {
             // Windows drive path: /C:/foo → C:/foo
@@ -625,8 +650,7 @@ static bool PathFromFileUriTemp(Str uri, TempStr* pathOut, Str* fragmentOut) {
         pathStr = Str(pathStr.s, (int)(frag.s - pathStr.s));
         frag = Str(frag.s + 1, frag.len - 1);
     }
-    path = str::DupTemp(pathStr);
-    url::DecodeInPlace(path);
+    path = url::DecodeTemp(pathStr);
     str::TransCharsInPlace(path, StrL("/"), StrL("\\"));
     *pathOut = path;
     if (fragmentOut) {
@@ -650,7 +674,7 @@ void LinkHandler::LaunchURL(Str uri) {
             path.len = hash;
         }
         str::TransCharsInPlace(path, StrL("/"), StrL("\\"));
-        url::DecodeInPlace(path);
+        path = url::DecodeTemp(path);
         // LaunchFile will reject unsupported file types
         this->LaunchFile(path, nullptr);
         return;
@@ -684,6 +708,8 @@ static bool IsFileSupportedByContent(Str filePath) {
 // fragment, but EngineBase::GetNamedDest prepends "#nameddest=" itself -- so the
 // prefix must be stripped or the lookup becomes "#nameddest=nameddest=<name>"
 // and fails, leaving the remote PDF on page 1 (issue #5642).
+// strips mupdf's "nameddest=" prefix from a remote link's destination name
+// so it can be passed to GetNamedDest (issue #5642)
 Str CleanRemoteDestName(Str destName) {
     if (destName && str::StartsWithI(destName, StrL("nameddest="))) {
         return Str(destName.s + 10, destName.len - 10);
@@ -700,12 +726,10 @@ void LinkHandler::LaunchFile(Str pathOrig, IPageDestination* remoteLink) {
     }
 
     TempStr path = str::ReplaceTemp(pathOrig, StrL("/"), StrL("\\"));
-    if (str::StartsWith(path, ".\\")) {
-        path = Str(path.s + 2);
-    }
+    str::TrimPrefix(path, StrL(".\\"));
 
     TempStr fullPath = path;
-    bool isAbsPath = str::StartsWith(path, "\\");
+    bool isAbsPath = str::StartsWith(path, StrL("\\"));
     if (len(path) >= 2 && path.s[1] == ':') {
         /* technically c: is not abs, only c:\\ */
         isAbsPath = true;
@@ -724,7 +748,7 @@ void LinkHandler::LaunchFile(Str pathOrig, IPageDestination* remoteLink) {
     }
     path::Type pathType = path::GetType(fullPath);
     if (pathType == path::Type::None) {
-        auto win = gWindows[0];
+        auto* win = gWindows[0];
         ShowErrorLoadingNotification(win, fullPath, true);
         return;
     }
@@ -920,33 +944,46 @@ bool HasOpenedDocuments(MainWindow* win) {
     return false;
 }
 
+// a debugging aid: flip it (in the source or the debugger) to get a small
+// window showing how long painting the canvas takes
+bool gShowFrameRate = false;
+
+void MainWindow::ShowFrameRateDur(double durMs) {
+    if (!gShowFrameRate) {
+        return;
+    }
+    if (!frameRateWnd) {
+        frameRateWnd = new FrameRateWnd();
+        frameRateWnd->Create(hwndCanvas);
+    }
+    frameRateWnd->ShowFrameRateDur(durMs);
+}
+
 void UpdateControlsColors(MainWindow* win) {
-    COLORREF bgCol = ThemeControlBackgroundColor();
-    COLORREF txtCol = ThemeWindowTextColor();
+    Color bgCol = ThemeControlBackgroundColor();
+    Color txtCol = ThemeWindowTextColor();
 
     // logfa("retrieved doc colors in tree control: 0x%x 0x%x\n", treeTxtCol, treeBgCol);
 
-    COLORREF splitterCol = ThemeControlBackgroundColor();
-
+    // the panel labels and the splitters are virtual controls: they follow the
+    // gui/ color defaults, which SumatraUpdateTheme() already refreshed
     {
-        auto tocTreeView = win->tocTreeView;
+        auto* tocTreeView = win->tocTreeView;
         tocTreeView->SetColors(txtCol, bgCol);
 
-        win->tocLabelWithClose->SetColors(txtCol, bgCol);
         if (win->tocFilterEdit) {
             win->tocFilterEdit->SetColors(txtCol, bgCol);
         }
-        win->sidebarSplitter->SetColors(kColorNoChange, splitterCol);
     }
 
-    auto favTreeView = win->favTreeView;
+    HomePageUpdateSearchColors(win);
+
+    auto* favTreeView = win->favTreeView;
     if (favTreeView) {
         favTreeView->SetColors(txtCol, bgCol);
-        win->favLabelWithClose->SetColors(txtCol, bgCol);
         if (win->favFilterEdit) {
             win->favFilterEdit->SetColors(txtCol, bgCol);
         }
-        win->favSplitter->SetColors(kColorNoChange, splitterCol);
     }
 }
 
@@ -961,7 +998,7 @@ bool IsRightDragging(MainWindow* win) {
 // then go back on main thread to finish things. At that point MainWindow
 // could have been destroyed so we need to check if it's still valid
 bool IsMainWindowValid(MainWindow* win) {
-    return gWindows.Contains(win);
+    return win && gWindows.Contains(win);
 }
 
 MainWindow* FindMainWindowByHwnd(HWND hwnd) {
@@ -979,6 +1016,7 @@ MainWindow* FindMainWindowByHwnd(HWND hwnd) {
 // Find MainWindow using WindowTab. Diffrent than WindowTab->win in that
 // it validates that WindowTab is still valid
 MainWindow* FindMainWindowByTab(WindowTab* tabToFind) {
+    if (!tabToFind) return nullptr;
     for (MainWindow* win : gWindows) {
         for (WindowTab* tab : win->Tabs()) {
             if (tab == tabToFind) {

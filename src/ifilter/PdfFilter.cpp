@@ -5,7 +5,7 @@
 #include "base/ScopedWin.h"
 #include "base/Win.h"
 
-#include "wingui/UIModels.h"
+#include "gui/UIModels.h"
 
 #include "DocProperties.h"
 #include "DocController.h"
@@ -22,6 +22,11 @@ EBookUI* GetEBookUI() {
     return nullptr;
 }
 
+struct FileEBookUI;
+FileEBookUI* GetFileEBookUI(Str) {
+    return nullptr;
+}
+
 VOID PdfFilter::CleanUp() {
     logf("PdfFilter::Cleanup()\n");
     if (m_pdfEngine) {
@@ -35,12 +40,10 @@ HRESULT PdfFilter::OnInit() {
     logf("PdfFilter::OnInit()\n");
     CleanUp();
 
-    Str data = ReadIStream(m_pStream);
-    if (str::IsNull(data)) {
+    if (str::IsNull(m_data)) {
         return E_FAIL;
     }
-    m_pdfEngine = CreateEngineMupdfFromData(data, "foo.pdf", nullptr);
-    str::Free(data);
+    m_pdfEngine = CreateEngineMupdfFromData(m_data, "foo.pdf", nullptr);
     if (!m_pdfEngine) {
         return E_FAIL;
     }
@@ -58,9 +61,7 @@ static bool PdfDateParse(Str pdfDate, SYSTEMTIME* timeOut) {
     ZeroMemory(timeOut, sizeof(SYSTEMTIME));
     Str slice = pdfDate;
     // "D:" at the beginning is optional
-    if (str::StartsWith(slice, "D:")) {
-        slice = Str(slice.s + 2, slice.len - 2);
-    }
+    str::TrimPrefix(slice, StrL("D:"));
     int year = 0, month = 0, day = 0, hour = 0, minute = 0, second = 0;
     Str end = str::Parse(slice,
                          "%4d%2d%2d"
