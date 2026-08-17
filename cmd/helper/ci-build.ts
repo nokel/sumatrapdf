@@ -3,12 +3,11 @@
 import { existsSync, readFileSync, writeFileSync, statSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHmac, createHash } from "node:crypto";
-import { getGitLinearVersion, extractSumatraVersion, runLogged, getGitSha1, detectVisualStudio2026 } from "../util";
+import { getGitLinearVersion, extractSumatraVersion, runLogged, getGitSha1, detectVisualStudio } from "../util";
 
-// const { msbuildPath, llvmPdbutilPath } = detectVisualStudio2022();
-// const slnPath = join("vs2022", "SumatraPDF.sln");
-
-const { msbuildPath, llvmPdbutilPath } = detectVisualStudio2026();
+// GitHub's hosted windows runners ship VS 2022, our machines have 2026;
+// detectVisualStudio takes whichever is there
+const { msbuildPath, llvmPdbutilPath } = detectVisualStudio();
 const slnPath = join("vs2022", "SumatraPDF.sln");
 
 // === Secrets ===
