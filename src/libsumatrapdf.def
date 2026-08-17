@@ -243,6 +243,11 @@ EXPORTS
 	fz_has_permission
 
 	fz_new_stext_page_from_page
+	fz_parse_stext_options
+	fz_new_pixmap_from_page_contents
+	pdf_add_new_dict
+	pdf_add_stream
+	pdf_lookup_metadata
 
 	pdf_dict_geta
 

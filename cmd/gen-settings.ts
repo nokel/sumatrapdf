@@ -80,6 +80,7 @@ const Bool: Type = { name: "Bool", ctype: "bool" };
 const Color: Type = { name: "Color", ctype: "Str" };
 const Float: Type = { name: "Float", ctype: "float" };
 const Int: Type = { name: "Int", ctype: "int" };
+const Int64: Type = { name: "Int64", ctype: "i64" };
 const Str: Type = { name: "String", ctype: "Str" };
 const Comment: Type = { name: "Comment", ctype: "" };
 
@@ -586,6 +587,26 @@ const fileSettings: Field[] = [
       "the openCount will be cut in half after every week, so that the " +
       "Frequently Read list hopefully better reflects the currently relevant documents",
   ).doc("number of times this document has been opened recently"),
+  field(
+    "MaxPageReached",
+    Int,
+    0,
+    "the furthest page the reader has reached in this document, which is what " +
+      "the percent-read figure is calculated from (PageNo can move backwards)",
+  ).doc("furthest page reached in this document"),
+  field(
+    "TimeSpentMs",
+    Int64,
+    0,
+    "total milliseconds this document has been the visible tab, summed over " + "every session",
+  ).doc("total time spent reading this document, in milliseconds"),
+  field(
+    "LastReadAt",
+    Int64,
+    0,
+    "unix time in milliseconds when this document was last open, used to merge " +
+      "reading stats that travel with the file between devices",
+  ).doc("when this document was last read, as unix time in milliseconds"),
   field(
     "DecryptionKey",
     Str,
@@ -1198,7 +1219,7 @@ function cdefault(f: Field, built: Record<string, number>): string {
   if (f.Type === Float) {
     return `(intptr_t)"${f.Default}"`;
   }
-  if (f.Type === Int) {
+  if (f.Type === Int || f.Type === Int64) {
     return `${f.Default}`;
   }
   if (f.Type === Str) {
@@ -1247,7 +1268,7 @@ function initDefault(f: Field): string {
   if (f.Type === Float) {
     return `${f.Name} = ${f.Default}`;
   }
-  if (f.Type === Int) {
+  if (f.Type === Int || f.Type === Int64) {
     return `${f.Name} = ${f.Default}`;
   }
   if (f.Type === Str) {

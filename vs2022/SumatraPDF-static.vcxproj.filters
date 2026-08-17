@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="ext">
@@ -115,6 +115,12 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\AvifReader.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\BookBlob.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\BookFingerprint.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\BuildConfig.h">
@@ -243,6 +249,9 @@
     <ClInclude Include="..\src\LibraryPage.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\LibraryScan.h">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\MainWindow.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -283,6 +292,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\PdfDarkModeInternal.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\PdfSidecar.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\PdfSync.h">
@@ -554,6 +566,12 @@
     <ClCompile Include="..\src\BasePch.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\BookBlob.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\BookFingerprint.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\Canvas.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -716,6 +734,9 @@
     <ClCompile Include="..\src\LibraryPage.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\LibraryScan.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\MainWindow.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -786,6 +807,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\PdfDarkModeScanProcess.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\PdfSidecar.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\PdfSync.cpp">

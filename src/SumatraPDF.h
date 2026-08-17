@@ -202,6 +202,9 @@ extern SeqStrings gToolbarPositionNames;
 int ToolbarPositionFromPrefs();
 bool ToolbarAtBottom();
 void UpdateTabFileDisplayStateForTab(WindowTab* tab);
+// fold the time since tab->readingSince into the document's timeSpentMs.
+// keepReading restarts the clock (the tab is still the one being read)
+void BankTabReadingTime(WindowTab* tab, bool keepReading);
 void ReloadDocument(MainWindow* win, bool autoRefresh);
 void ToggleFullScreen(MainWindow* win, bool presentation = false);
 

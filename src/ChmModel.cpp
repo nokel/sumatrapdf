@@ -914,6 +914,7 @@ void ChmModel::GetDisplayState(FileState* fs) {
     ZoomToString(&fs->zoom, GetZoomVirtual(), fs);
 
     fs->pageNo = CurrentPageNo();
+    fs->maxPageReached = std::max(fs->maxPageReached, fs->pageNo);
     SaveHtmlScrollPos();
     fs->scrollPos = htmlScrollPos;
 }

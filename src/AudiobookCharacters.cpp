@@ -632,7 +632,7 @@ static TempStr SignatureTemp(CharsPanel* st) {
     str::Builder b;
     b.Append(fmt("%d|%d|%d|%d|%d|%d|%d|%d|%d|%s", (int)st->engineUp, (int)st->otherBook, (int)st->analyzed,
                  (int)st->analyzing, (int)st->analyzeComplete, st->nRows, st->voices.size, st->lmModels.size,
-                 ClientRect(st->hwnd).dx, st->lmModel));
+                 HwndClientRect(st->hwnd).dx, st->lmModel));
     // the computer list and each one's reachability: a machine coming or
     // going has to redraw the rows
     for (int i = 0; i < st->nEps; i++) {
@@ -667,7 +667,7 @@ static void BuildRows(CharsPanel* st) {
     st->hScanStatus = nullptr;
     st->hAddEdit = nullptr;
 
-    int dxPanel = ClientRect(hwnd).dx;
+    int dxPanel = HwndClientRect(hwnd).dx;
     if (dxPanel <= 0) {
         return;
     }
@@ -862,7 +862,7 @@ static void BuildFooter(CharsPanel* st) {
         return;
     }
 
-    int dxPanel = ClientRect(hwnd).dx;
+    int dxPanel = HwndClientRect(hwnd).dx;
     int pad = DpiScale(hwnd, 8);
     int rowH = DpiScale(hwnd, 22);
     int comboH = DpiScale(hwnd, 24);
@@ -968,7 +968,7 @@ static void LayoutCharsContainer(CharsPanel* st) {
     if (!st || !st->hwndContainer || !st->label) {
         return;
     }
-    Rect rc = ClientRect(st->hwndContainer);
+    Rect rc = HwndClientRect(st->hwndContainer);
     if (rc.dx <= 0 || rc.dy <= 0) {
         return;
     }
@@ -1007,7 +1007,7 @@ static void UpdateScrollbar(CharsPanel* st) {
     if (!st->hwnd) {
         return;
     }
-    int dy = ClientRect(st->hwnd).dy;
+    int dy = HwndClientRect(st->hwnd).dy;
     SCROLLINFO si{};
     si.cbSize = sizeof(si);
     si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
@@ -1026,7 +1026,7 @@ static int WheelStepPx(CharsPanel* st) {
     SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &lines, 0);
     int lineH = DpiScale(st->hwnd, 16);
     if (lines == WHEEL_PAGESCROLL) {
-        int dy = ClientRect(st->hwnd).dy;
+        int dy = HwndClientRect(st->hwnd).dy;
         return dy > lineH ? dy - lineH : lineH;
     }
     if (lines == 0) {
@@ -1036,7 +1036,7 @@ static int WheelStepPx(CharsPanel* st) {
 }
 
 static int MaxScroll(CharsPanel* st) {
-    int dy = ClientRect(st->hwnd).dy;
+    int dy = HwndClientRect(st->hwnd).dy;
     int m = st->contentDy - dy;
     return m > 0 ? m : 0;
 }
@@ -1226,10 +1226,10 @@ static LRESULT CALLBACK CharsWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
                     pos += line;
                     break;
                 case SB_PAGEUP:
-                    pos -= ClientRect(hwnd).dy;
+                    pos -= HwndClientRect(hwnd).dy;
                     break;
                 case SB_PAGEDOWN:
-                    pos += ClientRect(hwnd).dy;
+                    pos += HwndClientRect(hwnd).dy;
                     break;
                 case SB_THUMBTRACK:
                 case SB_THUMBPOSITION:
@@ -1375,7 +1375,7 @@ static LRESULT CALLBACK CharsWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
             return (LRESULT)GetSysColorBrush(COLOR_BTNFACE);
 
         case WM_ERASEBKGND: {
-            Rect rc = ClientRect(hwnd);
+            Rect rc = HwndClientRect(hwnd);
             RECT r = ToRECT(rc);
             FillRect((HDC)wp, &r, GetSysColorBrush(COLOR_BTNFACE));
             return 1;
@@ -1410,7 +1410,7 @@ static LRESULT CALLBACK WndProcCharsContainer(HWND hwnd, UINT msg, WPARAM wp, LP
             return (LRESULT)GetSysColorBrush(COLOR_BTNFACE);
 
         case WM_ERASEBKGND: {
-            Rect rc = ClientRect(hwnd);
+            Rect rc = HwndClientRect(hwnd);
             RECT r = ToRECT(rc);
             FillRect((HDC)wp, &r, GetSysColorBrush(COLOR_BTNFACE));
             return 1;
@@ -1447,7 +1447,7 @@ static void OnAudiobookSplitterMove(Splitter::MoveEvent* ev) {
         return;
     }
     Point pcur = HwndGetCursorPos(win->hwndFrame);
-    Rect rFrame = ClientRect(win->hwndFrame);
+    Rect rFrame = HwndClientRect(win->hwndFrame);
     int dx = pcur.x; // docked left: the width is the cursor's x
     if (dx < kAudiobookMinDx || dx > rFrame.dx / 2) {
         ev->resizeAllowed = false;

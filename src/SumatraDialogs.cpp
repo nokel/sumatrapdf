@@ -1223,7 +1223,7 @@ static INT_PTR CALLBACK Dialog_PartitionName_Proc(HWND hDlg, UINT msg, WPARAM wp
             HwndSetDlgItemText(hDlg, IDC_PARTITION_NAME_EDIT, data->name);
             EditSelectAll(GetDlgItem(hDlg, IDC_PARTITION_NAME_EDIT));
         }
-        CenterDialog(hDlg);
+        HwndCenterDialog(hDlg);
         HwndSetFocus(GetDlgItem(hDlg, IDC_PARTITION_NAME_EDIT));
         return FALSE;
     }

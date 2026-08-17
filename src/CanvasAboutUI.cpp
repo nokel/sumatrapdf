@@ -118,6 +118,11 @@ static void OnMouseLeftButtonUpAbout(MainWindow* win, int x, int y, WPARAM) {
     } else if (str::Eq(url, kLinkNextTip)) {
         PickAnotherRandomPromotion();
         win->RedrawAll(true);
+    } else if (str::Eq(url, kLinkHomeLibrary)) {
+        SetLibraryHomeEnabled(true);
+        SaveSettings();
+        win->homePageScrollY = 0;
+        win->RedrawAll(true);
     } else if (str::Eq(url, kLinkHomeListView)) {
         SetHomePageListView(true);
         win->homePageScrollY = 0;

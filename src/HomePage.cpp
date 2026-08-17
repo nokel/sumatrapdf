@@ -582,7 +582,7 @@ static void DrawSumatraVersion(HDC hdc, Rect rect) {
 }
 
 // draw on the bottom right
-static Rect DrawHideFrequentlyReadLink(HWND hwnd, HDC hdc, Str txt) {
+static Rect DrawHideFrequentlyReadLink(HWND hwnd, HDC hdc, Str txt, int yShift = 0) {
     HFONT fontLeftTxt = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 16);
 
     VirtWndText w(hwnd, txt, fontLeftTxt);
@@ -600,7 +600,7 @@ static Rect DrawHideFrequentlyReadLink(HWND hwnd, HDC hdc, Str txt) {
     int innerPadding = DpiScale(hwnd, kInnerPadding);
     Rect r = {0, 0, txtSize.dx, txtSize.dy};
     PositionRB(rc, r);
-    MoveXY(r, -innerPadding, -innerPadding);
+    MoveXY(r, -innerPadding, -innerPadding - yShift);
     w.SetBounds(r);
     w.Paint(hdc);
 
@@ -1006,11 +1006,15 @@ void DrawAboutPage(MainWindow* win, HDC hdc) {
     Rect rc = HwndClientRect(win->hwndCanvas);
     UpdateAboutLayoutInfo(win->hwndCanvas, hdc, &rc);
     DrawAbout(win->hwndCanvas, hdc, rc, win->staticLinks);
+    int libraryShift = 0;
     if (HasPermission(Perm::SavePreferences | Perm::DiskAccess) && SettingsRememberOpenedFiles()) {
         Rect rect = DrawHideFrequentlyReadLink(win->hwndCanvas, hdc, _TRA("Show frequently read"));
         auto sl = new StaticLink(rect, kLinkShowList);
         win->staticLinks.Append(sl);
+        libraryShift = rect.dy;
     }
+    Rect rcLibrary = DrawHideFrequentlyReadLink(win->hwndCanvas, hdc, StrL("Library"), libraryShift);
+    win->staticLinks.Append(new StaticLink(rcLibrary, kLinkHomeLibrary, StrL("Show the library")));
 }
 
 /* alternate static page to display when no document is loaded */
@@ -1071,6 +1075,7 @@ struct HomePageLayout {
     HIMAGELIST himlOpen = nullptr;
     VirtWndText* freqRead = nullptr;
     VirtWndText* openDoc = nullptr;
+    VirtWndText* library = nullptr;
     VirtWndText* hideShowFreqRead = nullptr;
     Vec<ThumbnailLayout> thumbnails; // info for each thumbnail
     int totalContentDy = 0;          // total height of all thumbnail rows
@@ -1092,6 +1097,7 @@ struct HomePageLayout {
 HomePageLayout::~HomePageLayout() {
     delete freqRead;
     delete openDoc;
+    delete library;
 }
 
 constexpr int kOpenDocumentYShift = 7;
@@ -1309,6 +1315,24 @@ void LayoutHomePage(HomePageLayout& l) {
     l.openDoc = openDoc;
     auto sl = new StaticLink(rcOpenDoc, kLinkOpenFile);
     win->staticLinks.Append(sl);
+
+    txt = StrL("Library");
+    auto library = new VirtWndText(hwnd, txt, fontText);
+    library->isRtl = isRtl;
+    library->withUnderline = true;
+    txtSize = library->GetIdealSize(true);
+
+    Rect rcLibrary(rcOpenDoc.x + rcOpenDoc.dx, rcHdr.y + rcHdr.dy - txtSize.dy - kOpenDocumentYShift, txtSize.dx,
+                   txtSize.dy);
+    if (isRtl) {
+        rcLibrary.x = rcOpenDoc.x - txtSize.dx;
+    }
+    library->SetBounds(rcLibrary);
+    l.library = library;
+
+    Rect rcLibraryLink = rcLibrary;
+    rcLibraryLink.Inflate(10, 10);
+    win->staticLinks.Append(new StaticLink(rcLibraryLink, kLinkHomeLibrary, StrL("Show the library")));
 
     int headerBottomY = rcHdr.y + rcHdr.dy;
 
@@ -1944,6 +1968,9 @@ static void DrawHomePageLayout(HomePageLayout& l) {
     ImageList_Draw(l.himlOpen, openIconIdx, hdc, x, y, ILD_NORMAL);
 
     l.openDoc->Paint(hdc);
+    if (l.library) {
+        l.library->Paint(hdc);
+    }
 
     if (false) {
         Rect rcFreqRead = DrawHideFrequentlyReadLink(win->hwndCanvas, hdc, _TRA("Hide frequently read"));

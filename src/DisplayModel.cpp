@@ -292,6 +292,7 @@ void DisplayModel::GetDisplayState(FileState* fs) {
 
     ScrollState ss = GetScrollState();
     fs->pageNo = ss.page;
+    fs->maxPageReached = std::max(fs->maxPageReached, fs->pageNo);
     fs->scrollPos = PointF();
     if (!inPresentation) {
         fs->scrollPos = PointF((float)ss.x, (float)ss.y);
