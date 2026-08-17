@@ -1,4 +1,4 @@
-[![Build](https://github.com/sumatrapdfreader/sumatrapdf/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/sumatrapdfreader/sumatrapdf/actions/workflows/build.yml)
+[![Build](https://github.com/nokel/sumatrapdf/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/nokel/sumatrapdf/actions/workflows/build.yml)
 ## SumatraPDF Reader
 
 SumatraPDF is a multi-format (PDF, EPUB, MOBI, CBZ, CBR, FB2, CHM, XPS, DjVu) reader
@@ -17,6 +17,14 @@ More Information:
 Two additions to SumatraPDF. The start page becomes a **library** of your books
 instead of a list of recently opened files, and Read Aloud gains a second engine
 that reads in **per-character voices**.
+
+`master` is the whole thing: upstream SumatraPDF as of 17 Aug 2026
+(`7a281242`) with both additions merged on top. Upstream reorganised its UI
+layer shortly before that — `src/wingui/` became `src/gui/`, and `Wnd`,
+`Splitter` and `LabelWithCloseWnd` gave way to `VirtCtrl`, `VirtSplitter` and
+`NewLabelWithClose` — so the fork's own windows are written against those newer
+APIs. `library-work` is the same commit; it is where the work is done before it
+lands on `master`.
 
 ### The library start page
 
@@ -267,4 +275,6 @@ Other things worth knowing:
   but it looks only for Visual Studio 2026 and gives up if it isn't installed.
   With Build Tools 2022, build the `test_util` target with msbuild by its full
   path and run `out\dbg64\test_util.exe -for-ai` instead.
-* `bun tests/all.ts` runs the regression tests.
+* `bun tests/run-almost-all.ts` is the fast regression suite; `bun tests/run-all.ts`
+  runs that and then the slow tests, stopping at the first failure. A single test
+  runs on its own, e.g. `bun tests/issue-1136.ts`.
