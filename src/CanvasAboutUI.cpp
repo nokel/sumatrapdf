@@ -36,19 +36,23 @@ static void OnPaintAbout(MainWindow* win) {
     GlobalPrefs* prefs = gGlobalPrefs;
     bool hasPerms = HasPermission(Perm::SavePreferences | Perm::DiskAccess);
     bool drawHome = hasPerms && prefs->rememberOpenedFiles && prefs->showStartPage;
-    Gfx* gfx = GfxCreate(bufDC);
     if (LibraryHomeEnabled()) {
+        // the library page draws with GDI straight into the buffer; a Gfx
+        // alive at the same time would flush its own empty surface over it
         HomePageDestroySearch(win);
         DrawLibraryPage(win, bufDC);
-    } else if (drawHome) {
-        DrawHomePage(win, gfx);
     } else {
-        HomePageDestroySearch(win);
-        // DrawAboutPage swaps the canvas root's child from the home page's
-        // chrome to the About page's controls
-        DrawAboutPage(win, gfx);
+        Gfx* gfx = GfxCreate(bufDC);
+        if (drawHome) {
+            DrawHomePage(win, gfx);
+        } else {
+            HomePageDestroySearch(win);
+            // DrawAboutPage swaps the canvas root's child from the home page's
+            // chrome to the About page's controls
+            DrawAboutPage(win, gfx);
+        }
+        delete gfx;
     }
-    delete gfx;
     win->buffer->Flush(hdc);
     DrawCanvasKeyboardFocusIfNeeded(win, hdc);
 
