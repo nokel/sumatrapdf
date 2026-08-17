@@ -25,15 +25,18 @@
 #include "base/Base.h"
 #include "base/File.h"
 #include "base/Win.h"
-#include "base/Dpi.h"
+#include "gui/Dpi.h"
 #include "base/Http.h"
 #include "base/JsonParser.h"
+#include "JsonVisitor.h"
 
-#include "wingui/UIModels.h"
-#include "wingui/Layout.h"
-#include "wingui/WinGui.h"
+#include "gui/UIModels.h"
+#include "gui/Layout.h"
+#include "gui/win/WinGui.h"
 
-#include "wingui/LabelWithCloseWnd.h"
+#include "gui/PlatformFont.h"
+#include "gui/Gfx.h"
+#include "gui/VirtCtrl.h"
 
 #include "Settings.h"
 #include "DocController.h"
@@ -43,6 +46,7 @@
 #include "MainWindow.h"
 #include "WindowTab.h"
 #include "SumatraPDF.h"
+#include "Theme.h"
 #include "AudiobookCharacters.h"
 
 constexpr const WCHAR* kCharsClassName = L"SUMATRA_AUDIOBOOK_CHARS";
@@ -63,7 +67,6 @@ constexpr int kIdAddEdit = 1007;
 constexpr int kIdScan = 1008;
 constexpr int kIdScanStop = 1009;
 constexpr int kIdSort = 1011;
-constexpr int kIdCloseChars = 1012;
 constexpr int kIdRemoveEpFirst = 5000;
 constexpr int kIdAddFoundFirst = 6000;
 constexpr int kMaxRows = 256;
@@ -174,7 +177,9 @@ struct CharsPanel {
     HWND hwndContainer = nullptr;
     HWND hwnd = nullptr;
     HWND hwndFooter = nullptr;
-    LabelWithCloseWnd* label = nullptr;
+    VirtText* label = nullptr;
+    HBox* headerLayout = nullptr;
+    VirtRoot* vroot = nullptr;
     HWND hSubtitle = nullptr;
     HWND hProgress = nullptr;
     UINT_PTR containerSubclassId = 0;
@@ -279,7 +284,7 @@ static bool ControlPost(int port, const char* path, Str body) {
 
 // Paths look like /characters[0]/name, /characters[0]/lines,
 // /characters[0]/voice, /voices[0], /narrator, /analyzed
-struct StateParser : json::ValueVisitor {
+struct StateParser : JsonVisitor {
     CharsPanel* st;
     Str narrator;
 
@@ -488,7 +493,7 @@ static bool LoadState(CharsPanel* st) {
     st->lmModels.Reset();
 
     StateParser p(st);
-    json::Parse(Str(js), &p);
+    JsonParseWithVisitor(Str(js), &p);
 
     // One engine per machine, but a panel in every window: if the engine has
     // someone else's book, none of what it just told us is about ours.
@@ -671,13 +676,13 @@ static void BuildRows(CharsPanel* st) {
     if (dxPanel <= 0) {
         return;
     }
-    int pad = DpiScale(hwnd, 8);
-    int rowH = DpiScale(hwnd, 22);
-    int comboH = DpiScale(hwnd, 24);
-    int gap = DpiScale(hwnd, 4);
+    int pad = DpiScale(8);
+    int rowH = DpiScale(22);
+    int comboH = DpiScale(24);
+    int gap = DpiScale(4);
     int w = dxPanel - pad * 2;
-    if (w < DpiScale(hwnd, 60)) {
-        w = DpiScale(hwnd, 60);
+    if (w < DpiScale(60)) {
+        w = DpiScale(60);
     }
     int y = pad - st->scrollY;
 
@@ -774,7 +779,7 @@ static void BuildRows(CharsPanel* st) {
             } else {
                 line = fmt("%s - no model", name);
             }
-            int wRemove = e.local ? 0 : DpiScale(hwnd, 60);
+            int wRemove = e.local ? 0 : DpiScale(60);
             MkText(hwnd, CWStrTemp(line), pad, y, w - wRemove - (wRemove ? gap : 0), rowH, f, SS_ENDELLIPSIS);
             if (!e.local) {
                 MkButton(hwnd, L"Remove", kIdRemoveEpFirst + i, pad + w - wRemove, y, wRemove, rowH, f);
@@ -782,7 +787,7 @@ static void BuildRows(CharsPanel* st) {
             y += rowH;
         }
         // add another
-        int wAdd = DpiScale(hwnd, 52);
+        int wAdd = DpiScale(52);
         st->hAddEdit = CreateWindowExW(
             WS_EX_CLIENTEDGE, WC_EDITW, L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_LEFT | ES_AUTOHSCROLL, pad, y,
             w - wAdd - gap, rowH, hwnd, (HMENU)(INT_PTR)kIdAddEdit, GetModuleHandle(nullptr), nullptr);
@@ -810,7 +815,7 @@ static void BuildRows(CharsPanel* st) {
             if (fo.known) {
                 continue; // already in the list above
             }
-            int wAddF = DpiScale(hwnd, 52);
+            int wAddF = DpiScale(52);
             TempStr line = len(fo.model) > 0 ? fmt("%s - %s", fo.url, fo.model) : str::DupTemp(fo.url);
             MkText(hwnd, CWStrTemp(line), pad, y, w - wAddF - gap, rowH, f, SS_ENDELLIPSIS);
             MkButton(hwnd, L"Add", kIdAddFoundFirst + i, pad + w - wAddF, y, wAddF, rowH, f);
@@ -863,14 +868,14 @@ static void BuildFooter(CharsPanel* st) {
     }
 
     int dxPanel = HwndClientRect(hwnd).dx;
-    int pad = DpiScale(hwnd, 8);
-    int rowH = DpiScale(hwnd, 22);
-    int comboH = DpiScale(hwnd, 24);
-    int gap = DpiScale(hwnd, 4);
+    int pad = DpiScale(8);
+    int rowH = DpiScale(22);
+    int comboH = DpiScale(24);
+    int gap = DpiScale(4);
     int sepDy = 2;
     int w = dxPanel - pad * 2;
-    if (w < DpiScale(hwnd, 60)) {
-        w = DpiScale(hwnd, 60);
+    if (w < DpiScale(60)) {
+        w = DpiScale(60);
     }
 
     CreateWindowExW(0, WC_STATICW, nullptr, WS_CHILD | WS_VISIBLE | SS_ETCHEDHORZ, 0, 0, dxPanel, sepDy, hwnd, nullptr,
@@ -942,9 +947,9 @@ static void BuildFooter(CharsPanel* st) {
     // it's a button, not a surprise on the way to reading. While it runs the
     // same slot is Stop - which keeps the work rather than binning it.
     if (st->analyzing) {
-        MkButton(hwnd, L"Stop and keep what's read", kIdStopAnalyze, pad, y, w, DpiScale(hwnd, 26), f);
-        y += DpiScale(hwnd, 26) + gap;
-        int progDy = DpiScale(hwnd, 14);
+        MkButton(hwnd, L"Stop and keep what's read", kIdStopAnalyze, pad, y, w, DpiScale(26), f);
+        y += DpiScale(26) + gap;
+        int progDy = DpiScale(14);
         st->hProgress = CreateWindowExW(0, PROGRESS_CLASSW, nullptr, WS_CHILD | WS_VISIBLE, pad, y, w, progDy, hwnd,
                                         nullptr, GetModuleHandle(nullptr), nullptr);
         y += progDy + gap;
@@ -956,8 +961,8 @@ static void BuildFooter(CharsPanel* st) {
         } else if (st->analyzed) {
             label = L"Re-analyse document";
         }
-        MkButton(hwnd, label, kIdAnalyze, pad, y, w, DpiScale(hwnd, 26), f);
-        y += DpiScale(hwnd, 26) + gap;
+        MkButton(hwnd, label, kIdAnalyze, pad, y, w, DpiScale(26), f);
+        y += DpiScale(26) + gap;
     }
 
     st->footerDy = y - gap + pad;
@@ -972,15 +977,15 @@ static void LayoutCharsContainer(CharsPanel* st) {
     if (rc.dx <= 0 || rc.dy <= 0) {
         return;
     }
-    int pad = DpiScale(st->hwndContainer, 8);
-    int labelDy = st->label->GetIdealSize().dy;
-    MoveWindow(st->label->hwnd, 0, 0, rc.dx, labelDy, TRUE);
+    int pad = DpiScale(8);
+    int labelDy = st->headerLayout->MinIntrinsicHeight(rc.dx);
+    LayoutTreeToSize(st->hwndContainer, st->headerLayout, {rc.dx, labelDy}, &st->vroot);
 
     int subW = rc.dx - pad * 2;
-    if (subW < DpiScale(st->hwndContainer, 10)) {
-        subW = DpiScale(st->hwndContainer, 10);
+    if (subW < DpiScale(10)) {
+        subW = DpiScale(10);
     }
-    int subDy = DpiScale(st->hwndContainer, 16);
+    int subDy = DpiScale(16);
     TempStr s = HwndGetTextTemp(st->hSubtitle);
     if (len(s) > 0) {
         HDC hdc = GetDC(st->hSubtitle);
@@ -1024,7 +1029,7 @@ static void UpdateScrollbar(CharsPanel* st) {
 static int WheelStepPx(CharsPanel* st) {
     UINT lines = 3;
     SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &lines, 0);
-    int lineH = DpiScale(st->hwnd, 16);
+    int lineH = DpiScale(16);
     if (lines == WHEEL_PAGESCROLL) {
         int dy = HwndClientRect(st->hwnd).dy;
         return dy > lineH ? dy - lineH : lineH;
@@ -1217,7 +1222,7 @@ static LRESULT CALLBACK CharsWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
 
         case WM_VSCROLL: {
             int pos = st->scrollY;
-            int line = DpiScale(hwnd, 24);
+            int line = DpiScale(24);
             switch (LOWORD(wp)) {
                 case SB_LINEUP:
                     pos -= line;
@@ -1389,17 +1394,14 @@ static LRESULT CALLBACK WndProcCharsContainer(HWND hwnd, UINT msg, WPARAM wp, LP
     if (!st || st->hwndContainer != hwnd) {
         return DefSubclassProc(hwnd, msg, wp, lp);
     }
+    LRESULT res = 0;
+    if (VirtHostOnMessage(hwnd, st->vroot, msg, wp, lp, res, ThemeControlBackgroundColor())) {
+        return res;
+    }
     switch (msg) {
         case WM_SIZE:
             LayoutCharsContainer(st);
             return 0;
-
-        case WM_COMMAND:
-            if (LOWORD(wp) == kIdCloseChars) {
-                PostMessageW(hwnd, kMsgClosePanel, 0, 0);
-                return 0;
-            }
-            break;
 
         case kMsgClosePanel:
             ToggleAudiobookPanel(st->win);
@@ -1438,32 +1440,13 @@ static void RegisterCharsClass() {
 
 // --- public API -----------------------------------------------------------
 
-constexpr int kAudiobookMinDx = 180;
-
-static void OnAudiobookSplitterMove(Splitter::MoveEvent* ev) {
-    Splitter* splitter = ev->w;
-    MainWindow* win = FindMainWindowByHwnd(splitter->hwnd);
-    if (!win) {
-        return;
-    }
-    Point pcur = HwndGetCursorPos(win->hwndFrame);
-    Rect rFrame = HwndClientRect(win->hwndFrame);
-    int dx = pcur.x; // docked left: the width is the cursor's x
-    if (dx < kAudiobookMinDx || dx > rFrame.dx / 2) {
-        ev->resizeAllowed = false;
-        return;
-    }
-    win->audiobookDx = dx;
-    gGlobalPrefs->audiobook.sidebarDx = dx;
-    if (ev->finishedDragging) {
-        // write it now rather than trusting a clean exit to do it
-        SaveSettings();
-        ScheduleUiUpdate(win, kUiRelayout | kUiNoToolbars);
-    }
-}
-
 bool IsAudiobookPanelVisible(MainWindow* win) {
     return win && win->uiState.audiobookVisible;
+}
+
+static void CloseCharsPanel(CharsPanel* st) {
+    // the ✕ is painted by the panel we are about to destroy, so unwind first
+    PostMessageW(st->hwndContainer, kMsgClosePanel, 0, 0);
 }
 
 static void CreateAudiobookPanel(MainWindow* win) {
@@ -1474,7 +1457,7 @@ static void CreateAudiobookPanel(MainWindow* win) {
     HMODULE hmod = GetModuleHandle(nullptr);
     int dx = gGlobalPrefs->audiobook.sidebarDx;
     if (dx <= 0) {
-        dx = DpiScale(win->hwndFrame, 260);
+        dx = DpiScale(260);
     }
     win->audiobookDx = dx;
 
@@ -1486,36 +1469,18 @@ static void CreateAudiobookPanel(MainWindow* win) {
         return;
     }
 
-    {
-        Splitter::CreateArgs args;
-        args.parent = win->hwndFrame;
-        args.type = SplitterType::Vert;
-        args.isLive = false;
-        win->audiobookSplitter = new Splitter();
-        win->audiobookSplitter->onMove = MkFunc1Void(OnAudiobookSplitterMove);
-        win->audiobookSplitter->Create(args);
-    }
-
     auto* st = new CharsPanel();
     st->win = win;
     st->hwndContainer = win->hwndAudiobookBox;
-    st->font = GetDefaultGuiFont();
-    st->fontBold = GetDefaultGuiFont(true, false);
+    st->font = GetDefaultGuiFont()->GetHFont();
+    st->fontBold = GetDefaultGuiFont(true, false)->GetHFont();
     st->port = kAudiobookControlPortDefault;
     gPanel = st;
 
-    auto* l = new LabelWithCloseWnd();
-    {
-        LabelWithCloseWnd::CreateArgs args;
-        args.parent = st->hwndContainer;
-        args.cmdId = kIdCloseChars;
-        args.isRtl = IsUIRtl();
-        args.font = GetAppSidebarLabelFont(win->hwndFrame);
-        l->Create(args);
-    }
-    st->label = l;
-    l->SetPaddingXY(2, 2);
-    l->SetLabel(StrL("Characters"));
+    auto header = NewLabelWithClose(st->hwndContainer, GetAppSidebarLabelFont(), MkFunc0(CloseCharsPanel, st));
+    st->label = header.label;
+    st->headerLayout = header.box;
+    st->label->SetText(StrL("Characters"));
 
     st->hSubtitle = CreateWindowExW(0, WC_STATICW, L"", WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX, 0, 0, 0, 0,
                                     st->hwndContainer, nullptr, hmod, nullptr);
@@ -1574,7 +1539,8 @@ void DestroyAudiobookPanel(MainWindow* win) {
         str::Free(gPanel->scanMsg);
         str::Free(gPanel->builtFor);
         str::Free(gPanel->subtitle);
-        delete gPanel->label;
+        delete gPanel->vroot;
+        delete gPanel->headerLayout;
         delete gPanel;
         gPanel = nullptr;
     }
@@ -1582,8 +1548,9 @@ void DestroyAudiobookPanel(MainWindow* win) {
         DestroyWindow(win->hwndAudiobookBox);
         win->hwndAudiobookBox = nullptr;
     }
-    delete win->audiobookSplitter;
-    win->audiobookSplitter = nullptr;
+    if (win->audiobookSplitter) {
+        win->audiobookSplitter->SetIsVisible(false);
+    }
     win->uiState.audiobookVisible = false;
 }
 

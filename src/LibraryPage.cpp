@@ -3,18 +3,20 @@
 
 #include "base/Base.h"
 #include "base/ScopedWin.h"
-#include "base/Dpi.h"
+#include "gui/Dpi.h"
 #include "base/File.h"
 #include "base/Win.h"
-#include "base/GdiPlus.h"
+#include "base/GdiPlusUtil.h"
 #include "base/Pixmap.h"
 #include "base/Http.h"
 #include "base/JsonParser.h"
+#include "JsonVisitor.h"
 #include "base/Crypto.h"
 
-#include "wingui/UIModels.h"
-#include "wingui/Layout.h"
-#include "wingui/WinGui.h"
+#include "gui/UIModels.h"
+#include "gui/Layout.h"
+#include "gui/win/WinGui.h"
+#include "gui/PlatformFont.h"
 
 #include "Settings.h"
 #include "DocController.h"
@@ -424,7 +426,7 @@ static bool IsTrue(Str v) {
     return str::Eq(v, StrL("true"));
 }
 
-struct LibraryParser : json::ValueVisitor {
+struct LibraryParser : JsonVisitor {
     LibModel* m;
 
     explicit LibraryParser(LibModel* model) : m(model) {}
@@ -546,7 +548,7 @@ struct LibraryParser : json::ValueVisitor {
     }
 };
 
-struct DeskParser : json::ValueVisitor {
+struct DeskParser : JsonVisitor {
     LibDesk* d;
 
     explicit DeskParser(LibDesk* desk) : d(desk) {}
@@ -591,7 +593,7 @@ struct DeskParser : json::ValueVisitor {
     }
 };
 
-struct PartitionParser : json::ValueVisitor {
+struct PartitionParser : JsonVisitor {
     bool Visit(Str path, Str value, json::Type type) override {
         if (type == json::Type::Null) {
             return true;
@@ -661,7 +663,7 @@ static LibPartition* PartitionByKey(Str key) {
     return nullptr;
 }
 
-struct DetailParser : json::ValueVisitor {
+struct DetailParser : JsonVisitor {
     LibDetail* d;
 
     explicit DetailParser(LibDetail* det) : d(det) {}
@@ -738,7 +740,7 @@ struct DetailParser : json::ValueVisitor {
     }
 };
 
-struct ScreenParser : json::ValueVisitor {
+struct ScreenParser : JsonVisitor {
     LibDetail* d;
 
     explicit ScreenParser(LibDetail* det) : d(det) {}
@@ -780,7 +782,7 @@ struct ScreenParser : json::ValueVisitor {
     }
 };
 
-struct FamilyParser : json::ValueVisitor {
+struct FamilyParser : JsonVisitor {
     LibDetail* d;
     Str want;
 
@@ -852,7 +854,7 @@ static int ChapterDepthOf(Str path) {
     return depth;
 }
 
-struct ChapterParser : json::ValueVisitor {
+struct ChapterParser : JsonVisitor {
     LibDetail* d;
 
     explicit ChapterParser(LibDetail* det) : d(det) {}
@@ -892,7 +894,7 @@ struct ChapterParser : json::ValueVisitor {
     }
 };
 
-struct KnowsParser : json::ValueVisitor {
+struct KnowsParser : JsonVisitor {
     LibDetail* d;
 
     explicit KnowsParser(LibDetail* det) : d(det) {}
@@ -934,7 +936,7 @@ static TempStr PrettyRelationTemp(Str rel) {
     return s;
 }
 
-struct PersonParser : json::ValueVisitor {
+struct PersonParser : JsonVisitor {
     LibDetail* d;
     int nTrait = 0;
     int nNot = 0;
@@ -1155,13 +1157,13 @@ static void LoadModelThread(LibJob* job) {
     FreePartitions();
     if (len(parts) > 0) {
         PartitionParser p;
-        json::Parse(Str(parts), &p);
+        JsonParseWithVisitor(Str(parts), &p);
         RankPartitions();
     }
     FreeModel(&gModel);
     if (len(body) > 0) {
         LibraryParser p(&gModel);
-        json::Parse(Str(body), &p);
+        JsonParseWithVisitor(Str(body), &p);
         gModel.loaded = true;
         str::FreePtr(&gModel.error);
     } else {
@@ -1203,7 +1205,7 @@ static void LoadDeskThread(LibJob* job) {
     FreeDesk(&gDesk);
     if (len(body) > 0) {
         DeskParser p(&gDesk);
-        json::Parse(Str(body), &p);
+        JsonParseWithVisitor(Str(body), &p);
         gDesk.loaded = true;
     }
     gDesk.loading = false;
@@ -1226,7 +1228,7 @@ static void ReloadDesk() {
     EnsureDesk();
 }
 
-struct KnownParser : json::ValueVisitor {
+struct KnownParser : JsonVisitor {
     Vec<LibraryKnownFile>* out;
 
     explicit KnownParser(Vec<LibraryKnownFile>* files) : out(files) {}
@@ -1261,7 +1263,7 @@ static void ReadKnownFiles(Vec<LibraryKnownFile>& out) {
         return;
     }
     KnownParser p(&out);
-    json::Parse(Str(body), &p);
+    JsonParseWithVisitor(Str(body), &p);
 }
 
 static void FreeKnownFiles(Vec<LibraryKnownFile>& files) {
@@ -1357,7 +1359,7 @@ static void LoadDetailThread(LibJob* job) {
     if (str::Eq(gDetail.id, Str(id))) {
         if (len(body) > 0) {
             DetailParser p(&gDetail);
-            json::Parse(Str(body), &p);
+            JsonParseWithVisitor(Str(body), &p);
         }
         gDetail.loading = false;
     }
@@ -1374,7 +1376,7 @@ static void LoadScreenThread(LibJob* job) {
     if (str::Eq(gDetail.id, Str(id))) {
         if (len(body) > 0) {
             ScreenParser p(&gDetail);
-            json::Parse(Str(body), &p);
+            JsonParseWithVisitor(Str(body), &p);
         }
         gDetail.screenLoading = false;
         gDetail.screenDone = true;
@@ -1395,7 +1397,7 @@ static void LoadPersonThread(LibJob* job) {
     if (str::EqI(gDetail.person, Str(who))) {
         if (len(body) > 0) {
             PersonParser p(&gDetail);
-            json::Parse(Str(body), &p);
+            JsonParseWithVisitor(Str(body), &p);
         }
         gDetail.personLoaded = true;
         for (int i = 0; i < gDetail.nFamily; i++) {
@@ -1406,7 +1408,7 @@ static void LoadPersonThread(LibJob* job) {
         gDetail.nFamily = 0;
         if (len(fam) > 0) {
             FamilyParser p(&gDetail, Str(who));
-            json::Parse(Str(fam), &p);
+            JsonParseWithVisitor(Str(fam), &p);
         }
     }
     LeaveLib();
@@ -1421,7 +1423,7 @@ static void LoadChaptersThread(LibJob* job) {
     if (str::Eq(gDetail.id, Str(id))) {
         if (len(body) > 0) {
             ChapterParser p(&gDetail);
-            json::Parse(Str(body), &p);
+            JsonParseWithVisitor(Str(body), &p);
         }
         for (int i = 0; i < gDetail.nChapters; i++) {
             gDetail.chapters[i].open = gDetail.chapters[i].depth > 0;
@@ -1517,7 +1519,7 @@ static void LoadTopicThread(LibJob* job) {
     if (str::Eq(gDetail.topic, Str(what))) {
         if (len(body) > 0) {
             KnowsParser p(&gDetail);
-            json::Parse(Str(body), &p);
+            JsonParseWithVisitor(Str(body), &p);
         }
         gDetail.topicLoaded = true;
     }
@@ -1943,7 +1945,7 @@ static COLORREF Mix(COLORREF a, COLORREF b, int pct) {
 }
 
 static int BarWidth(HDC hdc) {
-    return DpiScale(hdc, 12);
+    return DpiScale(12);
 }
 
 static void LayoutBar(HDC hdc, LibScrollBar* bar, Rect track, int contentDy, int viewDy, int pos) {
@@ -1955,7 +1957,7 @@ static void LayoutBar(HDC hdc, LibScrollBar* bar, Rect track, int contentDy, int
     bar->track = track;
     bar->contentDy = contentDy;
     bar->viewDy = viewDy;
-    int least = DpiScale(hdc, 30);
+    int least = DpiScale(30);
     int thumbDy = (int)((i64)track.dy * viewDy / contentDy);
     thumbDy = limitValue(thumbDy, least, track.dy);
     int span = track.dy - thumbDy;
@@ -1970,7 +1972,7 @@ static void DrawBar(HDC hdc, const LibScrollBar& bar, bool hot) {
     }
     COLORREF bg = ThemeMainWindowBackgroundColor();
     COLORREF text = ThemeWindowTextColor();
-    int inset = DpiScale(hdc, 3);
+    int inset = DpiScale(3);
     int wide = bar.track.dx - 2 * inset;
     if (wide < 2) {
         wide = 2;
@@ -2022,7 +2024,7 @@ static void DrawCoverTile(HDC hdc, MainWindow* win, Rect tile, const LibBook& b,
     COLORREF text = ThemeWindowTextColor();
     COLORREF dim = Mix(text, bg, 45);
 
-    int coverDy = tile.dy - DpiScale(hdc, 44);
+    int coverDy = tile.dy - DpiScale(44);
     Rect rcCover(tile.x, tile.y, tile.dx, coverDy);
 
     RenderedBitmap* bmp = CoverBitmap(b.id);
@@ -2048,23 +2050,23 @@ static void DrawCoverTile(HDC hdc, MainWindow* win, Rect tile, const LibBook& b,
         DeleteObject(clip);
     } else {
         FillRound(hdc, rcCover, Mix(bg, text, 12), 8);
-        Rect inner(rcCover.x + DpiScale(hdc, 8), rcCover.y + rcCover.dy / 3, rcCover.dx - DpiScale(hdc, 16),
+        Rect inner(rcCover.x + DpiScale(8), rcCover.y + rcCover.dy / 3, rcCover.dx - DpiScale(16),
                    rcCover.dy / 3);
         SelectObject(hdc, fontSub);
         DrawTextIn(hdc, inner, b.title, DT_CENTER | DT_WORDBREAK | DT_NOPREFIX | DT_END_ELLIPSIS, dim);
     }
 
     if (b.booknlp) {
-        int d = DpiScale(hdc, 9);
-        Rect dot(fit.x + fit.dx - d - DpiScale(hdc, 5), fit.y + DpiScale(hdc, 5), d, d);
+        int d = DpiScale(9);
+        Rect dot(fit.x + fit.dx - d - DpiScale(5), fit.y + DpiScale(5), d, d);
         FillRound(hdc, dot, RGB(93, 160, 40), d);
     }
 
-    Rect rcTitle(tile.x, tile.y + coverDy + DpiScale(hdc, 6), tile.dx, DpiScale(hdc, 18));
+    Rect rcTitle(tile.x, tile.y + coverDy + DpiScale(6), tile.dx, DpiScale(18));
     SelectObject(hdc, fontTitle);
     DrawTextIn(hdc, rcTitle, b.title, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX, text);
 
-    Rect rcSub(tile.x, rcTitle.y + rcTitle.dy, tile.dx, DpiScale(hdc, 16));
+    Rect rcSub(tile.x, rcTitle.y + rcTitle.dy, tile.dx, DpiScale(16));
     SelectObject(hdc, fontSub);
     DrawTextIn(hdc, rcSub, SubtitleTemp(b), DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX, dim);
 
@@ -2097,7 +2099,7 @@ static int DrawSortRow(HDC hdc, MainWindow* win, Rect row, HFONT font) {
     Str now = LibrarySortOrder();
 
     SelectObject(hdc, font);
-    Rect rcLabel(row.x, row.y, DpiScale(hdc, 32), row.dy);
+    Rect rcLabel(row.x, row.y, DpiScale(32), row.dy);
     DrawTextIn(hdc, rcLabel, StrL("Sort"), DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX, dim);
     int x = rcLabel.x + rcLabel.dx;
     int y = row.y;
@@ -2106,7 +2108,7 @@ static int DrawSortRow(HDC hdc, MainWindow* win, Rect row, HFONT font) {
         TempWStr ws = ToWStrTemp(label);
         SIZE sz{};
         GetTextExtentPoint32W(hdc, ws.s, ws.len, &sz);
-        int dx = sz.cx + DpiScale(hdc, 10);
+        int dx = sz.cx + DpiScale(10);
         if (x + dx > row.x + row.dx) {
             x = rcLabel.x + rcLabel.dx;
             y += row.dy;
@@ -2119,7 +2121,7 @@ static int DrawSortRow(HDC hdc, MainWindow* win, Rect row, HFONT font) {
         DrawTextIn(hdc, one, label, DT_CENTER | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
                    active ? text : ThemeWindowLinkColor());
         AddLink(win, one, fmt("%s%s", Str(kLinkSort), Str(c.key)), Str(c.tip));
-        x += dx + DpiScale(hdc, 2);
+        x += dx + DpiScale(2);
     }
     return y + row.dy - row.y;
 }
@@ -2132,48 +2134,48 @@ static void DrawRail(HDC hdc, MainWindow* win, Rect rail, HFONT fontRow, HFONT f
 
     HdcFillRect(hdc, rail, Mix(bg, text, 5));
 
-    int pad = DpiScale(hdc, 12);
+    int pad = DpiScale(12);
     int y = rail.y + pad;
-    int rowDy = DpiScale(hdc, 26);
+    int rowDy = DpiScale(26);
 
     SelectObject(hdc, fontHead);
-    Rect rcHead(rail.x + pad, y, rail.dx - 2 * pad, DpiScale(hdc, 22));
+    Rect rcHead(rail.x + pad, y, rail.dx - 2 * pad, DpiScale(22));
     DrawTextIn(hdc, rcHead, StrL("Library"), DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, text);
-    y += rcHead.dy + DpiScale(hdc, 10);
+    y += rcHead.dy + DpiScale(10);
 
     SelectObject(hdc, fontRow);
     {
-        Rect row(rail.x + DpiScale(hdc, 6), y, rail.dx - DpiScale(hdc, 12), rowDy);
+        Rect row(rail.x + DpiScale(6), y, rail.dx - DpiScale(12), rowDy);
         if (len(gModel.filter) == 0 && !gDeskOpen) {
             FillRound(hdc, row, sel, 6);
         }
-        Rect label(row.x + DpiScale(hdc, 8), row.y, row.dx - DpiScale(hdc, 16), row.dy);
+        Rect label(row.x + DpiScale(8), row.y, row.dx - DpiScale(16), row.dy);
         TempStr all = fmt("All books  (%d)", gModel.total);
         DrawTextIn(hdc, label, Str(all), DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS, text);
         AddLink(win, row, Str(kLinkAllBooks));
-        y += rowDy + DpiScale(hdc, 4);
+        y += rowDy + DpiScale(4);
     }
     {
-        Rect row(rail.x + DpiScale(hdc, 6), y, rail.dx - DpiScale(hdc, 12), rowDy);
+        Rect row(rail.x + DpiScale(6), y, rail.dx - DpiScale(12), rowDy);
         if (gDeskOpen) {
             FillRound(hdc, row, sel, 6);
         }
-        Rect label(row.x + DpiScale(hdc, 8), row.y, row.dx - DpiScale(hdc, 16), row.dy);
+        Rect label(row.x + DpiScale(8), row.y, row.dx - DpiScale(16), row.dy);
         TempStr desk = fmt("Deskpan  (%d)", gModel.documents);
         DrawTextIn(hdc, label, Str(desk), DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS, text);
         AddLink(win, row, Str(kLinkDeskpan), StrL("Files that are not books: manuals, invoices, forms"));
-        y += rowDy + DpiScale(hdc, 4);
+        y += rowDy + DpiScale(4);
     }
 
-    Rect rcSort(rail.x + DpiScale(hdc, 10), y, rail.dx - DpiScale(hdc, 16), DpiScale(hdc, 22));
-    y += DrawSortRow(hdc, win, rcSort, fontRow) + DpiScale(hdc, 8);
+    Rect rcSort(rail.x + DpiScale(10), y, rail.dx - DpiScale(16), DpiScale(22));
+    y += DrawSortRow(hdc, win, rcSort, fontRow) + DpiScale(8);
 
-    int footDy = DpiScale(hdc, 24);
+    int footDy = DpiScale(24);
     int lastY = rail.y + rail.dy - 2 * footDy - 2 * pad;
-    int headDy = DpiScale(hdc, 20);
+    int headDy = DpiScale(20);
     int firstY = y;
     int bandDy = lastY - firstY;
-    int stepDy = rowDy + DpiScale(hdc, 2);
+    int stepDy = rowDy + DpiScale(2);
     int needDy = 0;
     for (int i = 0; i < gModel.nSeries; i++) {
         const LibSeries& s = gModel.series[i];
@@ -2192,32 +2194,32 @@ static void DrawRail(HDC hdc, MainWindow* win, Rect rail, HFONT fontRow, HFONT f
         const LibSeries& s = gModel.series[i];
         int above = (len(s.head) > 0 ? headDy : 0) + (len(s.subhead) > 0 ? headDy : 0);
         if (y + above + rowDy > lastY) {
-            y += above + rowDy + DpiScale(hdc, 2);
+            y += above + rowDy + DpiScale(2);
             continue;
         }
         if (y + above < firstY) {
-            y += above + rowDy + DpiScale(hdc, 2);
+            y += above + rowDy + DpiScale(2);
             continue;
         }
         SelectObject(hdc, fontRow);
         if (len(s.head) > 0) {
-            Rect rcGenre(rail.x + DpiScale(hdc, 8), y, rail.dx - DpiScale(hdc, 14) - gutter, headDy);
+            Rect rcGenre(rail.x + DpiScale(8), y, rail.dx - DpiScale(14) - gutter, headDy);
             DrawTextIn(hdc, rcGenre, s.head, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS, text);
             y += headDy;
         }
         if (len(s.subhead) > 0) {
-            Rect rcSub(rail.x + DpiScale(hdc, 14), y, rail.dx - DpiScale(hdc, 20) - gutter, headDy);
+            Rect rcSub(rail.x + DpiScale(14), y, rail.dx - DpiScale(20) - gutter, headDy);
             DrawTextIn(hdc, rcSub, s.subhead, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS, dim);
             y += headDy;
         }
-        Rect row(rail.x + DpiScale(hdc, 6), y, rail.dx - DpiScale(hdc, 12) - gutter, rowDy);
+        Rect row(rail.x + DpiScale(6), y, rail.dx - DpiScale(12) - gutter, rowDy);
         if (str::EqI(gModel.filter, s.key)) {
             FillRound(hdc, row, sel, 6);
         }
-        int indent = DpiScale(hdc, 8) + s.depth * DpiScale(hdc, 14);
-        Rect label(row.x + indent, row.y, row.dx - indent - DpiScale(hdc, 34), row.dy);
+        int indent = DpiScale(8) + s.depth * DpiScale(14);
+        Rect label(row.x + indent, row.y, row.dx - indent - DpiScale(34), row.dy);
         DrawTextIn(hdc, label, s.name, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS, text);
-        Rect count(row.x + row.dx - DpiScale(hdc, 32), row.y, DpiScale(hdc, 28), row.dy);
+        Rect count(row.x + row.dx - DpiScale(32), row.y, DpiScale(28), row.dy);
         DrawTextIn(hdc, count, fmt("%d", s.books), DT_RIGHT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX, dim);
         TempStr target = fmt("%s%s", Str(kLinkSeries), s.key);
         TempStr tip = fmt("%s \xc2\xb7 %d books", s.name, s.books);
@@ -2237,25 +2239,25 @@ static void DrawRail(HDC hdc, MainWindow* win, Rect rail, HFONT fontRow, HFONT f
             tip = fmt("%s \xc2\xb7 put here because it says \"%s\"", Str(tip), s.guessed);
         }
         AddLink(win, row, Str(target), Str(tip));
-        y += rowDy + DpiScale(hdc, 2);
+        y += rowDy + DpiScale(2);
     }
     DrawBar(hdc, gRailBar, gBarHot == &gRailBar || gBarDrag == &gRailBar);
 
-    Rect rcRescan(rail.x + DpiScale(hdc, 6), rail.y + rail.dy - 2 * footDy - pad, rail.dx - DpiScale(hdc, 12), footDy);
+    Rect rcRescan(rail.x + DpiScale(6), rail.y + rail.dy - 2 * footDy - pad, rail.dx - DpiScale(12), footDy);
     SelectObject(hdc, fontRow);
     Str rescanLabel = StrL("Rescan library");
     if (gModel.scanning) {
         rescanLabel = gModel.scanTotal > 0 ? Str(fmt("Scanning %d of %d...", gModel.scanDone, gModel.scanTotal))
                                            : StrL("Scanning...");
     }
-    DrawTextIn(hdc, Rect(rcRescan.x + DpiScale(hdc, 8), rcRescan.y, rcRescan.dx, rcRescan.dy), rescanLabel,
+    DrawTextIn(hdc, Rect(rcRescan.x + DpiScale(8), rcRescan.y, rcRescan.dx, rcRescan.dy), rescanLabel,
                DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX, ThemeWindowLinkColor());
     if (!gModel.scanning) {
         AddLink(win, rcRescan, Str(kLinkRescan), StrL("Look for new books on disk"));
     }
 
     Rect rcClassic(rcRescan.x, rcRescan.y + footDy, rcRescan.dx, footDy);
-    DrawTextIn(hdc, Rect(rcClassic.x + DpiScale(hdc, 8), rcClassic.y, rcClassic.dx, rcClassic.dy),
+    DrawTextIn(hdc, Rect(rcClassic.x + DpiScale(8), rcClassic.y, rcClassic.dx, rcClassic.dy),
                StrL("Frequently read"), DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX, ThemeWindowLinkColor());
     AddLink(win, rcClassic, Str(kLinkClassic), StrL("Show the classic home page"));
 }
@@ -2265,11 +2267,11 @@ static void DrawGrid(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT fon
     COLORREF text = ThemeWindowTextColor();
     COLORREF dim = Mix(text, bg, 45);
 
-    int pad = DpiScale(hdc, 20);
-    int tileDx = DpiScale(hdc, 132);
-    int tileDy = DpiScale(hdc, 240);
-    int gapX = DpiScale(hdc, 20);
-    int gapY = DpiScale(hdc, 22);
+    int pad = DpiScale(20);
+    int tileDx = DpiScale(132);
+    int tileDy = DpiScale(240);
+    int gapX = DpiScale(20);
+    int gapY = DpiScale(22);
 
     int avail = main.dx - 2 * pad;
     int perRow = (avail + gapX) / (tileDx + gapX);
@@ -2277,9 +2279,9 @@ static void DrawGrid(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT fon
         perRow = 1;
     }
 
-    int headDy = DpiScale(hdc, 40);
+    int headDy = DpiScale(40);
     SelectObject(hdc, fontHead);
-    Rect rcHead(main.x + pad, main.y + DpiScale(hdc, 12), avail, DpiScale(hdc, 26));
+    Rect rcHead(main.x + pad, main.y + DpiScale(12), avail, DpiScale(26));
     Str title = len(gModel.filterName) > 0 ? gModel.filterName : StrL("Everything");
     DrawTextIn(hdc, rcHead, title, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS, text);
 
@@ -2290,7 +2292,7 @@ static void DrawGrid(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT fon
         }
     }
     SelectObject(hdc, fontSub);
-    Rect rcCount(main.x + pad, rcHead.y + rcHead.dy, avail, DpiScale(hdc, 16));
+    Rect rcCount(main.x + pad, rcHead.y + rcHead.dy, avail, DpiScale(16));
     int withWiki = 0;
     for (int i = 0; i < gModel.nBooks; i++) {
         if (BookVisible(gModel.books[i]) && gModel.books[i].booknlp) {
@@ -2301,7 +2303,7 @@ static void DrawGrid(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT fon
                fmt("%d %s \xc2\xb7 %d read by BookNLP", shown, shown == 1 ? StrL("book") : StrL("books"), withWiki),
                DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, dim);
 
-    int top = main.y + headDy + DpiScale(hdc, 22) - scrollY;
+    int top = main.y + headDy + DpiScale(22) - scrollY;
     int col = 0;
     int row = 0;
     for (int i = 0; i < gModel.nBooks; i++) {
@@ -2322,7 +2324,7 @@ static void DrawGrid(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT fon
         }
     }
     int rows = (shown + perRow - 1) / perRow;
-    gContentDy = headDy + DpiScale(hdc, 22) + rows * (tileDy + gapY);
+    gContentDy = headDy + DpiScale(22) + rows * (tileDy + gapY);
 }
 
 static TempStr FileSizeTemp(i64 size) {
@@ -2388,16 +2390,16 @@ static int DrawDeskActions(HDC hdc, MainWindow* win, Rect row, HFONT font, int c
         TempWStr ws = ToWStrTemp(label);
         SIZE sz{};
         GetTextExtentPoint32W(hdc, ws.s, ws.len, &sz);
-        Rect one(x, row.y, sz.cx + DpiScale(hdc, 16), row.dy);
+        Rect one(x, row.y, sz.cx + DpiScale(16), row.dy);
         FillRound(hdc, one, Mix(bg, text, chosen > 0 ? 16 : 7), 5);
         DrawTextIn(hdc, one, label, DT_CENTER | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
                    chosen > 0 ? ThemeWindowLinkColor() : dim);
         if (chosen > 0) {
             AddLink(win, one, fmt("%s%s", Str(kLinkDeskMove), Str(doing[i].kind)), Str(doing[i].tip));
         }
-        x += one.dx + DpiScale(hdc, 8);
+        x += one.dx + DpiScale(8);
     }
-    Rect all(x, row.y, DpiScale(hdc, 92), row.dy);
+    Rect all(x, row.y, DpiScale(92), row.dy);
     Str pickLabel = chosen > 0 ? StrL("Select none") : StrL("Select all");
     DrawTextIn(hdc, all, pickLabel, DT_CENTER | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX, ThemeWindowLinkColor());
     AddLink(win, all, Str(kLinkDeskPickAll), StrL("Choose every file in this list"));
@@ -2430,7 +2432,7 @@ static void DrawTickBox(HDC hdc, Rect box, bool ticked) {
         RoundRect(hdc, box.x, box.y, box.x + box.dx, box.y + box.dy, 8, 8);
         return;
     }
-    ScopedSelectObject pen(hdc, CreatePen(PS_SOLID, DpiScale(hdc, 2), RGB(255, 255, 255)), true);
+    ScopedSelectObject pen(hdc, CreatePen(PS_SOLID, DpiScale(2), RGB(255, 255, 255)), true);
     int x0 = box.x + box.dx / 4;
     int y0 = box.y + box.dy / 2;
     int x1 = box.x + box.dx * 4 / 9;
@@ -2446,7 +2448,7 @@ static void DrawDeskTile(HDC hdc, MainWindow* win, Rect tile, LibDeskFile& f, in
     COLORREF text = ThemeWindowTextColor();
     COLORREF dim = Mix(text, bg, 45);
 
-    int coverDy = tile.dy - DpiScale(hdc, 44);
+    int coverDy = tile.dy - DpiScale(44);
     Rect rcCover(tile.x, tile.y, tile.dx, coverDy);
     FillRound(hdc, rcCover, Mix(bg, text, 12), 8);
 
@@ -2492,21 +2494,21 @@ static void DrawDeskTile(HDC hdc, MainWindow* win, Rect tile, LibDeskFile& f, in
             ext = AfterPrefix(ext, ".");
         }
         SelectObject(hdc, fontSub);
-        Rect label(art.x, art.y + art.dy / 2 + DpiScale(hdc, 4), art.dx, DpiScale(hdc, 18));
+        Rect label(art.x, art.y + art.dy / 2 + DpiScale(4), art.dx, DpiScale(18));
         DrawTextIn(hdc, label, str::ToUpperInPlace(str::DupTemp(ext)), DT_CENTER | DT_SINGLELINE | DT_NOPREFIX, dim);
     }
 
     if (gDesk.selecting) {
-        int box = DpiScale(hdc, 18);
-        DrawTickBox(hdc, Rect(rcCover.x + DpiScale(hdc, 5), rcCover.y + DpiScale(hdc, 5), box, box), f.chosen);
+        int box = DpiScale(18);
+        DrawTickBox(hdc, Rect(rcCover.x + DpiScale(5), rcCover.y + DpiScale(5), box, box), f.chosen);
     }
 
     Str name = len(f.file) > 0 ? f.file : f.title;
-    Rect rcTitle(tile.x, tile.y + coverDy + DpiScale(hdc, 6), tile.dx, DpiScale(hdc, 18));
+    Rect rcTitle(tile.x, tile.y + coverDy + DpiScale(6), tile.dx, DpiScale(18));
     SelectObject(hdc, fontTitle);
     DrawTextIn(hdc, rcTitle, name, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX, text);
 
-    Rect rcSub(tile.x, rcTitle.y + rcTitle.dy, tile.dx, DpiScale(hdc, 16));
+    Rect rcSub(tile.x, rcTitle.y + rcTitle.dy, tile.dx, DpiScale(16));
     SelectObject(hdc, fontSub);
     DrawTextIn(hdc, rcSub, DeskSubtitleTemp(f), DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS | DT_NOPREFIX, dim);
 
@@ -2522,16 +2524,16 @@ static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT 
 
     EnsureDesk();
 
-    int pad = DpiScale(hdc, 20);
+    int pad = DpiScale(20);
     int avail = main.dx - 2 * pad;
 
     SelectObject(hdc, fontHead);
-    Rect rcHead(main.x + pad, main.y + DpiScale(hdc, 12), avail, DpiScale(hdc, 26));
+    Rect rcHead(main.x + pad, main.y + DpiScale(12), avail, DpiScale(26));
     DrawTextIn(hdc, rcHead, gDesk.showIgnored ? StrL("Deskpan \xc2\xb7 ignored") : StrL("Deskpan"),
                DT_LEFT | DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS, text);
 
     SelectObject(hdc, fontSub);
-    Rect rcCount(main.x + pad, rcHead.y + rcHead.dy, avail, DpiScale(hdc, 16));
+    Rect rcCount(main.x + pad, rcHead.y + rcHead.dy, avail, DpiScale(16));
     int chosen = DeskChosenCount();
     Str what = gDesk.showIgnored ? StrL("ignored") : StrL("documents");
     Str line = Str(fmt("%d %s \xc2\xb7 %d chosen", gDesk.nFiles, what, chosen));
@@ -2542,7 +2544,7 @@ static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT 
     }
     DrawTextIn(hdc, rcCount, line, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, dim);
 
-    Rect rcShow(main.x + pad, rcCount.y + rcCount.dy + DpiScale(hdc, 8), avail, DpiScale(hdc, 22));
+    Rect rcShow(main.x + pad, rcCount.y + rcCount.dy + DpiScale(8), avail, DpiScale(22));
     SelectObject(hdc, fontSub);
     {
         int x = rcShow.x;
@@ -2552,7 +2554,7 @@ static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT 
             TempWStr ws = ToWStrTemp(label);
             SIZE sz{};
             GetTextExtentPoint32W(hdc, ws.s, ws.len, &sz);
-            Rect one(x, rcShow.y, sz.cx + DpiScale(hdc, 14), rcShow.dy);
+            Rect one(x, rcShow.y, sz.cx + DpiScale(14), rcShow.dy);
             bool active = gDesk.showIgnored == (i == 1);
             if (active) {
                 FillRound(hdc, one, Mix(bg, text, 16), 5);
@@ -2560,21 +2562,21 @@ static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT 
             DrawTextIn(hdc, one, label, DT_CENTER | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
                        active ? text : ThemeWindowLinkColor());
             AddLink(win, one, fmt("%s%d", Str(kLinkDeskShow), i), StrL("Choose which pile to show"));
-            x += one.dx + DpiScale(hdc, 4);
+            x += one.dx + DpiScale(4);
         }
     }
 
-    int headDy = rcShow.y + rcShow.dy + DpiScale(hdc, 14) - main.y;
+    int headDy = rcShow.y + rcShow.dy + DpiScale(14) - main.y;
     if (gDesk.selecting) {
-        Rect rcActions(main.x + pad, rcShow.y + rcShow.dy + DpiScale(hdc, 10), avail, DpiScale(hdc, 24));
+        Rect rcActions(main.x + pad, rcShow.y + rcShow.dy + DpiScale(10), avail, DpiScale(24));
         int actionsDy = DrawDeskActions(hdc, win, rcActions, fontSub, chosen);
-        headDy = rcActions.y + actionsDy + DpiScale(hdc, 14) - main.y;
+        headDy = rcActions.y + actionsDy + DpiScale(14) - main.y;
     }
 
-    int tileDx = DpiScale(hdc, 132);
-    int tileDy = DpiScale(hdc, 240);
-    int gapX = DpiScale(hdc, 20);
-    int gapY = DpiScale(hdc, 22);
+    int tileDx = DpiScale(132);
+    int tileDy = DpiScale(240);
+    int gapX = DpiScale(20);
+    int gapY = DpiScale(22);
     int perRow = (avail + gapX) / (tileDx + gapX);
     if (perRow < 1) {
         perRow = 1;
@@ -2597,13 +2599,13 @@ static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT 
     }
     if (gDesk.loaded && gDesk.nFiles == 0) {
         SelectObject(hdc, fontSub);
-        Rect empty(main.x + pad, main.y + headDy, avail, DpiScale(hdc, 40));
+        Rect empty(main.x + pad, main.y + headDy, avail, DpiScale(40));
         Str msg = gDesk.showIgnored ? StrL("Nothing is being ignored.")
                                     : StrL("Every file the scan found looks like a book.");
         DrawTextIn(hdc, empty, msg, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX, dim);
     }
     int rows = (gDesk.nFiles + perRow - 1) / perRow;
-    gContentDy = headDy + rows * (tileDy + gapY) + DpiScale(hdc, 20);
+    gContentDy = headDy + rows * (tileDy + gapY) + DpiScale(20);
 }
 
 static void DrawTabs(HDC hdc, MainWindow* win, Rect r, HFONT font) {
@@ -2621,7 +2623,7 @@ static void DrawTabs(HDC hdc, MainWindow* win, Rect r, HFONT font) {
             TempWStr ws = ToWStrTemp(label);
             SIZE sz{};
             GetTextExtentPoint32W(hdc, ws.s, ws.len, &sz);
-            dx = sz.cx + DpiScale(hdc, 22);
+            dx = sz.cx + DpiScale(22);
             (void)probe;
         }
         Rect tab(x, r.y, dx, r.dy);
@@ -2632,7 +2634,7 @@ static void DrawTabs(HDC hdc, MainWindow* win, Rect r, HFONT font) {
         DrawTextIn(hdc, tab, label, DT_CENTER | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
                    active ? text : Mix(text, bg, 40));
         AddLink(win, tab, fmt("%s%d", Str(kLinkTab), i));
-        x += dx + DpiScale(hdc, 4);
+        x += dx + DpiScale(4);
     }
 }
 
@@ -2644,7 +2646,7 @@ static void DrawChips(HDC hdc, MainWindow* win, Rect area, Str* items, int n, co
     SelectObject(hdc, font);
     int x = area.x;
     int y = area.y;
-    int chipDy = DpiScale(hdc, 24);
+    int chipDy = DpiScale(24);
     for (int i = 0; i < n; i++) {
         if (len(items[i]) == 0) {
             continue;
@@ -2652,10 +2654,10 @@ static void DrawChips(HDC hdc, MainWindow* win, Rect area, Str* items, int n, co
         TempWStr ws = ToWStrTemp(items[i]);
         SIZE sz{};
         GetTextExtentPoint32W(hdc, ws.s, ws.len, &sz);
-        int dx = sz.cx + DpiScale(hdc, 18);
+        int dx = sz.cx + DpiScale(18);
         if (x + dx > area.x + area.dx) {
             x = area.x;
-            y += chipDy + DpiScale(hdc, 6);
+            y += chipDy + DpiScale(6);
         }
         if (y + chipDy > area.y + area.dy) {
             break;
@@ -2666,7 +2668,7 @@ static void DrawChips(HDC hdc, MainWindow* win, Rect area, Str* items, int n, co
         if (linkPrefix) {
             AddLink(win, r, fmt("%s%s", Str(linkPrefix), items[i]));
         }
-        x += dx + DpiScale(hdc, 6);
+        x += dx + DpiScale(6);
     }
     *usedDy = (y + chipDy) - area.y;
 }
@@ -2675,9 +2677,9 @@ static void DrawScreenRow(HDC hdc, MainWindow* win, Rect area, HFONT fontTitle, 
     COLORREF bg = ThemeMainWindowBackgroundColor();
     COLORREF text = ThemeWindowTextColor();
     COLORREF dim = Mix(text, bg, 45);
-    int posterDx = DpiScale(hdc, 104);
-    int posterDy = DpiScale(hdc, 154);
-    int gap = DpiScale(hdc, 18);
+    int posterDx = DpiScale(104);
+    int posterDy = DpiScale(154);
+    int gap = DpiScale(18);
     int x = area.x;
     for (int i = 0; i < gDetail.nScreen; i++) {
         const LibScreen& s = gDetail.screen[i];
@@ -2697,13 +2699,13 @@ static void DrawScreenRow(HDC hdc, MainWindow* win, Rect area, HFONT fontTitle, 
             FillRound(hdc, rcP, Mix(bg, text, 12), 8);
         }
         SelectObject(hdc, fontTitle);
-        Rect rcT(x, rcP.y + posterDy + DpiScale(hdc, 6), posterDx, DpiScale(hdc, 17));
+        Rect rcT(x, rcP.y + posterDy + DpiScale(6), posterDx, DpiScale(17));
         DrawTextIn(hdc, rcT, s.title, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX, text);
         SelectObject(hdc, fontSub);
-        Rect rcK(x, rcT.y + rcT.dy, posterDx, DpiScale(hdc, 16));
+        Rect rcK(x, rcT.y + rcT.dy, posterDx, DpiScale(16));
         TempStr sub = s.year > 0 ? fmt("%s \xc2\xb7 %d", s.kind, s.year) : str::DupTemp(s.kind);
         DrawTextIn(hdc, rcK, Str(sub), DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX, dim);
-        Rect rcS(x, rcK.y + rcK.dy, posterDx, DpiScale(hdc, 30));
+        Rect rcS(x, rcK.y + rcK.dy, posterDx, DpiScale(30));
         DrawTextIn(hdc, rcS, s.stars, DT_LEFT | DT_WORDBREAK | DT_END_ELLIPSIS | DT_NOPREFIX, dim);
         if (len(s.imdbId) > 0) {
             Rect hot(x, rcP.y, posterDx, posterDy + rcT.dy + rcK.dy);
@@ -2729,7 +2731,7 @@ static int DrawChapters(HDC hdc, MainWindow* win, Rect body, HFONT fontSub, HFON
     COLORREF text = ThemeWindowTextColor();
     COLORREF dim = Mix(text, bg, 45);
 
-    int lineDy = DpiScale(hdc, 19);
+    int lineDy = DpiScale(19);
     int y = body.y;
     SelectObject(hdc, fontSub);
     if (!gDetail.chaptersDone) {
@@ -2742,7 +2744,7 @@ static int DrawChapters(HDC hdc, MainWindow* win, Rect body, HFONT fontSub, HFON
     }
     DrawTextIn(hdc, Rect(body.x, y, body.dx, lineDy), fmt("%d chapters", gDetail.nChapters),
                DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, dim);
-    y += lineDy + DpiScale(hdc, 4);
+    y += lineDy + DpiScale(4);
 
     SelectObject(hdc, fontBody);
     for (int i = 0; i < gDetail.nChapters; i++) {
@@ -2753,18 +2755,18 @@ static int DrawChapters(HDC hdc, MainWindow* win, Rect body, HFONT fontSub, HFON
         if (y + lineDy > body.y + body.dy) {
             break;
         }
-        int indent = c.depth * DpiScale(hdc, 16);
+        int indent = c.depth * DpiScale(16);
         Rect row(body.x + indent, y, body.dx - indent, lineDy);
         if (c.kids > 0) {
-            Rect rcArrow(row.x, row.y, DpiScale(hdc, 14), lineDy);
+            Rect rcArrow(row.x, row.y, DpiScale(14), lineDy);
             DrawTextIn(hdc, rcArrow, c.open ? StrL("-") : StrL("+"), DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, dim);
             AddLink(win, rcArrow, fmt("%s%d", Str(kLinkChapter), i), fmt("%d chapters inside", c.kids));
         }
-        Rect rcName(row.x + DpiScale(hdc, 16), row.y, row.dx - DpiScale(hdc, 70), lineDy);
+        Rect rcName(row.x + DpiScale(16), row.y, row.dx - DpiScale(70), lineDy);
         DrawTextIn(hdc, rcName, c.title, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX, text);
         if (c.page > 0) {
             AddLink(win, rcName, fmt("%s%d|%s", Str(kLinkPage), c.page, gDetail.path), StrL("Open at this page"));
-            Rect rcPage(body.x + body.dx - DpiScale(hdc, 50), row.y, DpiScale(hdc, 46), lineDy);
+            Rect rcPage(body.x + body.dx - DpiScale(50), row.y, DpiScale(46), lineDy);
             DrawTextIn(hdc, rcPage, fmt("p %d", c.page), DT_RIGHT | DT_SINGLELINE | DT_NOPREFIX, dim);
             AddLink(win, rcPage, fmt("%s%d|%s", Str(kLinkPage), c.page, gDetail.path), StrL("Open at this page"));
         }
@@ -2781,27 +2783,27 @@ static int DrawKnows(HDC hdc, MainWindow* win, Rect body, HFONT fontTitle, HFONT
     int usedDy = 0;
     if (len(gDetail.topic) == 0) {
         SelectObject(hdc, fontSub);
-        int lineDy = DpiScale(hdc, 18);
+        int lineDy = DpiScale(18);
         DrawTextIn(hdc, Rect(body.x, body.y, body.dx, lineDy), StrL("Pick a subject to see who knows about it."),
                    DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, dim);
-        Rect rest(body.x, body.y + lineDy + DpiScale(hdc, 6), body.dx, body.dy - lineDy);
+        Rect rest(body.x, body.y + lineDy + DpiScale(6), body.dx, body.dy - lineDy);
         int chipsDy = 0;
         DrawChips(hdc, win, rest, gDetail.topics, gDetail.nTopics, kLinkTopic, fontSub, &chipsDy);
-        return lineDy + DpiScale(hdc, 6) + chipsDy;
+        return lineDy + DpiScale(6) + chipsDy;
     }
 
-    int lineDy = DpiScale(hdc, 20);
+    int lineDy = DpiScale(20);
     int y = body.y;
     SelectObject(hdc, fontSub);
-    Rect rcBack(body.x, y, DpiScale(hdc, 130), lineDy);
+    Rect rcBack(body.x, y, DpiScale(130), lineDy);
     DrawTextIn(hdc, rcBack, StrL("< all subjects"), DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, ThemeWindowLinkColor());
     AddLink(win, rcBack, Str(kLinkTopicList), StrL("Back to every subject"));
-    y += lineDy + DpiScale(hdc, 6);
+    y += lineDy + DpiScale(6);
 
     SelectObject(hdc, fontTitle);
-    DrawTextIn(hdc, Rect(body.x, y, body.dx, DpiScale(hdc, 22)), gDetail.topic, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX,
+    DrawTextIn(hdc, Rect(body.x, y, body.dx, DpiScale(22)), gDetail.topic, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX,
                text);
-    y += DpiScale(hdc, 26);
+    y += DpiScale(26);
 
     SelectObject(hdc, fontBody);
     if (!gDetail.topicLoaded) {
@@ -2815,8 +2817,8 @@ static int DrawKnows(HDC hdc, MainWindow* win, Rect body, HFONT fontTitle, HFONT
         return y + lineDy - body.y;
     }
 
-    int indent = DpiScale(hdc, 18);
-    int nameDx = DpiScale(hdc, 180);
+    int indent = DpiScale(18);
+    int nameDx = DpiScale(180);
     for (int i = 0; i < gDetail.nKnowers; i++) {
         const LibKnower& k = gDetail.knowers[i];
         if (len(k.name) == 0) {
@@ -2850,11 +2852,11 @@ static int DrawPerson(HDC hdc, Rect body, HFONT fontTitle, HFONT fontSub, HFONT 
     COLORREF dim = Mix(text, bg, 45);
 
     int y = body.y;
-    int lineDy = DpiScale(hdc, 20);
+    int lineDy = DpiScale(20);
     SelectObject(hdc, fontTitle);
-    DrawTextIn(hdc, Rect(body.x, y, body.dx, DpiScale(hdc, 22)), gDetail.person, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX,
+    DrawTextIn(hdc, Rect(body.x, y, body.dx, DpiScale(22)), gDetail.person, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX,
                text);
-    y += DpiScale(hdc, 26);
+    y += DpiScale(26);
 
     SelectObject(hdc, fontBody);
     if (!gDetail.personLoaded) {
@@ -2873,7 +2875,7 @@ static int DrawPerson(HDC hdc, Rect body, HFONT fontTitle, HFONT fontSub, HFONT 
         }
         int dy = MeasureTextDy(hdc, body, Str(quote), DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
         DrawTextIn(hdc, Rect(body.x, y, body.dx, dy), Str(quote), DT_LEFT | DT_WORDBREAK | DT_NOPREFIX, text);
-        y += dy + DpiScale(hdc, 14);
+        y += dy + DpiScale(14);
     }
 
     struct PersonRow {
@@ -2886,8 +2888,8 @@ static int DrawPerson(HDC hdc, Rect body, HFONT fontTitle, HFONT fontSub, HFONT 
         {StrL("Voice"), gDetail.personVoice},         {StrL("Places"), gDetail.personPlaces},
         {StrL("Knows about"), gDetail.personKnows},
     };
-    int labelDx = DpiScale(hdc, 116);
-    int gap = DpiScale(hdc, 12);
+    int labelDx = DpiScale(116);
+    int gap = DpiScale(12);
     int valueDx = body.dx - labelDx - gap;
     for (const PersonRow& row : rows) {
         if (len(row.value) == 0) {
@@ -2902,7 +2904,7 @@ static int DrawPerson(HDC hdc, Rect body, HFONT fontTitle, HFONT fontSub, HFONT 
         DrawTextIn(hdc, Rect(body.x, y, labelDx, lineDy), row.label, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, dim);
         SelectObject(hdc, fontBody);
         DrawTextIn(hdc, Rect(rcValue.x, y, valueDx, dy), row.value, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX, text);
-        y += dy + DpiScale(hdc, 8);
+        y += dy + DpiScale(8);
     }
 
     if (gDetail.personBooks > 0) {
@@ -2985,9 +2987,9 @@ static int DrawInfoRow(HDC hdc, Rect body, int y, Str label, Str value, HFONT fo
     COLORREF bg = ThemeMainWindowBackgroundColor();
     COLORREF text = ThemeWindowTextColor();
     COLORREF dim = Mix(text, bg, 45);
-    int labelDx = DpiScale(hdc, 140);
-    int gap = DpiScale(hdc, 14);
-    int rowDy = DpiScale(hdc, 20);
+    int labelDx = DpiScale(140);
+    int gap = DpiScale(14);
+    int rowDy = DpiScale(20);
 
     SelectObject(hdc, fontBody);
     UINT flags = DT_LEFT | DT_WORDBREAK | DT_NOPREFIX;
@@ -3001,20 +3003,20 @@ static int DrawInfoRow(HDC hdc, Rect body, int y, Str label, Str value, HFONT fo
 
     SelectObject(hdc, fontSub);
     DrawTextIn(hdc, Rect(body.x, y, labelDx, rowDy), label, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, dim);
-    return want + DpiScale(hdc, 4);
+    return want + DpiScale(4);
 }
 
 static int DrawInfoHead(HDC hdc, Rect body, int y, Str title, HFONT fontTitle) {
     SelectObject(hdc, fontTitle);
-    int dy = DpiScale(hdc, 22);
+    int dy = DpiScale(22);
     DrawTextIn(hdc, Rect(body.x, y, body.dx, dy), title, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, ThemeWindowTextColor());
-    return dy + DpiScale(hdc, 4);
+    return dy + DpiScale(4);
 }
 
 static int DrawInfo(HDC hdc, Rect body, HFONT fontTitle, HFONT fontSub, HFONT fontBody) {
     EnsureInfo();
     int y = body.y;
-    int sectionGap = DpiScale(hdc, 14);
+    int sectionGap = DpiScale(14);
 
     y += DrawInfoHead(hdc, body, y, StrL("File"), fontTitle);
     y += DrawInfoRow(hdc, body, y, StrL("Location"), len(gDetail.path) > 0 ? gDetail.path : StrL("Unknown"), fontSub,
@@ -3034,7 +3036,7 @@ static int DrawInfo(HDC hdc, Rect body, HFONT fontTitle, HFONT fontSub, HFONT fo
     str::ToUpperInPlace(format);
     y += DrawInfoRow(hdc, body, y, StrL("Format"), len(format) > 0 ? Str(format) : StrL("Unknown"), fontSub, fontBody);
 
-    FileState* fs = len(gDetail.path) > 0 ? gFileHistory.FindByPath(gDetail.path) : nullptr;
+    FileState* fs = len(gDetail.path) > 0 ? FileHistoryFindByPath(gDetail.path) : nullptr;
     int reached = fs ? fs->maxPageReached : 0;
     TempStr read;
     if (gDetail.pages > 0 && reached > 0) {
@@ -3090,18 +3092,18 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
     COLORREF text = ThemeWindowTextColor();
     COLORREF dim = Mix(text, bg, 45);
 
-    int pad = DpiScale(hdc, 24);
-    int y = main.y + DpiScale(hdc, 12) - scrollY;
+    int pad = DpiScale(24);
+    int y = main.y + DpiScale(12) - scrollY;
 
     SelectObject(hdc, fontSub);
-    Rect rcBack(main.x + pad, y, DpiScale(hdc, 190), DpiScale(hdc, 20));
+    Rect rcBack(main.x + pad, y, DpiScale(190), DpiScale(20));
     DrawTextIn(hdc, rcBack, StrL("< Back to the library"), DT_LEFT | DT_SINGLELINE | DT_NOPREFIX,
                ThemeWindowLinkColor());
     AddLink(win, rcBack, Str(kLinkBack));
-    y += rcBack.dy + DpiScale(hdc, 14);
+    y += rcBack.dy + DpiScale(14);
 
-    int coverDx = DpiScale(hdc, 168);
-    int coverDy = DpiScale(hdc, 250);
+    int coverDx = DpiScale(168);
+    int coverDy = DpiScale(250);
     Rect rcCover(main.x + pad, y, coverDx, coverDy);
     RenderedBitmap* bmp = CoverBitmap(gDetail.id);
     if (bmp && bmp->IsValid()) {
@@ -3120,14 +3122,14 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
         FillRound(hdc, rcCover, Mix(bg, text, 12), 8);
     }
 
-    int infoX = main.x + pad + coverDx + DpiScale(hdc, 22);
+    int infoX = main.x + pad + coverDx + DpiScale(22);
     int infoDx = main.x + main.dx - infoX - pad;
     int iy = y;
 
     SelectObject(hdc, fontHead);
-    Rect rcTitle(infoX, iy, infoDx, DpiScale(hdc, 30));
+    Rect rcTitle(infoX, iy, infoDx, DpiScale(30));
     DrawTextIn(hdc, rcTitle, gDetail.title, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX, text);
-    iy += rcTitle.dy + DpiScale(hdc, 2);
+    iy += rcTitle.dy + DpiScale(2);
 
     SelectObject(hdc, fontSub);
     str::Builder meta;
@@ -3152,18 +3154,18 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
         }
         meta.Append(fmt("%d pages", gDetail.pages));
     }
-    Rect rcMeta(infoX, iy, infoDx, DpiScale(hdc, 18));
+    Rect rcMeta(infoX, iy, infoDx, DpiScale(18));
     DrawTextIn(hdc, rcMeta, ToStr(meta), DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX, dim);
-    iy += rcMeta.dy + DpiScale(hdc, 10);
+    iy += rcMeta.dy + DpiScale(10);
 
     SelectObject(hdc, fontSub);
-    Rect rcRead(infoX, iy, DpiScale(hdc, 92), DpiScale(hdc, 26));
+    Rect rcRead(infoX, iy, DpiScale(92), DpiScale(26));
     FillRound(hdc, rcRead, Mix(bg, text, 16), 6);
     DrawTextIn(hdc, rcRead, StrL("Read"), DT_CENTER | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX, text);
     if (len(gDetail.path) > 0) {
         AddLink(win, rcRead, fmt("%s%s", Str(kLinkRead), gDetail.path), gDetail.path);
     }
-    iy += rcRead.dy + DpiScale(hdc, 12);
+    iy += rcRead.dy + DpiScale(12);
 
     SelectObject(hdc, fontBody);
     Str blurb = gDetail.description;
@@ -3179,11 +3181,11 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
         DrawTextIn(hdc, rcDesc, blurb, flags, text);
     }
 
-    y += coverDy + DpiScale(hdc, 18);
+    y += coverDy + DpiScale(18);
 
-    Rect rcTabs(main.x + pad, y, main.dx - 2 * pad, DpiScale(hdc, 28));
+    Rect rcTabs(main.x + pad, y, main.dx - 2 * pad, DpiScale(28));
     DrawTabs(hdc, win, rcTabs, fontSub);
-    y += rcTabs.dy + DpiScale(hdc, 16);
+    y += rcTabs.dy + DpiScale(16);
 
     Rect body(main.x + pad, y, main.dx - 2 * pad, main.y + main.dy - y);
     int usedDy = 0;
@@ -3194,14 +3196,14 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
                 int dy = MeasureTextDy(hdc, body, gDetail.subjects, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX);
                 DrawTextIn(hdc, Rect(body.x, body.y, body.dx, dy), gDetail.subjects,
                            DT_LEFT | DT_WORDBREAK | DT_NOPREFIX, dim);
-                usedDy = dy + DpiScale(hdc, 12);
+                usedDy = dy + DpiScale(12);
             }
             if (len(gDetail.wiki) == 0) {
-                Rect r(body.x, body.y + usedDy, body.dx, DpiScale(hdc, 40));
+                Rect r(body.x, body.y + usedDy, body.dx, DpiScale(40));
                 DrawTextIn(hdc, r,
                            StrL("No wiki yet for this book. Read it aloud with the BookNLP analyser to build one."),
                            DT_LEFT | DT_WORDBREAK | DT_NOPREFIX, dim);
-                usedDy += DpiScale(hdc, 40);
+                usedDy += DpiScale(40);
             } else {
                 int chipsDy = 0;
                 Rect r(body.x, body.y + usedDy, body.dx, body.dy - usedDy);
@@ -3210,7 +3212,7 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
                 usedDy += chipsDy;
             }
             EnsureChapters();
-            usedDy += DpiScale(hdc, 14);
+            usedDy += DpiScale(14);
             usedDy +=
                 DrawChapters(hdc, win, Rect(body.x, body.y + usedDy, body.dx, body.dy - usedDy), fontSub, fontBody);
             break;
@@ -3228,15 +3230,15 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
             if (len(gDetail.person) == 0) {
                 DrawTextIn(hdc, body, StrL("Pick a character on the Characters tab to see their family."),
                            DT_LEFT | DT_WORDBREAK | DT_NOPREFIX, dim);
-                usedDy = DpiScale(hdc, 24);
+                usedDy = DpiScale(24);
                 break;
             }
             int ry = body.y;
-            int rowDy = DpiScale(hdc, 22);
+            int rowDy = DpiScale(22);
             SelectObject(hdc, fontTitle);
             DrawTextIn(hdc, Rect(body.x, ry, body.dx, rowDy), gDetail.person, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX,
                        text);
-            ry += rowDy + DpiScale(hdc, 6);
+            ry += rowDy + DpiScale(6);
             SelectObject(hdc, fontBody);
             for (int i = 0; i < gDetail.nFamily; i++) {
                 const LibFamilyRow& f = gDetail.family[i];
@@ -3246,9 +3248,9 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
                 if (ry + rowDy > body.y + body.dy) {
                     break;
                 }
-                Rect rcRel(body.x, ry, DpiScale(hdc, 120), rowDy);
+                Rect rcRel(body.x, ry, DpiScale(120), rowDy);
                 DrawTextIn(hdc, rcRel, Str(PrettyRelationTemp(f.relation)), DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, dim);
-                Rect rcName(body.x + DpiScale(hdc, 126), ry, body.dx - DpiScale(hdc, 126), rowDy);
+                Rect rcName(body.x + DpiScale(126), ry, body.dx - DpiScale(126), rowDy);
                 DrawTextIn(hdc, rcName, f.name, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX, text);
                 AddLink(win, rcName, fmt("%s%s", Str(kLinkPerson), f.name));
                 ry += rowDy;
@@ -3269,10 +3271,10 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
                 Str msg = gDetail.screenLoading ? StrL("Looking for films and TV...")
                                                 : StrL("No film or TV adaptation found for this book.");
                 DrawTextIn(hdc, body, msg, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX, dim);
-                usedDy = DpiScale(hdc, 24);
+                usedDy = DpiScale(24);
             } else {
                 DrawScreenRow(hdc, win, body, fontTitle, fontSub);
-                usedDy = DpiScale(hdc, 230);
+                usedDy = DpiScale(230);
             }
             break;
         }
@@ -3280,7 +3282,7 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
             usedDy = DrawInfo(hdc, body, fontTitle, fontSub, fontBody);
             break;
     }
-    gContentDy = (y - main.y + scrollY) + usedDy + DpiScale(hdc, 40);
+    gContentDy = (y - main.y + scrollY) + usedDy + DpiScale(40);
 }
 
 void DrawLibraryPage(MainWindow* win, HDC hdc) {
@@ -3294,12 +3296,12 @@ void DrawLibraryPage(MainWindow* win, HDC hdc) {
     HdcFillRect(hdc, rc, bg);
     SetBkMode(hdc, TRANSPARENT);
 
-    HFONT fontHead = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 20);
-    HFONT fontTitle = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 13);
-    HFONT fontSub = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 12);
-    HFONT fontBody = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 13);
+    HFONT fontHead = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 20)->GetHFont();
+    HFONT fontTitle = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 13)->GetHFont();
+    HFONT fontSub = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 12)->GetHFont();
+    HFONT fontBody = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 13)->GetHFont();
 
-    int railDx = DpiScale(hdc, 210);
+    int railDx = DpiScale(210);
     if (railDx > rc.dx / 3) {
         railDx = rc.dx / 3;
     }
@@ -3310,15 +3312,11 @@ void DrawLibraryPage(MainWindow* win, HDC hdc) {
     if (!gModel.loaded) {
         SelectObject(hdc, fontBody);
         Str msg = len(gModel.error) > 0 ? gModel.error : StrL("Opening the library...");
-        Rect r(rc.x + DpiScale(hdc, 40), rc.y + rc.dy / 2 - DpiScale(hdc, 20), rc.dx - DpiScale(hdc, 80),
-               DpiScale(hdc, 60));
+        Rect r(rc.x + DpiScale(40), rc.y + rc.dy / 2 - DpiScale(20), rc.dx - DpiScale(80),
+               DpiScale(60));
         DrawTextIn(hdc, r, msg, DT_CENTER | DT_WORDBREAK | DT_NOPREFIX, Mix(text, bg, 40));
         LeaveLib();
         SelectObject(hdc, GetStockObject(SYSTEM_FONT));
-        DeleteObject(fontHead);
-        DeleteObject(fontTitle);
-        DeleteObject(fontSub);
-        DeleteObject(fontBody);
         return;
     }
 
@@ -3353,10 +3351,6 @@ void DrawLibraryPage(MainWindow* win, HDC hdc) {
     DrawBar(hdc, gMainBar, gBarHot == &gMainBar || gBarDrag == &gMainBar);
 
     SelectObject(hdc, GetStockObject(SYSTEM_FONT));
-    DeleteObject(fontHead);
-    DeleteObject(fontTitle);
-    DeleteObject(fontSub);
-    DeleteObject(fontBody);
 }
 
 static int VisibleDy(MainWindow* win) {
@@ -3471,7 +3465,7 @@ static bool CursorOnRail(MainWindow* win, int screenX, int screenY) {
 }
 
 void LibraryOnMouseWheel(MainWindow* win, int delta, int screenX, int screenY) {
-    int step = DpiScale(win->hwndCanvas, 90);
+    int step = DpiScale(90);
     if (CursorOnRail(win, screenX, screenY)) {
         RailScrollTo(win, gRailScrollY + (delta > 0 ? -step : step));
         return;
@@ -3480,7 +3474,7 @@ void LibraryOnMouseWheel(MainWindow* win, int delta, int screenX, int screenY) {
 }
 
 void LibraryOnVScroll(MainWindow* win, WPARAM wp) {
-    int line = DpiScale(win->hwndCanvas, 90);
+    int line = DpiScale(90);
     int page = VisibleDy(win) - line;
     int y = win->homePageScrollY;
     switch (LOWORD(wp)) {
@@ -3536,7 +3530,7 @@ static void LibraryOpenBook(MainWindow* win, Str path, int pageNo, bool audioboo
         return;
     }
     if (pageNo == 0) {
-        FileState* fs = gFileHistory.FindByPath(path);
+        FileState* fs = FileHistoryFindByPath(path);
         if (fs && fs->pageNo > 1) {
             pageNo = fs->pageNo;
         }

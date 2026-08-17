@@ -322,9 +322,7 @@ static INT_PTR CALLBACK Dialog_PartitionName_Proc(HWND hDlg, UINT msg, WPARAM wp
     if (WM_INITDIALOG == msg) {
         auto data = (Dialog_PartitionName_Data*)lp;
         SetWindowLongPtr(hDlg, GWLP_USERDATA, (LONG_PTR)data);
-        if (UseDarkModeLib()) {
-            DarkMode::setDarkWndSafe(hDlg);
-        }
+        DarkModeApplyToWindow(hDlg);
         HwndSetText(hDlg, data->title);
         HwndSetDlgItemText(hDlg, IDC_PARTITION_NAME_LABEL, data->prompt);
         HwndSetDlgItemText(hDlg, IDOK, _TRA("OK"));

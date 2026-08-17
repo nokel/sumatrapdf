@@ -7,7 +7,7 @@
 #include "base/Win.h"
 #include "base/GuessFileType.h"
 
-#include "wingui/UIModels.h"
+#include "gui/UIModels.h"
 
 #include "Settings.h"
 #include "GlobalPrefs.h"
@@ -194,7 +194,7 @@ struct PathW {
     int prefix = 0;
 
     void SetRoot(WStr root) {
-        chars.SetSize(0);
+        chars.Clear();
         prefix = 0;
         bool driveAbs = root.len >= 3 && root.s[1] == L':' && (root.s[2] == L'\\' || root.s[2] == L'/');
         if (driveAbs) {
@@ -210,7 +210,7 @@ struct PathW {
 
     int Mark() const { return chars.len; }
 
-    void Rewind(int mark) { chars.SetSize(mark); }
+    void Rewind(int mark) { chars.RemoveAt(mark, chars.len - mark); }
 
     void PushName(const WCHAR* name, int nameLen) {
         if (chars.len > 0 && chars[chars.len - 1] != L'\\') {

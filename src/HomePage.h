@@ -5,6 +5,7 @@
 
 struct MainWindow;
 struct Gfx;
+struct StaticLink;
 
 constexpr const char* kLeftTextFont = "Arial";
 constexpr int kLeftTextFontSize = 14;

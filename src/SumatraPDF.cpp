@@ -20,7 +20,6 @@
 #include "base/Archive.h"
 #include "base/Timer.h"
 #include "base/LzmaSimpleArchive.h"
-#include "base/Http.h"
 #include "base/CmdLineArgsIter.h"
 #include "AudiobookCharacters.h"
 
@@ -112,7 +111,6 @@
 #include "SelectionTranslate.h"
 #include "SelectionHandlers.h"
 #include "CommandPalette.h"
-#include "SumatraDialogs.h"
 #include "NavFilesInFolder.h"
 #include "Installer.h"
 #include "RegistryPreview.h"
@@ -850,7 +848,7 @@ void BankTabReadingTime(WindowTab* tab, bool keepReading) {
     }
     i64 now = ReadingTimeNowMs();
     if (tab->readingSince > 0 && now > tab->readingSince) {
-        FileState* fs = gFileHistory.FindByPath(tab->filePath);
+        FileState* fs = FileHistoryFindByPath(tab->filePath);
         if (fs) {
             fs->timeSpentMs += now - tab->readingSince;
             fs->lastReadAt = now;
@@ -7011,7 +7009,7 @@ static bool RelayoutFrame(MainWindow* win, bool updateToolbars, int sidebarDx) {
     if (audiobookVisible) {
         audiobookDx = win->audiobookDx;
         if (audiobookDx <= 0) {
-            audiobookDx = DpiScale(win->hwndFrame, 260);
+            audiobookDx = DpiScale(260);
         }
         audiobookDx = limitValue(audiobookDx, kSidebarMinDx, rc.dx / 2);
         win->audiobookDx = audiobookDx;
@@ -14082,13 +14080,6 @@ LRESULT CALLBACK WndProcSumatraFrame(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
                 ScheduleSquareCorners(hwnd, win);
             }
             break;
-
-        case WM_UPDATE_UI:
-            // deferred, coalesced UI update requested via ScheduleUiUpdate
-            if (win) {
-                FrameUpdateUi(win);
-            }
-            return 0;
 
         case WM_WINDOWPOSCHANGED: {
             LRESULT resPos = DefWindowProcW(hwnd, msg, wp, lp);

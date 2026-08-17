@@ -31,6 +31,7 @@
 #include "FileThumbnails.h"
 #include "Menu.h"
 #include "HomePage.h"
+#include "LibraryPage.h"
 #include "Translations.h"
 #include "Version.h"
 #include "Theme.h"
