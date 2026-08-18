@@ -225,6 +225,18 @@ To add a new advanced setting:
 - add definition in cmd/gen-settings.ts
 - run "bun cmd/gen-code.ts" (or "bun cmd/gen-settings.ts") to regenerate src/Settings.h (it also re-emits the settings docs)
 
+`gen-settings.ts` emits a **second** header from the same machinery:
+`src/LibraryData.h`, the struct behind `SumatraLibrary.txt` (see the library
+section below). Adding a field there is the same two steps; check
+`git diff --quiet src/Settings.h docs/md/Advanced-options-settings.md` afterwards,
+because both headers come out of one run.
+
+`buildStruct` only *defines* a nested struct when the field's name matches the
+struct's (`LibraryBooks` → `LibraryBook`); a field that merely names a struct
+declared elsewhere (`PropWinPos` → `Point`) refers to it. Relaxing that guard
+makes `Settings.h` emit its own `Size` and `Rect` over the ones in
+`GeoTypes.h` — name the field to fit the convention instead.
+
 ## Adding a new command
 
 To add a new command:
@@ -530,7 +542,7 @@ wired into the app.
 
 | addition | new source | commands |
 |---|---|---|
-| library start page | `src/LibraryPage.cpp` / `.h`, `src/LibraryScan.cpp` / `.h` | `CmdToggleLibraryHome` 457, `CmdLibraryRescan` 458 |
+| library start page | `src/LibraryPage.cpp` / `.h`, `src/LibraryScan.cpp` / `.h`, `src/LibraryStore.cpp` / `.h`, `src/LibraryData.h` | `CmdToggleLibraryHome` 457, `CmdLibraryRescan` 458 |
 | Chatterbox read-aloud | `src/AudiobookCharacters.cpp` / `.h` | `CmdToggleAudiobookVoices` 455, `CmdAudiobookCharacters` 456 |
 | square window corners | none — `src/SumatraPDF.cpp` only | none (unconditional) |
 
@@ -611,10 +623,53 @@ About page — the classic page with the file list hidden — repeats it bottom
 right. `src/CanvasAboutUI.cpp` handles it by turning the preference back on.
 `CmdToggleLibraryHome` still flips it from the menu.
 
+#### The index on disk (`SumatraLibrary.txt`)
+
+**The page draws from disk, not from the service.** `LoadModelThread` reads the
+index before it contacts anything, and writes it back after every successful
+fetch, so a cold start paints the last scan's books immediately and a run with
+no Python at all still shows them. The service is what *refreshes* the index,
+not what serves it. Until a scan has written one there is nothing to draw, and
+the page says *the library service is not answering* as it always did.
+
+Two files in the app data directory (`-appdata` moves them):
+
+- **`SumatraLibrary.txt`** — the index. Same SquareTree format as
+  `SumatraPDF-settings.txt` and the same code path: `src/LibraryData.h` is a
+  *second* top-level struct emitted by `cmd/gen-settings.ts`, so
+  `SerializeStruct` / `DeserializeStruct` (`base/SettingsUtil.h`) handle it with
+  nothing hand-written. `src/LibraryStore.cpp` wraps that as
+  `LibraryStoreLoad` / `Save` / `Parse` / `Serialize`.
+- **`SumatraLibraryThumbs.txt` + `.dat`** — the covers, in a
+  `base/AppendStore.h` store keyed by book id. Append-only, so a regenerated
+  cover is appended again and the later record wins on replay.
+
+`Version` is checked on load: an index written by a different version is
+discarded whole rather than half-read, so the page falls through to the service
+and the next fetch writes a fresh one. `Total` and `Documents` are stored beside
+the books because the rail prints both counts and they have to be right when the
+page draws from disk.
+
+`CoverWorker` asks the thumb store before it asks the service, and writes back
+what the service returns. Posters and desk covers are deliberately **not**
+cached: a poster comes from the web, and a desk cover is of a file that is not
+in the library yet.
+
+Only the main wall reads from disk; the desk, book detail, chapters and screen
+panes are still service-only.
+
+To test any of this without touching the user's setup, run with
+`-appdata <scratchdir>` and a settings file whose `PythonExe` names a path that
+does not exist: that fails the `file::Exists(python)` check in
+`LibraryEnsureService`, so nothing is launched and the page can only draw from
+disk. Move `SumatraLibrary.txt` aside for the negative control — the page should
+fall back to *the library service is not answering*.
+
 #### The service behind it
 
-The catalogue is not built in-process. A small local HTTP service does the
-scanning, metadata, covers and online lookups, and the page is a client:
+The catalogue is not *built* in-process. A small local HTTP service does the
+metadata, covers and online lookups, and the page is a client that caches its
+answers in the files above:
 
 ```
 python -m audiobook.library --port 7863 --parent-pid <pid> [--root <dir> ...]
@@ -635,7 +690,7 @@ Endpoints the page uses:
 | GET | `/status` | `scanning`, `scan_done`, `scan_total` (progress) |
 | GET | `/book?id=` | one book's detail: description, subjects, people, places, topics |
 | GET | `/chapters?id=` | the table of contents as a depth tree, with real page numbers |
-| GET | `/cover?id=[&desk=1]` | JPEG cover bytes; `desk=1` renders page 1 whole and never goes online |
+| GET | `/cover?id=[&desk=1]` | JPEG cover bytes; `desk=1` renders page 1 whole and never goes online. Asked only when the thumb store has no cover for that id |
 | GET | `/poster?url=&key=` | JPEG poster bytes for an adaptation |
 | GET | `/screen?id=` | film/TV adaptations of this book |
 | GET | `/wiki?q=character\|family\|knows&series=&name=\|topic=` | the lore wiki |
@@ -796,7 +851,9 @@ errors: over this library the healthy distribution is roughly 71 books at
 `art >= 0.5`, 71 between, 51 at zero. All-zero means you broke it.
 
 The result is written to `library.json` in the cache root, so the next start
-paints immediately and only a rescan pays for the walk.
+paints immediately and only a rescan pays for the walk. The app keeps its own
+copy of what it was sent in `SumatraLibrary.txt` (above) — `library.json` is the
+service's working state, `SumatraLibrary.txt` is what the page draws.
 
 **Grouping into series** happens three ways and they cooperate: the online
 lookup (`series.py`), the folder tree, and filename analysis in `learn.py`

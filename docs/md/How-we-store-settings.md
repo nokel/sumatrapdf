@@ -8,6 +8,16 @@ In portable version the file is stored in the same directory as SumatraPDF execu
 
 Starting with version 1.6 we also persist thumbnails for "Frequently read" list. They are stored in subdirectory `sumatrapdfcache` as `.png` files.
 
+When the library start page is on (`Audiobook.LibraryHome`), three more files sit beside the settings file:
+
+| file | what it holds |
+| --- | --- |
+| `SumatraLibrary.txt` | the library index — every book found, and the series they group into. Same format as the settings file |
+| `SumatraLibraryThumbs.txt` | index of the stored cover images |
+| `SumatraLibraryThumbs.dat` | the cover images themselves |
+
+The library page reads these before it asks the library service for anything, so it opens straight onto your books and still works when the service is not running. Delete them to make the page rebuild from a fresh scan; they are rebuilt automatically and hold no settings of yours.
+
 Override the directory with `-appdata <path>` on the command line — see [Installation](Installation.md).
 
 See [https://www.sumatrapdfreader.org/settings/settings](https://www.sumatrapdfreader.org/settings/settings) for information about all the settings.
