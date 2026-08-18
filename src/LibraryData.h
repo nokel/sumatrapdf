@@ -86,6 +86,11 @@ struct LibraryStore {
     // when the scan that produced this index finished, in ms since the
     // epoch
     i64 scannedAtMs;
+    // how many books the library holds, which is more than are listed when
+    // a limit was applied
+    int total;
+    // how many documents were found that are not books yet
+    int documents;
     // every book found
     Vec<LibraryBook*>* libraryBooks;
     // every series and collection they group into
@@ -169,16 +174,20 @@ static const StructInfo gLibrarySeriesInfo = {
 static const FieldInfo gLibraryStoreFields[] = {
     {offsetof(LibraryStore, version), SettingType::Int, 1},
     {offsetof(LibraryStore, scannedAtMs), SettingType::Int64, 0},
+    {offsetof(LibraryStore, total), SettingType::Int, 0},
+    {offsetof(LibraryStore, documents), SettingType::Int, 0},
     {offsetof(LibraryStore, libraryBooks), SettingType::Array, (intptr_t)&gLibraryBookInfo},
     {offsetof(LibraryStore, librarySeries), SettingType::Array, (intptr_t)&gLibrarySeriesInfo},
 };
 static const StructInfo gLibraryStoreInfo = {
     sizeof(LibraryStore),
-    4,
+    6,
     gLibraryStoreFields,
-    "Version\0ScannedAtMs\0LibraryBooks\0LibrarySeries",
+    "Version\0ScannedAtMs\0Total\0Documents\0LibraryBooks\0LibrarySeries",
     "format version; a lower one is discarded and rebuilt by a rescan\0when the scan that produced this index "
-    "finished, in ms since the epoch\0every book found\0every series and collection they group into",
+    "finished, in ms since the epoch\0how many books the library holds, which is more than are listed when a limit was "
+    "applied\0how many documents were found that are not books yet\0every book found\0every series and collection they "
+    "group into",
     false};
 
 #endif

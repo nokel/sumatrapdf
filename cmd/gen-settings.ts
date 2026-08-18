@@ -1761,6 +1761,8 @@ const librarySeries: Field[] = [
 const libraryStore: Field[] = [
   field("Version", Int, 1, "format version; a lower one is discarded and rebuilt by a rescan"),
   field("ScannedAtMs", Int64, 0, "when the scan that produced this index finished, in ms since the epoch"),
+  field("Total", Int, 0, "how many books the library holds, which is more than are listed when a limit was applied"),
+  field("Documents", Int, 0, "how many documents were found that are not books yet"),
   array("LibraryBooks", libraryBook, "every book found"),
   array("LibrarySeries", librarySeries, "every series and collection they group into").structName("LibrarySeries"),
 ];

@@ -33,7 +33,10 @@
 #include "Toolbar.h"
 #include "HomePage.h"
 #include "ImageReader.h"
+#include "AppTools.h"
 #include "LibraryScan.h"
+#include "LibraryData.h"
+#include "LibraryStore.h"
 #include "LibraryPage.h"
 #include "BookFingerprint.h"
 
@@ -1143,10 +1146,211 @@ static Str LibrarySortOrder() {
     return how;
 }
 
+// The index the page draws from lives in SumatraLibrary.txt and the covers in
+// an AppendStore beside it, so the page can be drawn before, or without, the
+// service answering. The service is only what refreshes them.
+
+static LibraryThumbs* gThumbs = nullptr;
+static bool gThumbsTried = false;
+static CRITICAL_SECTION gThumbsLock;
+static bool gThumbsLockReady = false;
+
+static void EnterThumbs() {
+    if (!gThumbsLockReady) {
+        InitializeCriticalSection(&gThumbsLock);
+        gThumbsLockReady = true;
+    }
+    EnterCriticalSection(&gThumbsLock);
+}
+
+static void LeaveThumbs() {
+    LeaveCriticalSection(&gThumbsLock);
+}
+
+static LibraryThumbs* ThumbsStore() {
+    if (!gThumbsTried) {
+        gThumbsTried = true;
+        gThumbs = LibraryThumbsOpen(Str(GetAppDataDirTemp()));
+    }
+    return gThumbs;
+}
+
+static Str ThumbRead(Str bookId) {
+    EnterThumbs();
+    LibraryThumbs* thumbs = ThumbsStore();
+    Str png = thumbs ? LibraryThumbsGet(thumbs, bookId) : Str{};
+    LeaveThumbs();
+    return png;
+}
+
+static void ThumbWrite(Str bookId, Str png) {
+    EnterThumbs();
+    LibraryThumbs* thumbs = ThumbsStore();
+    if (thumbs) {
+        LibraryThumbsPut(thumbs, bookId, png);
+    }
+    LeaveThumbs();
+}
+
+static TempStr LibraryStorePathTemp() {
+    return GetPathInAppDataDirTemp(StrL(kLibraryStoreFileName));
+}
+
+static void CopyBookFromStore(LibBook& b, LibraryBook* src) {
+    str::ReplaceWithCopy(&b.id, src->id);
+    str::ReplaceWithCopy(&b.title, src->title);
+    str::ReplaceWithCopy(&b.author, src->author);
+    str::ReplaceWithCopy(&b.series, src->series);
+    str::ReplaceWithCopy(&b.seriesKey, src->seriesKey);
+    str::ReplaceWithCopy(&b.keys, src->keys);
+    str::ReplaceWithCopy(&b.path, src->path);
+    str::ReplaceWithCopy(&b.ext, src->ext);
+    str::ReplaceWithCopy(&b.wiki, src->wiki);
+    b.pages = src->pages;
+    b.year = src->year;
+    b.volume = src->volume;
+    b.booknlp = src->bookNlp;
+    b.cover = src->cover;
+    b.nOutOf = 0;
+    for (LibraryOutOf* o : *src->libraryOutOf) {
+        if (b.nOutOf >= kMaxOutOf) {
+            break;
+        }
+        str::ReplaceWithCopy(&b.outOf[b.nOutOf].key, o->key);
+        str::ReplaceWithCopy(&b.outOf[b.nOutOf].name, o->name);
+        b.nOutOf++;
+    }
+}
+
+static void CopySeriesFromStore(LibSeries& s, LibrarySeries* src) {
+    str::ReplaceWithCopy(&s.key, src->key);
+    str::ReplaceWithCopy(&s.name, src->name);
+    str::ReplaceWithCopy(&s.author, src->author);
+    str::ReplaceWithCopy(&s.parent, src->parent);
+    str::ReplaceWithCopy(&s.wiki, src->wiki);
+    str::ReplaceWithCopy(&s.genre, src->genre);
+    str::ReplaceWithCopy(&s.sub, src->sub);
+    str::ReplaceWithCopy(&s.head, src->head);
+    str::ReplaceWithCopy(&s.subhead, src->subhead);
+    str::ReplaceWithCopy(&s.kind, src->kind);
+    str::ReplaceWithCopy(&s.guessed, src->guessed);
+    s.books = src->books;
+    s.booknlp = src->bookNlp;
+    s.facts = src->facts;
+    s.depth = src->depth;
+}
+
+// caller holds the lib lock and has already freed the model
+static bool FillModelFromStore(LibModel* m) {
+    LibraryStore* store = LibraryStoreLoad(LibraryStorePathTemp());
+    if (!store) {
+        return false;
+    }
+    for (LibraryBook* src : *store->libraryBooks) {
+        if (m->nBooks >= kMaxBooks) {
+            break;
+        }
+        CopyBookFromStore(m->books[m->nBooks], src);
+        m->nBooks++;
+    }
+    for (LibrarySeries* src : *store->librarySeries) {
+        if (m->nSeries >= kMaxSeries) {
+            break;
+        }
+        CopySeriesFromStore(m->series[m->nSeries], src);
+        m->nSeries++;
+    }
+    m->total = store->total > 0 ? store->total : m->nBooks;
+    m->documents = store->documents;
+    bool any = m->nBooks > 0;
+    LibraryStoreFree(store);
+    return any;
+}
+
+static void CopyBookToStore(LibraryBook* dst, const LibBook& b) {
+    dst->id = str::Dup(b.id);
+    dst->title = str::Dup(b.title);
+    dst->author = str::Dup(b.author);
+    dst->series = str::Dup(b.series);
+    dst->seriesKey = str::Dup(b.seriesKey);
+    dst->keys = str::Dup(b.keys);
+    dst->path = str::Dup(b.path);
+    dst->ext = str::Dup(b.ext);
+    dst->wiki = str::Dup(b.wiki);
+    dst->pages = b.pages;
+    dst->year = b.year;
+    dst->volume = b.volume;
+    dst->bookNlp = b.booknlp;
+    dst->cover = b.cover;
+    dst->libraryOutOf = new Vec<LibraryOutOf*>();
+    for (int i = 0; i < b.nOutOf; i++) {
+        auto* o = new LibraryOutOf();
+        o->key = str::Dup(b.outOf[i].key);
+        o->name = str::Dup(b.outOf[i].name);
+        dst->libraryOutOf->Append(o);
+    }
+}
+
+static void CopySeriesToStore(LibrarySeries* dst, const LibSeries& s) {
+    dst->key = str::Dup(s.key);
+    dst->name = str::Dup(s.name);
+    dst->author = str::Dup(s.author);
+    dst->parent = str::Dup(s.parent);
+    dst->wiki = str::Dup(s.wiki);
+    dst->genre = str::Dup(s.genre);
+    dst->sub = str::Dup(s.sub);
+    dst->head = str::Dup(s.head);
+    dst->subhead = str::Dup(s.subhead);
+    dst->kind = str::Dup(s.kind);
+    dst->guessed = str::Dup(s.guessed);
+    dst->books = s.books;
+    dst->bookNlp = s.booknlp;
+    dst->facts = s.facts;
+    dst->depth = s.depth;
+}
+
+// caller holds the lib lock
+static void SaveModelToStore(const LibModel* m) {
+    LibraryStore* store = LibraryStoreNew();
+    if (!store) {
+        return;
+    }
+    store->scannedAtMs = UnixTimeMsNow();
+    store->total = m->total;
+    store->documents = m->documents;
+    for (int i = 0; i < m->nBooks; i++) {
+        auto* dst = new LibraryBook();
+        CopyBookToStore(dst, m->books[i]);
+        store->libraryBooks->Append(dst);
+    }
+    for (int i = 0; i < m->nSeries; i++) {
+        auto* dst = new LibrarySeries();
+        CopySeriesToStore(dst, m->series[i]);
+        store->librarySeries->Append(dst);
+    }
+    if (!LibraryStoreSave(store, LibraryStorePathTemp())) {
+        logf("SaveModelToStore: could not write %s\n", LibraryStorePathTemp());
+    }
+    LibraryStoreFree(store);
+}
+
 static void RescanThread(LibJob* job);
 
 static void LoadModelThread(LibJob* job) {
     FreeJob(job);
+
+    // draw what the last scan found before waiting on the service, so a cold
+    // start shows the library instead of an empty page
+    EnterLib();
+    bool showStored = !gModel.loaded && gModel.nBooks == 0;
+    if (showStored) {
+        showStored = FillModelFromStore(&gModel);
+    }
+    LeaveLib();
+    if (showStored) {
+        Repaint();
+    }
+
     LibraryEnsureService();
     str::Builder path;
     path.Append("/library?limit=4096&sort=");
@@ -1160,13 +1364,20 @@ static void LoadModelThread(LibJob* job) {
         JsonParseWithVisitor(Str(parts), &p);
         RankPartitions();
     }
-    FreeModel(&gModel);
     if (len(body) > 0) {
+        FreeModel(&gModel);
         LibraryParser p(&gModel);
         JsonParseWithVisitor(Str(body), &p);
         gModel.loaded = true;
         str::FreePtr(&gModel.error);
+        SaveModelToStore(&gModel);
+    } else if (showStored) {
+        // the service is not answering but the last index is on disk, and that
+        // is what the page is already showing, so it is not an error
+        gModel.loaded = true;
+        str::FreePtr(&gModel.error);
     } else {
+        FreeModel(&gModel);
         str::ReplaceWithCopy(&gModel.error, StrL("the library service is not answering"));
     }
     gModel.loading = false;
@@ -1641,22 +1852,36 @@ static void CoverWorker(LibJob* job) {
         TempStr key = str::DupTemp(pick->key);
         LeaveLib();
 
-        HttpRsp rsp;
-        TempStr path;
-        if (str::StartsWith(key, StrL("http"))) {
-            path = fmt("/poster?url=%s&key=%s", UrlEncodeTemp(key), UrlEncodeTemp(key));
-        } else if (str::StartsWith(key, Str(kDeskCoverKey))) {
-            path = fmt("/cover?id=%s&desk=1", AfterPrefix(key, kDeskCoverKey));
-        } else {
-            path = fmt("/cover?id=%s", key);
+        // a book's cover is kept in the thumb store, so it is there on the next
+        // run whether or not the service is. A poster comes from the web and a
+        // desk cover is of a file that is not in the library yet, so neither is
+        // ours to keep.
+        bool isBook = !str::StartsWith(key, StrL("http")) && !str::StartsWith(key, Str(kDeskCoverKey));
+        Str png = isBook ? ThumbRead(key) : Str{};
+        if (len(png) == 0) {
+            HttpRsp rsp;
+            TempStr path;
+            if (str::StartsWith(key, StrL("http"))) {
+                path = fmt("/poster?url=%s&key=%s", UrlEncodeTemp(key), UrlEncodeTemp(key));
+            } else if (str::StartsWith(key, Str(kDeskCoverKey))) {
+                path = fmt("/cover?id=%s&desk=1", AfterPrefix(key, kDeskCoverKey));
+            } else {
+                path = fmt("/cover?id=%s", key);
+            }
+            if (ServiceGet(path, &rsp) && len(ToStr(rsp.data)) > 64) {
+                png = str::Dup(ToStr(rsp.data));
+                if (isBook) {
+                    ThumbWrite(key, png);
+                }
+            }
         }
-        bool ok = ServiceGet(path, &rsp);
 
         EnterLib();
         pick->fetching = false;
-        if (ok && len(ToStr(rsp.data)) > 64) {
-            pick->bytes = str::Dup(ToStr(rsp.data));
+        if (len(png) > 64) {
+            pick->bytes = png;
         } else {
+            str::Free(png);
             pick->failed = true;
         }
         LeaveLib();
@@ -1865,6 +2090,11 @@ void LibraryFreeCache() {
     gModel.filter = {};
     gModel.loaded = false;
     LeaveLib();
+    EnterThumbs();
+    LibraryThumbsClose(gThumbs);
+    gThumbs = nullptr;
+    gThumbsTried = false;
+    LeaveThumbs();
 }
 
 struct LibHit {
