@@ -91,7 +91,7 @@ const MINGW_CXX_FLAGS = ["-D__GXX_TYPEINFO_EQUALITY_INLINE=1", "-Wno-narrowing"]
 const utils: LibDef = {
   name: "base",
   alwaysOptimize: false,
-  defines: ["LIBARCHIVE_STATIC"],
+  defines: ["LIBARCHIVE_STATIC", "_7ZIP_ST"],
   includes: [
     "src",
     "ext/lzma/C",
@@ -176,9 +176,11 @@ const utils: LibDef = {
       patterns: ["Dpi_win.cpp"],
     },
     // LzSA decoder (LzmaDecode + x86 BCJ). Bra.c not needed.
+    // plus the raw LZMA2 codec BookBlob.cpp uses, single-threaded via
+    // _7ZIP_ST so LzFindMt/MtCoder/Threads are not needed.
     {
       dir: "ext/lzma/C",
-      patterns: ["LzmaDec.c", "Bra86.c"],
+      patterns: ["LzmaDec.c", "Bra86.c", "LzmaEnc.c", "LzFind.c", "Lzma2Enc.c", "Lzma2Dec.c"],
     },
   ],
 };
@@ -339,6 +341,9 @@ const sumatraFiles: FileGroup[] = [
       "CommandPaletteFilter.*",
       "FilterUtil.*",
       "WebpReader.*",
+      "BookBlob.*",
+      "BookFingerprint.*",
+      "PdfSidecar.*",
       "CrashHandler.*",
       "DisplayModel.*",
       "DocumentLayout.*",
@@ -519,6 +524,7 @@ async function buildSumatraExe(outDir: string, isRelease: boolean, archives: str
 
   const includes = [
     "src",
+    "ext/lzma/C",
     "ext/mupdf/include",
     "ext/synctex",
     "ext/djvudec",

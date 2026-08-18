@@ -22,6 +22,9 @@ CheckForUpdates = false
 RestoreSession = false
 RememberOpenedFiles = true
 HomePageViewMode = list
+Audiobook [
+	LibraryHome = false
+]
 `;
 
 type Row = { size: string; sizeRect: number[]; path: string };

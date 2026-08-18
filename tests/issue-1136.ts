@@ -36,6 +36,7 @@ function makeAppDir(name: string): string {
   writeFileSync(
     join(dir, "SumatraPDF-settings.txt"),
     `UiLanguage = en\nCheckForUpdates = false\nRestoreSession = false\nRememberOpenedFiles = true\n` +
+      `Audiobook [\n\tLibraryHome = false\n]\n` +
       `HomePageViewMode = thumbnails\nFileStates [\n${states.join("\n")}\n]\n`,
   );
   return dir;
