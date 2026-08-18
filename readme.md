@@ -56,8 +56,18 @@ characters, families and places BookNLP found in it, and the films and TV series
 adapted from it. Right-click a cover for *Open book from last page read*, *Open
 book from beginning* and *Play as Audio Book*.
 
-The pages come from a small local service (`audiobook/library`) that SumatraPDF
-starts on demand, on `Audiobook.LibraryPort` (7863).
+**Your library is kept on this machine, next to the settings file.** The books
+and series live in `SumatraLibrary.txt` and the cover art in
+`SumatraLibraryThumbs.txt` / `.dat`, both written by SumatraPDF itself. The page
+reads them before it asks anything else, so it opens on your books straight away
+instead of filling in tile by tile — and it still shows them when nothing else
+is running. Deleting the files is safe; a rescan rebuilds them.
+
+Working out *what* is in your library — the metadata, the online cover lookups,
+the series and genres — is still done by a small local service
+(`audiobook/library`) that SumatraPDF starts on demand, on
+`Audiobook.LibraryPort` (7863). It refreshes the two files above; it is not what
+the page reads.
 
 ### The Chatterbox audiobook engine
 
@@ -152,24 +162,27 @@ bun ./cmd/build.ts
 ```
 
 This produces `out/dbg64/SumatraPDF.exe`. That is the binary to run and test; it
-loads `libmupdf.dll`, which the build puts beside it. The statically linked
-target is a *different* one called `SumatraPDF-static`
+loads `libsumatrapdf.dll`, which the build puts beside it. (Through 3.6 that DLL
+was called `libmupdf.dll`; a stale copy under the old name may still be sitting
+in `out/`, and is not used.) The statically linked target is a *different* one
+called `SumatraPDF-static`
 (`vs2022/SumatraPDF-static.vcxproj`), which `build.ts` does not update, so it
 can be stale.
 
-**Generated resources.** Two files under `.work/` are compiled into the exe and
-are not in git. The built-in manual has to be produced once before the first
-build of a fresh clone, or the resource compiler stops with `RC2135: file not
-found`:
+**Generated resources.** One file under `.work/` is compiled into the exe and is
+not in git: `.work/embedded.dat`, the `IDR_EMBEDDED_PAK` resource. It has to be
+produced once before the first build of a fresh clone, or the resource compiler
+stops with `RC2135: file not found`:
 
 ```
 bun cmd/gen-docs.ts
 ```
 
-That writes `.work/manual.dat`. The other file is `.work/translations.txt`,
-which a pre-build step packs into `.work/translations.txt.lzsa`. That step
-creates an empty `translations.txt` if none is there, so the build works
-without any extra command and the UI is English-only. To fill it in:
+That packs the built-in manual, `marked.min.js`, `mermaid.min.js` and
+`.work/translations.txt` into `.work/embedded.dat` (via `cmd/pack-embedded.ts`,
+which the VS prebuild also runs). It creates an empty `translations.txt` if none
+is there, so the build works without any extra command and the UI is
+English-only. To fill it in:
 
 ```
 bun cmd/trans-dl.ts
@@ -189,7 +202,7 @@ msbuild vs2022\SumatraPDF.sln -t:SumatraPDF -p:Configuration=Debug -p:Platform=x
 ```
 
 Use `-p:Configuration=Release` for the optimized build. If the link fails with
-`LNK1104: cannot open file 'libmupdf.dll'`, a copy of SumatraPDF is still
+`LNK1104: cannot open file 'libsumatrapdf.dll'`, a copy of SumatraPDF is still
 running and holding the DLL — close it and build again.
 
 The build treats warnings as errors, so a warning fails the build.
@@ -204,9 +217,19 @@ need — `bun cmd/gen-commands.ts` or `bun cmd/gen-settings.ts` — always works
 new command goes at the *end* of the list in `cmd/gen-commands.ts`, just before
 `CmdNone`, so existing ids don't shift.
 
+`gen-settings.ts` writes two headers, not one: `src/Settings.h` for the settings
+file, and `src/LibraryData.h` for the library index (`SumatraLibrary.txt`), which
+is stored with the same SquareTree code. One run emits both, so check
+`git diff src/Settings.h docs/md/Advanced-options-settings.md` after touching the
+library structs.
+
 New source files must be registered in `premake5.files.lua`,
 `vs2022/SumatraPDF.vcxproj`, `vs2022/SumatraPDF-static.vcxproj` and both of
 their `.vcxproj.filters`. `vs2022/SumatraPDF-dll.vcxproj` no longer exists.
+Anything under `src/` also has to be listed in `cmd/helper/mingw-build.ts` — the
+Linux/Wine cross-compile keeps its own source list — or excluded there
+deliberately. `bun tests/lint-mingw-sources.ts` checks this; it runs in
+`run-almost-all` and in the Linux CI job, so a forgotten file reddens both.
 
 See `agents.md` for the rest of the house style (the `Str` type, `fmt()`,
 include order, tests).
@@ -232,11 +255,11 @@ gets you an app with a misleading name and nothing else. `SumatraPDF.exe -instal
 does the same job without the rename, and stops with *Not a valid installer* if
 the payload isn't there.
 
-The payload is embedded at compile time. A pre-build step packs `libmupdf.dll`,
-`PdfFilter.dll`, `PdfPreview.dll` and `sumatrapdf-tool.exe` into
-`out/rel64/InstallerData.dat` with `bin/MakeLZSA.exe`, and the `INSTALL_PAYLOAD_ZIP`
-define compiles that archive in as the `IDR_DLL_PAK` resource. Nothing extra
-needs to ship alongside it.
+The payload is embedded at compile time. A pre-build step packs
+`libsumatrapdf.dll`, `PdfFilter.dll`, `PdfPreview.dll` and
+`sumatrapdf-tool.exe` into `out/rel64/InstallerData.dat` with
+`bin/MakeLZSA.exe`, and the `INSTALL_PAYLOAD_ZIP` define compiles that archive
+in as the `IDR_DLL_PAK` resource. Nothing extra needs to ship alongside it.
 
 `out/rel64/SumatraPDF-install.exe` is then a self-contained installer — a byte-for-byte
 copy of the app, which is why the two files are the same size. Run it to
@@ -244,9 +267,10 @@ install normally, or `SumatraPDF-install.exe -s` to install silently. Run it
 with `-h` for the full list of installer options.
 
 **The same exe is also portable.** It no longer decides it must be the installer
-merely because `libmupdf.dll` isn't sitting next to it: `gSingleExe` is true, so
-it unpacks the DLL out of its own payload into its data folder — or into its own
-directory, if anti-virus blocks the first — and carries on as the app.
+merely because `libsumatrapdf.dll` isn't sitting next to it: `gSingleExe` is
+true, so it unpacks the DLL out of its own payload into its data folder — or
+into its own directory, if anti-virus blocks the first — and carries on as the
+app.
 Installing is something you ask for, by the filename or by `-install`, not the
 default for a lone exe. (The old behaviour is still in the tree, as
 `ForceRunningAsInstaller()` behind `!gSingleExe`.)
@@ -270,6 +294,10 @@ Other things worth knowing:
 
 * `-log-to-file <path>` writes a log; the audiobook engine keeps its own at
   `Chatterbox-TTS-Extended-main/audiobook/cache/engine.log`.
+* `-appdata <dir>` puts the settings file and the library index somewhere else,
+  which is how to try the library on a throwaway catalogue. Point `PythonExe`
+  in that settings file at a path that doesn't exist and the library service
+  can't start, so the page can only draw from `SumatraLibrary.txt`.
 * `SumatraPDF.exe -dde "[CmdName]"` fires a command at a running instance.
 * `bun cmd/run-unit-tests.ts -dbg` runs the unit tests with readable output —
   but it looks only for Visual Studio 2026 and gives up if it isn't installed.
