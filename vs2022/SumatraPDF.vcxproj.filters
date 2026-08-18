@@ -249,6 +249,9 @@
     <ClInclude Include="..\src\Installer.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\JsonVisitor.h">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\JxlReader.h">
       <Filter>src</Filter>
     </ClInclude>

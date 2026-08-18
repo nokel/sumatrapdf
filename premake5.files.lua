@@ -622,6 +622,7 @@ function sumatrapdf_files()
     "PdfSidecar.*",
     "LibraryPage.*",
     "LibraryScan.*",
+    "JsonVisitor.*",
     "Canvas.*",
     "CanvasAboutUI.*",
     "CaptionGlyphs.*",

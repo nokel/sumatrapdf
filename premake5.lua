@@ -1310,6 +1310,8 @@ workspace "SumatraPDF"
     defines { "LIBARCHIVE_STATIC" }
     includedirs { "src", "ext/mupdf/include" }
     includedirs { "ext/synctex", "ext/djvudec", "ext/chmdec", "ext/libarchive", "ext/a-zopfli", "ext/msdes" }
+    -- BookBlob.cpp compresses with the LZMA2 SDK directly
+    includedirs { "ext/lzma/C" }
     includedirs { "ext/cmark-gfm/src", "ext/cmark-gfm/extensions", "ext/mupdf/scripts/cmark-gfm" }
     includedirs { "ext/heicdec", "ext/libwebp/src", "ext/jxldec" }
 
@@ -1413,6 +1415,8 @@ workspace "SumatraPDF"
     defines { "LIBARCHIVE_STATIC" }
     includedirs { "src", "ext/mupdf/include" }
     includedirs { "ext/synctex", "ext/djvudec", "ext/chmdec", "ext/libarchive", "ext/a-zopfli", "ext/msdes" }
+    -- BookBlob.cpp compresses with the LZMA2 SDK directly
+    includedirs { "ext/lzma/C" }
     includedirs { "ext/darkmodelib/include" }
     -- headers only: webp/jxl/heic/chm/DES symbols come from libsumatrapdf.dll (libsumatrapdf.def)
     includedirs { "ext/heicdec", "ext/libwebp/src", "ext/jxldec" }
