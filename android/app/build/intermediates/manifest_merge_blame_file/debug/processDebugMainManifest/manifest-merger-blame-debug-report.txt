@@ -1,0 +1,371 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.sumatrapdf.library"
+4    android:versionCode="2"
+5    android:versionName="2.0" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="26"
+9        android:targetSdkVersion="35" />
+10
+11    <uses-permission
+11-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:4:5-5:38
+12        android:name="android.permission.READ_EXTERNAL_STORAGE"
+12-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:4:22-77
+13        android:maxSdkVersion="32" />
+13-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:5:9-35
+14    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+14-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:6:5-7:40
+14-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:6:22-79
+15    <uses-permission android:name="android.permission.INTERNET" />
+15-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:8:5-67
+15-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:8:22-64
+16
+17    <permission
+17-->[androidx.core:core:1.13.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\3f4414e7258e46b34c51e68305e2ec6f\transformed\core-1.13.1\AndroidManifest.xml:22:5-24:47
+18        android:name="com.sumatrapdf.library.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+18-->[androidx.core:core:1.13.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\3f4414e7258e46b34c51e68305e2ec6f\transformed\core-1.13.1\AndroidManifest.xml:23:9-81
+19        android:protectionLevel="signature" />
+19-->[androidx.core:core:1.13.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\3f4414e7258e46b34c51e68305e2ec6f\transformed\core-1.13.1\AndroidManifest.xml:24:9-44
+20
+21    <uses-permission android:name="com.sumatrapdf.library.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+21-->[androidx.core:core:1.13.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\3f4414e7258e46b34c51e68305e2ec6f\transformed\core-1.13.1\AndroidManifest.xml:26:5-97
+21-->[androidx.core:core:1.13.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\3f4414e7258e46b34c51e68305e2ec6f\transformed\core-1.13.1\AndroidManifest.xml:26:22-94
+22
+23    <application
+23-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:10:5-115:19
+24        android:allowBackup="true"
+24-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:11:9-35
+25        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+25-->[androidx.core:core:1.13.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\3f4414e7258e46b34c51e68305e2ec6f\transformed\core-1.13.1\AndroidManifest.xml:28:18-86
+26        android:debuggable="true"
+27        android:extractNativeLibs="false"
+28        android:label="@string/app_name"
+28-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:12:9-41
+29        android:largeHeap="true"
+29-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:13:9-33
+30        android:requestLegacyExternalStorage="true"
+30-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:15:9-52
+31        android:supportsRtl="true"
+31-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:14:9-35
+32        android:theme="@style/Theme.SumatraLibrary" >
+32-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:16:9-52
+33        <activity
+33-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:18:9-80:20
+34            android:name="com.sumatrapdf.library.MainActivity"
+34-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:19:13-41
+35            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+35-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:20:13-87
+36            android:exported="true"
+36-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:21:13-36
+37            android:label="@string/app_name"
+37-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:22:13-45
+38            android:theme="@style/Theme.SumatraCompose" >
+38-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:23:13-56
+39            <intent-filter>
+39-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:24:13-27:29
+40                <action android:name="android.intent.action.MAIN" />
+40-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:25:17-69
+40-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:25:25-66
+41
+42                <category android:name="android.intent.category.LAUNCHER" />
+42-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:26:17-77
+42-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:26:27-74
+43            </intent-filter>
+44            <intent-filter android:label="@string/app_name" >
+44-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:29:13-44:29
+44-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:29:28-60
+45                <action android:name="android.intent.action.VIEW" />
+45-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:30:17-69
+45-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:30:25-66
+46
+47                <category android:name="android.intent.category.DEFAULT" />
+47-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:31:17-76
+47-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:31:27-73
+48                <category android:name="android.intent.category.BROWSABLE" />
+48-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:32:17-78
+48-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:32:27-75
+49
+50                <data android:scheme="content" />
+50-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+50-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:23-47
+51                <data android:scheme="file" />
+51-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+51-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:23-47
+52                <data android:mimeType="application/pdf" />
+52-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+52-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+53                <data android:mimeType="application/x-pdf" />
+53-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+53-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+54                <data android:mimeType="application/oxps" />
+54-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+54-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+55                <data android:mimeType="application/vnd.ms-xpsdocument" />
+55-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+55-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+56                <data android:mimeType="application/epub+zip" />
+56-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+56-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+57                <data android:mimeType="application/x-mobipocket-ebook" />
+57-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+57-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+58                <data android:mimeType="application/x-fictionbook+xml" />
+58-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+58-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+59                <data android:mimeType="application/x-cbz" />
+59-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+59-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+60                <data android:mimeType="application/vnd.comicbook+zip" />
+60-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+60-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+61            </intent-filter>
+62            <intent-filter android:label="@string/app_name" >
+62-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:46:13-71:29
+62-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:46:28-60
+63                <action android:name="android.intent.action.VIEW" />
+63-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:30:17-69
+63-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:30:25-66
+64
+65                <category android:name="android.intent.category.DEFAULT" />
+65-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:31:17-76
+65-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:31:27-73
+66                <category android:name="android.intent.category.BROWSABLE" />
+66-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:32:17-78
+66-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:32:27-75
+67
+68                <data android:scheme="content" />
+68-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+68-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:23-47
+69                <data android:scheme="file" />
+69-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+69-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:23-47
+70                <data android:host="*" />
+70-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+70-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:52:23-39
+71                <data android:mimeType="*/*" />
+71-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+71-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+72                <data android:pathPattern=".*\\.pdf" />
+72-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+72-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+73                <data android:pathPattern=".*\\.PDF" />
+73-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+73-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+74                <data android:pathPattern=".*\\.epub" />
+74-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+74-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+75                <data android:pathPattern=".*\\.EPUB" />
+75-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+75-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+76                <data android:pathPattern=".*\\.mobi" />
+76-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+76-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+77                <data android:pathPattern=".*\\.MOBI" />
+77-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+77-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+78                <data android:pathPattern=".*\\.azw3" />
+78-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+78-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+79                <data android:pathPattern=".*\\.AZW3" />
+79-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+79-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+80                <data android:pathPattern=".*\\.fb2" />
+80-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+80-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+81                <data android:pathPattern=".*\\.FB2" />
+81-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+81-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+82                <data android:pathPattern=".*\\.cbz" />
+82-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+82-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+83                <data android:pathPattern=".*\\.CBZ" />
+83-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+83-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+84                <data android:pathPattern=".*\\.cbt" />
+84-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+84-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+85                <data android:pathPattern=".*\\.xps" />
+85-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+85-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+86                <data android:pathPattern=".*\\.XPS" />
+86-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+86-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+87                <data android:pathPattern=".*\\.oxps" />
+87-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+87-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+88                <data android:pathPattern=".*\\.svg" />
+88-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+88-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:54:23-53
+89            </intent-filter>
+90            <intent-filter android:label="@string/app_name" >
+90-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:73:13-79:29
+90-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:73:28-60
+91                <action android:name="android.intent.action.SEND" />
+91-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:74:17-69
+91-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:74:25-66
+92
+93                <category android:name="android.intent.category.DEFAULT" />
+93-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:31:17-76
+93-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:31:27-73
+94
+95                <data android:mimeType="application/pdf" />
+95-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+95-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+96                <data android:mimeType="application/epub+zip" />
+96-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+96-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+97                <data android:mimeType="application/x-cbz" />
+97-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+97-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+98            </intent-filter>
+99        </activity>
+100        <activity
+100-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:82:9-91:20
+101            android:name="com.sumatrapdf.library.LibraryActivity"
+101-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:83:13-44
+102            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+102-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:84:13-87
+103            android:exported="true"
+103-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:85:13-36
+104            android:label="@string/app_name" >
+104-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:86:13-45
+105            <intent-filter>
+105-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:24:13-27:29
+106                <action android:name="android.intent.action.MAIN" />
+106-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:25:17-69
+106-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:25:25-66
+107
+108                <category android:name="android.intent.category.LAUNCHER" />
+108-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:26:17-77
+108-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:26:27-74
+109            </intent-filter>
+110        </activity>
+111        <activity
+111-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:93:9-114:20
+112            android:name="com.sumatrapdf.library.ReaderActivity"
+112-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:94:13-43
+113            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+113-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:95:13-87
+114            android:exported="true"
+114-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:96:13-36
+115            android:label="@string/app_name" >
+115-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:97:13-45
+116            <intent-filter android:label="@string/app_name" >
+116-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:29:13-44:29
+116-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:29:28-60
+117                <action android:name="android.intent.action.VIEW" />
+117-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:30:17-69
+117-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:30:25-66
+118
+119                <category android:name="android.intent.category.DEFAULT" />
+119-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:31:17-76
+119-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:31:27-73
+120                <category android:name="android.intent.category.BROWSABLE" />
+120-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:32:17-78
+120-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:32:27-75
+121
+122                <data android:scheme="content" />
+122-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+122-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:23-47
+123                <data android:scheme="file" />
+123-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+123-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:23-47
+124                <data android:mimeType="application/pdf" />
+124-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+124-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+125                <data android:mimeType="application/x-pdf" />
+125-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+125-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+126                <data android:mimeType="application/oxps" />
+126-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+126-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+127                <data android:mimeType="application/vnd.ms-xpsdocument" />
+127-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+127-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+128                <data android:mimeType="application/epub+zip" />
+128-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+128-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+129                <data android:mimeType="application/x-mobipocket-ebook" />
+129-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+129-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+130                <data android:mimeType="application/x-fictionbook+xml" />
+130-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+130-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+131                <data android:mimeType="application/x-cbz" />
+131-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+131-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+132                <data android:mimeType="application/vnd.comicbook+zip" />
+132-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:33:17-50
+132-->C:\Users\Nokel\Documents\AI_crap\chatterbox-AI\sumatrapdf\android\app\src\main\AndroidManifest.xml:35:23-57
+133            </intent-filter>
+134        </activity>
+135
+136        <provider
+136-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Nokel\.gradle\caches\8.9\transforms\e9a4de5f87829d8e56de87ff35dfed60\transformed\emoji2-1.3.0\AndroidManifest.xml:24:9-32:20
+137            android:name="androidx.startup.InitializationProvider"
+137-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Nokel\.gradle\caches\8.9\transforms\e9a4de5f87829d8e56de87ff35dfed60\transformed\emoji2-1.3.0\AndroidManifest.xml:25:13-67
+138            android:authorities="com.sumatrapdf.library.androidx-startup"
+138-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Nokel\.gradle\caches\8.9\transforms\e9a4de5f87829d8e56de87ff35dfed60\transformed\emoji2-1.3.0\AndroidManifest.xml:26:13-68
+139            android:exported="false" >
+139-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Nokel\.gradle\caches\8.9\transforms\e9a4de5f87829d8e56de87ff35dfed60\transformed\emoji2-1.3.0\AndroidManifest.xml:27:13-37
+140            <meta-data
+140-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Nokel\.gradle\caches\8.9\transforms\e9a4de5f87829d8e56de87ff35dfed60\transformed\emoji2-1.3.0\AndroidManifest.xml:29:13-31:52
+141                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+141-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Nokel\.gradle\caches\8.9\transforms\e9a4de5f87829d8e56de87ff35dfed60\transformed\emoji2-1.3.0\AndroidManifest.xml:30:17-75
+142                android:value="androidx.startup" />
+142-->[androidx.emoji2:emoji2:1.3.0] C:\Users\Nokel\.gradle\caches\8.9\transforms\e9a4de5f87829d8e56de87ff35dfed60\transformed\emoji2-1.3.0\AndroidManifest.xml:31:17-49
+143            <meta-data
+143-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\Nokel\.gradle\caches\8.9\transforms\ef3f1b8cf943e0590111f6b7a018d36f\transformed\lifecycle-process-2.8.7\AndroidManifest.xml:29:13-31:52
+144                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+144-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\Nokel\.gradle\caches\8.9\transforms\ef3f1b8cf943e0590111f6b7a018d36f\transformed\lifecycle-process-2.8.7\AndroidManifest.xml:30:17-78
+145                android:value="androidx.startup" />
+145-->[androidx.lifecycle:lifecycle-process:2.8.7] C:\Users\Nokel\.gradle\caches\8.9\transforms\ef3f1b8cf943e0590111f6b7a018d36f\transformed\lifecycle-process-2.8.7\AndroidManifest.xml:31:17-49
+146            <meta-data
+146-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:29:13-31:52
+147                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+147-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:30:17-85
+148                android:value="androidx.startup" />
+148-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:31:17-49
+149        </provider>
+150
+151        <receiver
+151-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:34:9-52:20
+152            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+152-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:35:13-76
+153            android:directBootAware="false"
+153-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:36:13-44
+154            android:enabled="true"
+154-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:37:13-35
+155            android:exported="true"
+155-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:38:13-36
+156            android:permission="android.permission.DUMP" >
+156-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:39:13-57
+157            <intent-filter>
+157-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:40:13-42:29
+158                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+158-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:17-91
+158-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:41:25-88
+159            </intent-filter>
+160            <intent-filter>
+160-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:43:13-45:29
+161                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+161-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:17-85
+161-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:44:25-82
+162            </intent-filter>
+163            <intent-filter>
+163-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:46:13-48:29
+164                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+164-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:17-88
+164-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:47:25-85
+165            </intent-filter>
+166            <intent-filter>
+166-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:49:13-51:29
+167                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+167-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:17-95
+167-->[androidx.profileinstaller:profileinstaller:1.3.1] C:\Users\Nokel\.gradle\caches\8.9\transforms\4d07dd122260385b5a0f7c79a656e780\transformed\profileinstaller-1.3.1\AndroidManifest.xml:50:25-92
+168            </intent-filter>
+169        </receiver>
+170    </application>
+171
+172</manifest>

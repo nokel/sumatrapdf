@@ -8,6 +8,8 @@
 #include "base/BitManip.h"
 #include "gui/Dpi.h"
 #include "base/Win.h"
+#include "base/Pixmap.h"
+#include "base/GdiPlusUtil.h"
 
 #include "gui/UIModels.h"
 #include "gui/Gfx.h"
@@ -113,6 +115,14 @@ static MenuDef menuDefFile[] = {
     {
         _TRN("Save Annotations to existing PDF"),
         CmdSaveAnnotations,
+    },
+    {
+        _TRN("Insert Image..."),
+        CmdInsertImage,
+    },
+    {
+        _TRN("Sign Document..."),
+        CmdSignDocument,
     },
 //[ ACCESSKEY_ALTERNATIVE // only one of these two will be shown
 #ifdef ENABLE_SAVE_SHORTCUT
@@ -278,6 +288,10 @@ static MenuDef menuDefView[] = {
     {
         _TRN("Show &Toolbar"),
         CmdToggleToolbar,
+    },
+    {
+        _TRN("&Highlight Form Fields"),
+        CmdToggleHighlightFormFields,
     },
     {
         kMenuSeparator,
@@ -920,6 +934,10 @@ static MenuDef menuDefCreateAnnotUnderCursor[] = {
         CmdCreateAnnotImageFromClipboard,
     },
     {
+        _TRN("Image From &File..."),
+        CmdInsertImage,
+    },
+    {
         _TRN("&Caret"),
         CmdCreateAnnotCaret,
     },
@@ -1055,6 +1073,14 @@ static MenuDef menuDefDocumentOperations[] = {
     {
         _TRN("Bake PDF"),
         CmdPdfBake,
+    },
+    {
+        _TRN("Insert Image..."),
+        CmdInsertImage,
+    },
+    {
+        _TRN("Sign Document..."),
+        CmdSignDocument,
     },
     {
         _TRN("Convert to PDF..."),
@@ -1891,6 +1917,7 @@ static void MenuUpdateStateForWindow(MainWindow* win) {
     CheckMenuRadioItem(win->menu, gFirstSetThemeCmdId, gLastSetThemeCmdId, gCurrSetThemeCmdId, MF_BYCOMMAND);
 
     MenuSetChecked(win->menu, CmdToggleLinks, gGlobalPrefs->showLinks);
+    MenuSetChecked(win->menu, CmdToggleHighlightFormFields, gGlobalPrefs->highlightFormFields);
     MenuSetChecked(win->menu, CmdToggleImages, ShowImageOutlines());
     MenuSetChecked(win->menu, CmdDebugShowFitContentArea, ShowFitContentArea());
     MenuSetEnabled(win->menu, CmdTabGroupSave, HasOpenedDocuments(win));
@@ -2319,9 +2346,12 @@ void OnWindowContextMenu(MainWindow* win, int x, int y) {
             if (pageEl) {
                 RenderedBitmap* bmp = dm->GetEngine()->GetImageForPageElement(pageEl);
                 if (bmp) {
-                    CopyImageToClipboard(bmp->GetBitmap(), false);
+                    // via the Pixmap, so an image with an alpha channel reaches
+                    // the clipboard with its transparency intact (#5844, #5598)
+                    Pixmap* px = PixmapFromRenderedBitmap(bmp); // takes ownership of bmp
+                    CopyPixmapToClipboard(px, false);
+                    FreePixmap(px);
                 }
-                delete bmp;
             }
             return;
         }

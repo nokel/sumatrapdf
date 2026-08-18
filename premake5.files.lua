@@ -609,6 +609,7 @@ function sumatrapdf_files()
     "ChangeScrollbarDialog.*",
     "ChangeThemeDialog.*",
     "CustomZoomDialog.*",
+    "SignDocumentDialog.*",
     "EbookSettingsDialog.*",
     "GetPasswordDialog.*",
     "GoToPageDialog.*",
@@ -807,6 +808,8 @@ end
 
 function base_files()
   files_in_dir("src/base", {
+    "AppendStore.h",
+    "AppendStore.cpp",
     "ApiHook.*",
     "Archive.*",
     "Arena.*",
@@ -908,6 +911,7 @@ end
 function engines_files()
   files_in_dir("src", {
     "Annotation.*",
+    "PdfSign.*",
     "ChmFile.*",
     "DocProperties.*",
     "EbookDoc.*",
@@ -1057,6 +1061,7 @@ function mupdf_files()
     "load-pnm.c",
     "load-psd.c",
     "load-tiff.c",
+    "load-webp.c",
     "log.c",
     "memento.c",
     "memory.c",
@@ -1285,6 +1290,8 @@ end
 
 function test_util_files()
   files_in_dir("src/base", {
+    "AppendStore.h",
+    "AppendStore.cpp",
     "Arena.*",
     "Arena_win.cpp",
     "Base.h",
@@ -1312,6 +1319,7 @@ function test_util_files()
     "FileWatcher.cpp",
     "Geom.*",
     "GuessFileType.*",
+    "GdiPlusUtil.*",
     "HtmlTags.*",
     "JsonParser.*",
     "Log.h",
@@ -1387,6 +1395,8 @@ function test_engines_files()
     "src/GumboHtmlParser.cpp",
     "src/GumboHelpers.cpp",
     "src/JxlReader.cpp",
+    "src/LitDoc.cpp",
+    "src/LitDoc.h",
     "src/MobiDoc.cpp",
     "src/PalmDbReader.cpp",
     "src/PdfCadDetect.cpp",
@@ -1395,11 +1405,19 @@ function test_engines_files()
     "src/PdfCadEnhanceDevice.h",
     "src/PdfDarkMode.h",
     "src/PdfDarkModeNoOp.cpp",
+    "src/TextSearch.cpp",
+    "src/TextSearch.h",
+    "src/TextSelection.cpp",
+    "src/TextSelection.h",
     "src/WebpReader.cpp",
     "src/gui/UIModels.cpp",
     "src/gui/UIModels.h",
     "src/tools/test_engines.cpp",
   }
+  -- TextSelection.cpp ends in a #if DEBUG unit-test block calling utassert()
+  files_in_dir("src/base", {
+    "UtAssert.*",
+  })
 end
 
 function bench_image_files()

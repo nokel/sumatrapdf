@@ -100,6 +100,16 @@ function winver7_defines()
 
   -- v143 is the last that supports windows 7
   toolset "v143"   -- this is the official way in recent Premake versions
+
+  -- ...but only x86 / x64 need to run on Windows 7, and the v143 ARM64 tools
+  -- are not on the GitHub windows-2025-vs2026 runner image (MSB8020), which is
+  -- what the daily build hits. ARM64 never had a Windows 7 to support, so build
+  -- it with the VS 2026 toolset that is there. That toolset is v145 -- the
+  -- v180 in the MSBuild path is the targets-directory version, not a toolset
+  -- name (MSBuild\Microsoft\VC\v180\Platforms\ARM64\PlatformToolsets\v145).
+  filter "platforms:arm64"
+  toolset "v145"
+  filter {}
 end
 
 function winver_latest_defines()
@@ -928,7 +938,7 @@ workspace "SumatraPDF"
     mixed_dbg_rel_conf()
     -- for openjpeg, OPJ_STATIC is alrady defined in load-jpx.c
     -- so we can't double-define it
-    defines { "USE_JPIP", "OPJ_EXPORTS", "HAVE_LCMS2MT=1" }
+    defines { "USE_JPIP", "OPJ_EXPORTS", "HAVE_LCMS2MT=1", "HAVE_WEBP=1" }
     defines { "OPJ_STATIC", "SHARE_JPEG" }
     -- this defines which fonts are to be excluded from being included directly
     -- we exclude the very big cjk fonts
@@ -966,6 +976,7 @@ workspace "SumatraPDF"
       "ext/a-gumbo",
       "ext/a-extract",
       "ext/libarchive",
+      "ext/libwebp/src",
     }
     fonts()
 
@@ -1097,12 +1108,14 @@ workspace "SumatraPDF"
     -- every other project including them disables it too
     disablewarnings { "4100", "4838" }
     includedirs { "src", "ext/djvudec", "ext/libarchive", "ext/unrar", "ext/mupdf/include" }
-    includedirs { "ext/heicdec", "ext/libwebp/src", "ext/jxldec" }
+    includedirs { "ext/heicdec", "ext/libwebp/src", "ext/jxldec", "ext/msdes" }
     test_engines_files()
     links_zlib()
     -- static link (no libsumatrapdf.dll): same image-codec set as libsumatrapdf.dll
     links { "base", "djvudec", "libarchive", "unrar", "mupdf" }
     links { "libwebp", "dav1d", "heicdec", "jxldec", "brotli" }
+    -- LitDoc.cpp: DES decryption of DRM-free .lit sections, LZX section decompression
+    links { "msdes", "chmdec" }
     links {
       "gdiplus", "gdi32", "user32", "comctl32", "shlwapi", "Version", "wininet",
       "shcore", "wintrust", "crypt32", "shell32", "ole32", "oleAut32", "urlmon",

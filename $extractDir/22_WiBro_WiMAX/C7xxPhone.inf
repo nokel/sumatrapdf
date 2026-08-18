@@ -1,0 +1,267 @@
+;
+; File Name: C7xxPhone.inf
+; Integrated USB Driver installation file for CMC7xx based phone (WiBro and mWiMAX)
+;
+; File created on 23/11/2009
+;
+; Copyright (c) 2009 Samsung Electronics
+
+;--------- Version Section ---------------------------------------------------
+[Version]
+Signature   = "$WINDOWS NT$"
+Class	    = Net
+ClassGUID   = {4d36e972-e325-11ce-bfc1-08002be10318}
+Provider    = %Provider%
+DriverVer   = 04/14/2010, 4.02.0407
+CatalogFile = C7xxPhone.cat
+
+;--------- DestinationDirs Section -------------------------------------------
+[DestinationDirs]
+DefaultDestDir 			    = 10
+C7xxPhone_Files_Driver.ntx86 	    = 12
+C7xxPhone_Files_Driver.ntamd64.5.1  = 12
+C7xxPhone_Files_Driver.ntx86.6.0    = 12
+C7xxPhone_Files_Driver.ntamd64.6.0  = 12
+C7xxPhone_Files_Driver.ntx86.6.1    = 12
+C7xxPhone_Files_Driver.ntamd64.6.1  = 12
+
+;--------- SourceDiskNames and SourceDiskFiles Section -----------------------
+; These sections identify source disks and files for installation.
+[SourceDisksNames]
+1 = %DiskId1%,,,""
+
+[SourceDisksFiles]
+C7xPHNX3.sys   = 1,.\NT32,
+C7xPHNX6.sys   = 1,.\XP64,
+C7xPHNV3.sys   = 1,.\VT32,
+C7xPHNV6.sys   = 1,.\VT64,
+C7xPHN73.sys   = 1,.\W732,
+C7xPHN76.sys   = 1,.\W764,
+
+;--------- Manufacturer and Models Sections ----------------------------------
+[Manufacturer]
+%MfgName% = C7xxPhone_Mfg, ntamd64.5.1, ntx86.6.0, ntamd64.6.0, ntx86.6.1, ntamd64.6.1
+
+[C7xxPhone_Mfg]
+; DisplayName          Section		         DeviceId
+%VoIP_DeviceDesc%  = C7xxPhone.ntx86,	    USB\VID_04E8&PID_6840&MI_00	; Samsung SWD-V100
+%DwnLd_DeviceDesc% = C7xxPhone.ntx86,	    USB\VID_04E8&PID_68A8	; Downloader Mode
+
+[C7xxPhone_Mfg.ntamd64.5.1]
+; DisplayName          Section		         DeviceId
+%VoIP_DeviceDesc%  = C7xxPhone.ntamd64.5.1, USB\VID_04E8&PID_6840&MI_00	; Samsung SWD-V100
+%DwnLd_DeviceDesc% = C7xxPhone.ntamd64.5.1, USB\VID_04E8&PID_68A8	; Downloader Mode
+
+[C7xxPhone_Mfg.ntx86.6.0]
+; DisplayName          Section		         DeviceId
+%VoIP_DeviceDesc%  = C7xxPhone.ntx86.6.0,   USB\VID_04E8&PID_6840&MI_00	; Samsung SWD-V100
+%DwnLd_DeviceDesc% = C7xxPhone.ntx86.6.0,   USB\VID_04E8&PID_68A8	; Downloader Mode
+
+[C7xxPhone_Mfg.ntamd64.6.0]
+; DisplayName          Section                   DeviceId
+%VoIP_DeviceDesc%  = C7xxPhone.ntamd64.6.0, USB\VID_04E8&PID_6840&MI_00	; Samsung SWD-V100
+%DwnLd_DeviceDesc% = C7xxPhone.ntamd64.6.0, USB\VID_04E8&PID_68A8	; Downloader Mode
+
+[C7xxPhone_Mfg.ntx86.6.1]
+; DisplayName          Section		         DeviceId
+%VoIP_DeviceDesc%  = C7xxPhone.ntx86.6.1,   USB\VID_04E8&PID_6840&MI_00	; Samsung SWD-V100
+%DwnLd_DeviceDesc% = C7xxPhone.ntx86.6.1,   USB\VID_04E8&PID_68A8	; Downloader Mode
+
+[C7xxPhone_Mfg.ntamd64.6.1]
+; DisplayName          Section                   DeviceId
+%VoIP_DeviceDesc%  = C7xxPhone.ntamd64.6.1, USB\VID_04E8&PID_6840&MI_00	; Samsung SWD-V100
+%DwnLd_DeviceDesc% = C7xxPhone.ntamd64.6.1, USB\VID_04E8&PID_68A8	; Downloader Mode
+
+; --------- Windows XP 32 -----------------
+[C7xxPhone.ntx86]
+Characteristics = 0x84          					; NCF_HAS_UI & NCF_PHYSICAL
+BusType		= 15							; PnP bus
+CopyFiles	= C7xxPhone_Files_Driver.ntx86
+AddReg		= C7xxPhone.reg, C7xxPhone.params.reg
+
+[C7xxPhone.ntx86.Services]
+AddService = C7xxPhone, %FLG_ADDREG_NOCLOBBER%, C7xxPhone_Service.ntx86, C7xxPhone.EventLog
+
+[C7xxPhone_Service.ntx86]
+DisplayName    = %C7xxPhone_SvcDesc%
+ServiceType    = %SERVICE_KERNEL_DRIVER%
+StartType      = %SERVICE_DEMAND_START%
+ErrorControl   = %SERVICE_ERROR_NORMAL%
+ServiceBinary  = %12%\C7xPHNX3.sys
+LoadOrderGroup = NDIS
+
+[C7xxPhone_Files_Driver.ntx86]
+C7xPHNX3.sys,,,2
+
+; --------- Windows XP 64 -----------------
+[C7xxPhone.ntamd64.5.1]
+Characteristics = 0x84          					; NCF_HAS_UI & NCF_PHYSICAL
+BusType		= 15							; PnP bus
+CopyFiles	= C7xxPhone_Files_Driver.ntamd64.5.1
+AddReg		= C7xxPhone.reg, C7xxPhone.params.reg
+
+[C7xxPhone.ntamd64.5.1.Services]
+AddService = C7xxPhone, %FLG_ADDREG_NOCLOBBER%, C7xxPhone_Service.ntamd64.5.1, C7xxPhone.EventLog
+
+[C7xxPhone_Service.ntamd64.5.1]
+DisplayName    = %C7xxPhone_SvcDesc%
+ServiceType    = %SERVICE_KERNEL_DRIVER%
+StartType      = %SERVICE_DEMAND_START%
+ErrorControl   = %SERVICE_ERROR_NORMAL%
+ServiceBinary  = %12%\C7xPHNX6.sys
+LoadOrderGroup = NDIS
+
+[C7xxPhone_Files_Driver.ntamd64.5.1]
+C7xPHNX6.sys,,,2
+
+; --------- Windows Vista 32 -----------------
+[C7xxPhone.ntx86.6.0]
+Characteristics = 0x84          					; NCF_HAS_UI & NCF_PHYSICAL
+BusType		= 15							; PnP bus
+CopyFiles	= C7xxPhone_Files_Driver.ntx86.6.0
+AddReg		= C7xxPhone.reg, C7xxPhone.params.reg
+
+[C7xxPhone.ntx86.6.0.Services]
+AddService = C7xxPhone, %FLG_ADDREG_NOCLOBBER%, C7xxPhone_Service.ntx86.6.0, C7xxPhone.EventLog
+
+[C7xxPhone_Service.ntx86.6.0]
+DisplayName    = %C7xxPhone_SvcDesc%
+ServiceType    = %SERVICE_KERNEL_DRIVER%
+StartType      = %SERVICE_DEMAND_START%
+ErrorControl   = %SERVICE_ERROR_NORMAL%
+ServiceBinary  = %12%\C7xPHNV3.sys
+LoadOrderGroup = NDIS
+
+[C7xxPhone_Files_Driver.ntx86.6.0]
+C7xPHNV3.sys,,,2
+
+; --------- Windows Vista 64 -----------------
+[C7xxPhone.ntamd64.6.0]
+Characteristics = 0x84          					; NCF_HAS_UI & NCF_PHYSICAL
+BusType		= 15							; PnP bus
+CopyFiles	= C7xxPhone_Files_Driver.ntamd64.6.0
+AddReg		= C7xxPhone.reg, C7xxPhone.params.reg
+
+[C7xxPhone.ntamd64.6.0.Services]
+AddService = C7xxPhone, %FLG_ADDREG_NOCLOBBER%, C7xxPhone_Service.ntamd64.6.0, C7xxPhone.EventLog
+
+[C7xxPhone_Service.ntamd64.6.0]
+DisplayName    = %C7xxPhone_SvcDesc%
+ServiceType    = %SERVICE_KERNEL_DRIVER%
+StartType      = %SERVICE_DEMAND_START%
+ErrorControl   = %SERVICE_ERROR_NORMAL%
+ServiceBinary  = %12%\C7xPHNV6.sys
+LoadOrderGroup = NDIS
+
+[C7xxPhone_Files_Driver.ntamd64.6.0]
+C7xPHNV6.sys,,,2
+
+; --------- Windows 7 32-bit -----------------
+[C7xxPhone.ntx86.6.1]
+Characteristics = 0x84          					; NCF_HAS_UI & NCF_PHYSICAL
+BusType		= 15							; PnP bus
+CopyFiles	= C7xxPhone_Files_Driver.ntx86.6.1
+AddReg		= C7xxPhone.reg, C7xxPhone.params.reg
+
+[C7xxPhone.ntx86.6.1.Services]
+AddService = C7xxPhone, %FLG_ADDREG_NOCLOBBER%, C7xxPhone_Service.ntx86.6.1, C7xxPhone.EventLog
+
+[C7xxPhone_Service.ntx86.6.1]
+DisplayName    = %C7xxPhone_SvcDesc%
+ServiceType    = %SERVICE_KERNEL_DRIVER%
+StartType      = %SERVICE_DEMAND_START%
+ErrorControl   = %SERVICE_ERROR_NORMAL%
+ServiceBinary  = %12%\C7xPHN73.sys
+LoadOrderGroup = NDIS
+
+[C7xxPhone_Files_Driver.ntx86.6.1]
+C7xPHN73.sys,,,2
+
+; --------- Windows 7 64-bit -----------------
+[C7xxPhone.ntamd64.6.1]
+Characteristics = 0x84          					; NCF_HAS_UI & NCF_PHYSICAL
+BusType		= 15							; PnP bus
+CopyFiles	= C7xxPhone_Files_Driver.ntamd64.6.1
+AddReg		= C7xxPhone.reg, C7xxPhone.params.reg
+
+[C7xxPhone.ntamd64.6.1.Services]
+AddService = C7xxPhone, %FLG_ADDREG_NOCLOBBER%, C7xxPhone_Service.ntamd64.6.1, C7xxPhone.EventLog
+
+[C7xxPhone_Service.ntamd64.6.1]
+DisplayName    = %C7xxPhone_SvcDesc%
+ServiceType    = %SERVICE_KERNEL_DRIVER%
+StartType      = %SERVICE_DEMAND_START%
+ErrorControl   = %SERVICE_ERROR_NORMAL%
+ServiceBinary  = %12%\C7xPHN76.sys
+LoadOrderGroup = NDIS
+
+[C7xxPhone_Files_Driver.ntamd64.6.1]
+C7xPHN76.sys,,,2
+
+; --------- Registry keys --------------------
+[C7xxPhone.reg]
+HKR, Ndi, Service, 0, "C7xxPhone"
+HKR, NDI\Interfaces, UpperRange, 0, "ndis5"
+HKR, NDI\Interfaces, LowerRange, 0, "ethernet"
+
+[C7xxPhone.EventLog]
+AddReg = C7xxPhone.AddEventLog.reg
+
+[C7xxPhone.AddEventLog.reg]
+HKR, , EventMessageFile, 0x00020000, "%%SystemRoot%%\System32\netevent.dll"
+HKR, , TypesSupported,   0x00010001, 7
+
+;-------------------------------------------------------------------------------
+; Optional Custom Parameters in the Registry ("Advanced" menu).
+[C7xxPhone.params.reg]
+; Statistics interval (debug only)
+HKR, NDI\params\StatsInterval,		ParamDesc, 0, %ParamStatInt%
+HKR, NDI\params\StatsInterval,		type,      0, "int"
+HKR, NDI\params\StatsInterval,		default,   0, "10"
+HKR, NDI\params\StatsInterval,		optional,  0, "1"
+HKR, NDI\params\StatsInterval,		min,   	   0, "0"
+HKR, NDI\params\StatsInterval,		max,   	   0, "60"
+
+;--------- Strings Section ---------------------------------------------------
+[Strings]
+MfgName		  = "Samsung Electronics"
+Provider	  = "Samsung Electronics"
+C7xxPhone_SvcDesc = "Samsung CMC7xx Phone Network Driver"
+VoIP_DeviceDesc   = "Samsung USB VoIP Adapter"
+DwnLd_DeviceDesc  = "Samsung USB VoIP Adapter (Downloader Mode)"
+DeviceClassName	  = "Class for Network USB devices"
+DiskId1		  = "CMC7xx Phone Installation Disk #1"
+; Parameters
+ParamStatInt	  = "Statistics Interval"
+
+REG_SZ                      = 0x00000000
+REG_MULTI_SZ                = 0x00010000
+REG_EXPAND_SZ               = 0x00020000
+REG_BINARY                  = 0x00000001
+REG_DWORD                   = 0x00010001
+REG_NONE                    = 0x00020001
+
+SERVICE_KERNEL_DRIVER       = 0x00000001
+SERVICE_FILE_SYSTEM_DRIVER  = 0x00000002
+SERVICE_ADAPTER             = 0x00000004
+SERVICE_RECOGNIZER_DRIVER   = 0x00000008
+
+SERVICE_BOOT_START          = 0x0
+SERVICE_SYSTEM_START        = 0x1
+SERVICE_AUTO_START          = 0x2
+SERVICE_DEMAND_START        = 0x3
+SERVICE_DISABLED            = 0x4
+
+SERVICE_ERROR_IGNORE        = 0x00000000
+SERVICE_ERROR_NORMAL        = 0x00000001
+SERVICE_ERROR_SEVERE        = 0x00000002
+SERVICE_ERROR_CRITICAL      = 0x00000003
+
+FLG_ADDREG_NOCLOBBER        = 0x00000002
+FLG_ADDREG_DELVAL           = 0x00000004
+FLG_ADDREG_APPEND           = 0x00000008
+FLG_ADDREG_KEYONLY          = 0x00000010
+FLG_ADDREG_OVERWRITEONLY    = 0x00000020
+FLG_ADDREG_64BITKEY         = 0x00001000
+FLG_ADDREG_KEYONLY_COMMON   = 0x00002000
+FLG_ADDREG_32BITKEY         = 0x00004000

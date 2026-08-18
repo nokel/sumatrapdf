@@ -1,0 +1,212 @@
+;/*++
+;
+;Copyright (c) 2011 VIA Telecom., Inc.  All rights reserved.
+;
+;   THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
+;   KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+;   IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR
+;   PURPOSE.
+;
+;Module Name:
+;
+;    serial.inf
+;
+;Abstract:
+;    INF file for the via usb serial driver
+;
+;--*/
+[Version]
+Signature="$WINDOWS NT$"
+Class=Ports
+ClassGuid={4D36E978-E325-11CE-BFC1-08002BE10318}
+Provider=%Mfg%
+DriverVer=07/10/2011,2.3.14.7
+CatalogFile.NTx86   = VIA_USB_SER_x86.cat
+CatalogFile.NTamd64 = VIA_USB_SER_a64.cat
+
+; ================= Device Install section =====================
+
+[Manufacturer]
+%Mfg%=DeviceList,NTx86,NTamd64
+
+
+[SourceDisksFiles.x86]
+VIA_USB_SER.sys=1
+
+[SourceDisksFiles.amd64]
+VIA_USB_SER.sys=2
+
+
+[SourceDisksNames]
+1 = %DISK_NAME%,,,\x86
+2 = %DISK_NAME%,,,\amd64
+
+
+[DestinationDirs]
+DefaultDestDir=12
+
+; Windows 2000
+[DeviceList]
+%VIA.SS.AT%   = ViaInstall, USB\%USBID.SS%&MI_02
+%VIA.SS.Brew% = ViaInstall, USB\%USBID.SS%&MI_03
+%VIA.SS.AT%   = ViaInstall, USB\%USBID.SS.W289%&MI_02
+
+
+; Windows XP and later
+[DeviceList.NTx86]
+%VIA.SS.AT%   = ViaInstall, USB\%USBID.SS%&MI_02
+%VIA.SS.Brew% = ViaInstall, USB\%USBID.SS%&MI_03
+%VIA.SS.AT%   = ViaInstall, USB\%USBID.SS.W289%&MI_02
+
+
+; For XP and later x64
+[DeviceList.NTamd64]
+%VIA.SS.AT%   = ViaInstall, USB\%USBID.SS%&MI_02
+%VIA.SS.Brew% = ViaInstall, USB\%USBID.SS%&MI_03
+%VIA.SS.AT%   = ViaInstall, USB\%USBID.SS.W289%&MI_02
+
+;
+;-------------------U2SInstall
+;
+[U2SInstall.NT]
+CopyFiles = Common_CopyFiles
+Include=MSPORTS.INF
+Needs=SerialEnumerator.NT
+AddReg = Common_AddReg
+
+[U2SInstall.NT.Services]
+Include=MSPORTS.INF
+Needs=SerialEnumerator.NT.Services
+AddService = %VIA.SvcName%, 0x00000002, Common_AddService
+
+[U2SInstall.NT.HW]
+AddReg=Common_NT_HW_AddReg,U2SInstall.NT.HW.AddReg
+
+[U2SInstall.NT.HW.AddReg]
+HKR,,"UpperFilters",0x00010000,"serenum"
+HKR,,"MaxTransferSize",0x00010001,0x2000
+HKR,,"DataOutZeroPacketEnable",0x00010001,0x0
+HKR,,"PlatformFlag",0x00010001,0x2 ;0 - VIA 1 - BRCM 2 - USB2Serial   
+    
+;
+;-------------------ViaInstall
+;    
+[ViaInstall.NT]
+CopyFiles = Common_CopyFiles
+AddReg = Common_AddReg
+
+[ViaInstall.NT.Services]
+AddService = %VIA.SvcName%, 0x00000002, Common_AddService
+
+[ViaInstall.NT.HW]
+AddReg = Common_NT_HW_AddReg,Via_NT_HW_AddReg
+
+[Via_NT_HW_AddReg]
+HKR,,"DataOutZeroPacketEnable",0x00010001,0x0 ; Send zero packet after USB OUT
+    ; when byte count is an integer multiple of max packet size
+HKR,,"PlatformFlag",0x00010001,0x0 ;0 - VIA 1 - BRCM     
+
+;
+;-------------------AcmInstall
+;
+[AcmInstall.NT]
+CopyFiles = Common_CopyFiles
+AddReg = Common_AddReg
+
+[AcmInstall.NT.Services]
+AddService = %VIA.SvcName%, 0x00000002, Common_AddService
+
+[AcmInstall.NT.HW]
+AddReg = Common_NT_HW_AddReg,Acm_NT_HW_AddReg
+
+[Acm_NT_HW_AddReg]
+HKR,,"DataOutZeroPacketEnable",0x00010001,0x1 ; Send zero packet after USB OUT
+    ; when byte count is an integer multiple of max packet size
+HKR,,"PlatformFlag",0x00010001,0x1 ;0 - VIA 1 - BRCM     
+
+;
+;-------------------------Common Sections
+;
+[Common_CopyFiles]
+VIA_USB_SER.sys,,,0x20    ; Copy if newer
+
+;-------------- Add standard properties page (displayed in Device Manager)
+[Common_AddReg]
+HKR,,PortSubClass,1,01 ; "01" stands for serial port
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+
+[Common_AddService]
+DisplayName   = %VIA.SvcDesc%
+ServiceType   = 1                  ; SERVICE_KERNEL_DRIVER
+StartType     = 3                  ; SERVICE_DEMAND_START
+ErrorControl  = 1                  ; SERVICE_ERROR_NORMAL
+ServiceBinary = %12%\VIA_USB_SER.sys
+AddReg        = DevInstall_AddService_AddReg
+
+[DevInstall_AddService_AddReg]
+HKR, Parameters\Wdf, VerboseOn,       0x00010001, 0
+HKR, Parameters\Wdf, VerifierOn,      0x00010001, 0
+HKR, Parameters\Wdf, DbgBreakOnError, 0x00010001, 0
+
+[Common_NT_HW_AddReg]
+HKR,,"Configuration",0x00010001,0x2  ; USB configuration to use
+HKR,,"DataInterface",0x00010001,0x1  ; Data interface
+HKR,,"DataAlternateEnable",0x00010001,0x0  ; Alternate setting that enables the data interface
+HKR,,"DataAlternateDisable",0x00010001,0x0  ; Alternate setting that disables the data interface
+HKR,,"DataInEp",0x00010001,0x86      ; Data-in endpoint address in the "enable" alt setting
+HKR,,"DataOutEp",0x00010001,0x2      ; Data-out endpoint address in the "enable" alt setting
+
+HKR,,"CommInterface",0x00010001,0x0  ; Communication interface (optional)
+HKR,,"NotifyEp",0x00010001,0x84      ; Notification endpoint address (optional)
+
+HKR,,"IdleTimeout",0x00010001,0     ; Number seconds before the device goes to
+; suspend mode. Zero value indicates infinite timeout.
+
+;////////////////////////////
+HKR,,"DataInPacketsPerXfer",0x00010001,0x8 ; USB packets per single IN request
+HKR,,"DataInBuffers",0x00010001,0x80 ; Number of USB IN requests to be buffered
+
+;
+;-------------- WDF Coinstaller installation
+;
+[DestinationDirs]
+CoInstaller_CopyFiles = 11
+
+[ViaInstall.NT.CoInstallers]
+AddReg=CoInstaller_AddReg
+CopyFiles=CoInstaller_CopyFiles
+
+[CoInstaller_AddReg]
+HKR,,CoInstallers32,0x00010000, "wdfcoinstaller01009.dll,WdfCoInstaller"
+
+[CoInstaller_CopyFiles]
+wdfcoinstaller01009.dll
+
+[SourceDisksFiles.x86]
+WdfCoInstaller01009.dll = 1
+
+[SourceDisksFiles.amd64]
+WdfCoInstaller01009.dll = 2
+
+[ViaInstall.NT.Wdf]
+KmdfService = %VIA.SvcName%, cdcacm_modem_wdfsect
+
+[cdcacm_modem_wdfsect]
+KmdfLibraryVersion = 1.9
+
+[Strings]
+Mfg = "SAMSUNG Electronics Co., Ltd."
+VIA.SvcName  = "via_cdc_acm"
+VIA.SvcDesc  = "VIA Telecom USB CDC ACM driver"
+DISK_NAME = "VIA Driver Install Disk"
+BC.SER = "Broadcom USB to Serial"
+VIA.VIA.AT   = "VTC 1xEV-DO AT Port"
+VIA.VIA.PCM  = "VTC 1xEV-DO Voice Port"
+VIA.VIA.LBS  = "VTC 1xEV-DO LBS Port"
+VIA.VIA.Brew = "VTC 1xEV-DO Brew Port"
+VIA.SS.AT    = "Samsung AT Port"
+VIA.SS.PCM   = "Samsung Voice Port"
+VIA.SS.LBS   = "Samsung LBS Port"
+VIA.SS.Brew  = "Samsung Brew Port"
+USBID.SS      = "VID_04E8&PID_6775"
+USBID.SS.W289 = "VID_04E8&PID_68C2"

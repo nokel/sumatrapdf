@@ -442,16 +442,55 @@ static uint32_t GetPixmapPixelRgbKey(const Pixmap* pixmap, int x, int y) {
     return rgb & (~0x070707U);
 }
 
-static void FillPixmapWhite(Pixmap* pixmap) {
-    for (int y = 0; y < pixmap->height; y++) {
-        u8* row = pixmap->data + ((size_t)y * pixmap->stride);
-        for (int x = 0; x < pixmap->width; x++) {
-            row[(x * 4) + 0] = 255;
-            row[(x * 4) + 1] = 255;
-            row[(x * 4) + 2] = 255;
-            row[(x * 4) + 3] = 255;
+// Print and export targets have to be opaque - paper is white, and an exported
+// bitmap has nowhere to get a backdrop from - so their pages are composited onto
+// white here. Only the canvas asks for keepAlpha, because it paints the document
+// background (a colour, or the checkered pattern) before drawing the page over
+// it. mupdf's alpha is premultiplied, so over-white is c + (255 - a). (#5844)
+static Pixmap* FinishRenderedPage(Pixmap* pix, bool keepAlpha) {
+    if (!pix || keepAlpha || !pix->hasAlpha || pix->format != PixmapFormat::BGRA8 || !pix->data) {
+        return pix;
+    }
+    for (int y = 0; y < pix->height; y++) {
+        u8* d = pix->data + ((size_t)y * pix->stride);
+        for (int x = 0; x < pix->width; x++, d += 4) {
+            u8 a = d[3];
+            if (a == 255) {
+                continue;
+            }
+            if (pix->premultiplied) {
+                d[0] = (u8)std::min(255, d[0] + (255 - a));
+                d[1] = (u8)std::min(255, d[1] + (255 - a));
+                d[2] = (u8)std::min(255, d[2] + (255 - a));
+            } else {
+                d[0] = (u8)(((d[0] * a) + (255 * (255 - a))) / 255);
+                d[1] = (u8)(((d[1] * a) + (255 * (255 - a))) / 255);
+                d[2] = (u8)(((d[2] * a) + (255 * (255 - a))) / 255);
+            }
+            d[3] = 255;
         }
     }
+    pix->premultiplied = false;
+    pix->hasAlpha = false;
+    return pix;
+}
+
+// Like GetPixmapPixelBgra() but keeps the alpha instead of compositing onto
+// white, for the render path whose result is drawn over the page background.
+static void GetPixmapPixelBgraKeepAlpha(const Pixmap* pixmap, int x, int y, u8* bgra) {
+    int bpp = PixmapBytesPerPixel(pixmap->format);
+    const u8* src = pixmap->data + ((size_t)y * pixmap->stride) + ((size_t)x * bpp);
+    if (pixmap->format == PixmapFormat::RGBA8) {
+        bgra[0] = src[2];
+        bgra[1] = src[1];
+        bgra[2] = src[0];
+        bgra[3] = src[3];
+        return;
+    }
+    bgra[0] = src[0];
+    bgra[1] = src[1];
+    bgra[2] = src[2];
+    bgra[3] = pixmap->format == PixmapFormat::BGR8 ? 255 : src[3];
 }
 
 Pixmap* EngineImages::RenderPage(RenderPageArgs& args) {
@@ -475,6 +514,23 @@ Pixmap* EngineImages::RenderPage(RenderPageArgs& args) {
 
     RectF mediabox = PageMediabox(pageNo);
     RectF pageRc = pageRect ? *pageRect : mediabox;
+    // Image page space is pixels. A selection that went through CvtFromScreen
+    // comes back ~0.499px off the grid, which enlarges the dest by 1px and
+    // shifts the sample by half a pixel (issue #3434).
+    if (pageRect) {
+        pageRc.x = floorf(pageRc.x + 0.5f);
+        pageRc.y = floorf(pageRc.y + 0.5f);
+        pageRc.dx = floorf(pageRc.dx + 0.5f);
+        pageRc.dy = floorf(pageRc.dy + 0.5f);
+        if (pageRc.dx < 0) {
+            pageRc.x += pageRc.dx;
+            pageRc.dx = -pageRc.dx;
+        }
+        if (pageRc.dy < 0) {
+            pageRc.y += pageRc.dy;
+            pageRc.dy = -pageRc.dy;
+        }
+    }
     Rect screen = Transform(pageRc, pageNo, zoom, rotation).Round();
     if (screen.IsEmpty()) {
         DropPage(page, false);
@@ -518,6 +574,12 @@ Pixmap* EngineImages::RenderPage(RenderPageArgs& args) {
             fz_pixmap* final = scaled ? scaled : decoded;
             if (final) {
                 result = FzPixmapToPixmap(ctx, final);
+                // BGRA8 means the image brought an alpha channel; keep it so the
+                // canvas composites the page over the document background rather
+                // than baking in a backdrop the viewer may not want (#5844)
+                if (result) {
+                    result->hasAlpha = result->format == PixmapFormat::BGRA8;
+                }
             }
             if (scaled) {
                 fz_drop_pixmap(ctx, scaled);
@@ -527,7 +589,7 @@ Pixmap* EngineImages::RenderPage(RenderPageArgs& args) {
             }
             if (result) {
                 DropPage(page, false);
-                return result;
+                return FinishRenderedPage(result, args.keepAlpha);
             }
             // fall through to full decode on failure
         }
@@ -561,6 +623,9 @@ Pixmap* EngineImages::RenderPage(RenderPageArgs& args) {
     }
 
 #if OS_WIN
+    // read before DropPage() below, which can free page->pixmap, i.e. src
+    bool srcHasAlpha = src->format == PixmapFormat::BGRA8;
+
     // High-quality scale via GDI+ bicubic. The old per-pixel nearest-neighbor
     // path looked blocky for Pixmap-only formats (HEIC/AVIF/WebP/JXL) whenever
     // zoom != 100%. Rotation still uses the fallback below (rare for images).
@@ -571,8 +636,14 @@ Pixmap* EngineImages::RenderPage(RenderPageArgs& args) {
             if (dstBmp && dstBmp->GetLastStatus() == Gdiplus::Ok) {
                 Gdiplus::Graphics g(dstBmp);
                 g.SetInterpolationMode(Gdiplus::InterpolationModeHighQualityBicubic);
-                g.SetPixelOffsetMode(Gdiplus::PixelOffsetModeHighQuality);
-                g.Clear(Gdiplus::Color(255, 255, 255, 255));
+                // HighQuality/Half offsets samples by -0.5px, so a 1:1 or
+                // integer-scaled image lands a half-pixel off and looks
+                // fuzzy (issue #3434). None keeps the image on the pixel grid.
+                g.SetPixelOffsetMode(Gdiplus::PixelOffsetModeNone);
+                // start transparent, not white: the transparent parts of the
+                // image have to stay transparent so the canvas can put the
+                // document background behind them (#5844)
+                g.Clear(Gdiplus::Color(0, 0, 0, 0));
                 // pageRc is in page-pixel coords; screen is the zoomed dest size.
                 Gdiplus::RectF dest(0, 0, (float)screen.dx, (float)screen.dy);
                 g.DrawImage(srcBmp, dest, pageRc.x, pageRc.y, pageRc.dx, pageRc.dy, Gdiplus::UnitPixel);
@@ -581,8 +652,10 @@ Pixmap* EngineImages::RenderPage(RenderPageArgs& args) {
                 delete srcBmp;
                 DropPage(page, false);
                 if (result) {
+                    // PixmapFromGdiplus reads back as straight (not premultiplied) ARGB
                     result->premultiplied = false;
-                    return result;
+                    result->hasAlpha = srcHasAlpha;
+                    return FinishRenderedPage(result, args.keepAlpha);
                 }
             } else {
                 delete dstBmp;
@@ -598,7 +671,11 @@ Pixmap* EngineImages::RenderPage(RenderPageArgs& args) {
         DropPage(page, false);
         return nullptr;
     }
-    FillPixmapWhite(result);
+    // start fully transparent: pixels outside the media box (a rotated page
+    // doesn't fill its bounding box) and the transparent parts of the image
+    // both have to let the document background through (#5844)
+    memset(result->data, 0, (size_t)result->stride * (size_t)result->height);
+    result->hasAlpha = true;
 
     RectF mediaBox = PageMediabox(pageNo);
     for (int y = 0; y < result->height; y++) {
@@ -612,12 +689,13 @@ Pixmap* EngineImages::RenderPage(RenderPageArgs& args) {
             }
             int sx = ClampInt((int)srcPt.x, 0, src->width - 1);
             int sy = ClampInt((int)srcPt.y, 0, src->height - 1);
-            GetPixmapPixelBgra(src, sx, sy, dst);
+            GetPixmapPixelBgraKeepAlpha(src, sx, sy, dst);
             dst += 4;
         }
     }
+    result->premultiplied = src->premultiplied;
     DropPage(page, false);
-    return result;
+    return FinishRenderedPage(result, args.keepAlpha);
 }
 
 PointF EngineImages::TransformPoint(PointF pt, int pageNo, float zoom, int rotation, bool inverse) {
@@ -1042,7 +1120,7 @@ bool EngineImage::LoadSingleFile(Str path) {
         imageFormat = GuessFileTypeFromName(path);
     }
     if (imageFormat == FileType::Unknown) {
-        logfa("EngineImage::LoadSingleFile: '%s'\n", path);
+        logf("EngineImage::LoadSingleFile: '%s'\n", path);
         ReportIf(imageFormat == FileType::Unknown);
     }
 
@@ -1400,12 +1478,12 @@ static bool ImageDpiFromData(Str data, float& dpiX, float& dpiY) {
     int n = data.len;
 
     static const u8 kPngSig[8] = {137, 80, 78, 71, 13, 10, 26, 10};
-    if (n >= 8 && memeq(d, kPngSig, 8)) {
+    if (n >= 8 && MemEq(d, kPngSig, 8)) {
         int idx = 8;
         while (idx + 12 <= n) {
             u32 chunkLen = UInt32BE(d + idx);
             const u8* type = d + idx + 4;
-            if (memeq(type, "pHYs", 4) && chunkLen >= 9 && idx + 17 <= n) {
+            if (MemEq(type, "pHYs", 4) && chunkLen >= 9 && idx + 17 <= n) {
                 const u8* p = d + idx + 8;
                 u32 x = UInt32BE(p);
                 u32 y = UInt32BE(p + 4);
@@ -1417,7 +1495,7 @@ static bool ImageDpiFromData(Str data, float& dpiX, float& dpiY) {
                 }
                 return false;
             }
-            if (memeq(type, "IEND", 4)) {
+            if (MemEq(type, "IEND", 4)) {
                 break;
             }
             if (chunkLen > (u32)(n - idx)) {
@@ -1451,7 +1529,7 @@ static bool ImageDpiFromData(Str data, float& dpiX, float& dpiY) {
             if (seglen < 2 || i + seglen > n) {
                 break;
             }
-            if (marker == 0xE0 && seglen >= 16 && memeq(d + i + 2, "JFIF", 4)) {
+            if (marker == 0xE0 && seglen >= 16 && MemEq(d + i + 2, "JFIF", 4)) {
                 u8 units = d[i + 9];
                 u32 x = (u32)((d[i + 10] << 8) | d[i + 11]);
                 u32 y = (u32)((d[i + 12] << 8) | d[i + 13]);

@@ -1,0 +1,156 @@
+;*****************************************************************************
+;
+; Name:  ssecobx2.inf
+;
+; Function:
+;	Install the Samsung Mobile OBEX Interface on Win2000/XP
+;
+; Copyright (c) 1997-2008 MCCI Corporation 
+;
+; MCCI is a registered trademark of MCCI Corporation.
+;
+; NOTICE: This software is licensed, not sold.  Any modification of this
+; inf file to change the reference to an operating system or to change the
+; reference to a device is not permitted unless authorized in writing by
+; MCCI Corporation
+;
+;*****************************************************************************
+
+[Version]
+signature="$WINDOWS NT$"
+Class=Ports
+ClassGuid={4D36E978-E325-11CE-BFC1-08002BE10318}
+Provider=%Provider%
+DriverVer=01/15/2009,4.50.3.0
+CatalogFile=ssecobex.cat
+
+[ControlFlags]
+ExcludeFromSelect = *
+
+[SourceDisksNames.x86]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"ssecobex.sys",,\i386
+
+[SourceDisksNames.amd64]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"ssecobex.sys",,\amd64
+
+
+[SourceDisksFiles]
+; filename = diskid[,[ subdir][, size]]
+ssecobex.sys = 1
+sseccmnt.sys = 1
+
+;-----------------------------------------------------------------------------
+; Specify target paths...
+;-----------------------------------------------------------------------------
+
+[DestinationDirs]
+DefaultDestDir = 12                    ; system32\drivers
+
+;-----------------------------------------------------------------------------
+; Table of Contents
+;-----------------------------------------------------------------------------
+[Manufacturer]
+%Samsung%=secumts, NTamd64
+
+;-----------------------------------------------------------------------------
+; Device-by-device entries
+;-----------------------------------------------------------------------------
+[secumts]
+%secumts.Comm.Desc% = secumts.Install, USB\VID_04e8&PID_6777&Class_02&SubClass_0b&Prot_00&OS_NT
+
+[secumts.NTamd64]
+%secumts.Comm.Desc% = secumts.Install, USB\VID_04e8&PID_6777&Class_02&SubClass_0b&Prot_00&OS_NT
+
+;-----------------------------------------------------------------------------
+; Installation instructions
+;-----------------------------------------------------------------------------
+
+[secumts.Install.nt]
+AddReg		= secumts.AddReg,secumts.NT.AddReg
+CopyFiles	= CopyFiles, CopyFiles.Win2K
+
+
+;-----------------------------------------------------------------------------
+;  Registry
+;-----------------------------------------------------------------------------
+
+; common registry entries 
+[secumts.AddReg]
+HKR,,NTMPDriver,,ssecobex.sys
+HKR,,OverrideDefaultPortSettings, 0x10001, 01,00,00,00
+HKR,,InitialBaudRate, 0x10001, 00,C2,01,00			;115200``nitial baud rate
+HKR,,InitialLineControl,, "8N1"					;8-bits, No parity, 1 stop bit
+
+; only for NT...
+[secumts.NT.AddReg]
+HKR,,PortSubClass,1,01
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+
+;-----------------------------------------------------------------------------
+;  Copy lists
+;-----------------------------------------------------------------------------
+[CopyFiles]
+
+[CopyFiles.Win2K]
+ssecobex.sys
+sseccm.sys,sseccmnt.sys
+sseccmnt.sys
+
+
+
+;-----------------------------------------------------------------------------
+;  NT Services installation
+;-----------------------------------------------------------------------------
+
+
+
+[secumts.Install.NT.Services]
+AddService = ssecobex, 0x00000002, secumts.Install.AddService
+
+
+
+
+[secumts.Install.AddService]
+DisplayName	= %secumts.Service.Name%
+Description	= %secumts.Service.Desc%
+ServiceType	= 1			;%SERVICE_KERNEL_DRIVER%
+StartType	= 3			;%SERVICE_DEMAND_START%
+ErrorControl	= 1			;%SERVICE_ERROR_NORMAL%	
+ServiceBinary	= %12%\ssecobex.sys
+
+
+
+;-----------------------------------------------------------------------------
+; STRINGS
+;-----------------------------------------------------------------------------
+[Strings]
+
+;<<localize the following>>
+
+;BEGIN ENG - US English Strings
+
+Provider = "SAMSUNG Electronics Co., Ltd. "
+Samsung = "SAMSUNG Electronics Co., Ltd. "
+DiskString = "Samsung Mobile OBEX Interface installation disk"
+
+secumts.Comm.Desc = "Samsung Mobile OBEX Interface"
+secumts.Service.Name = "Samsung Mobile OBEX Interface"
+secumts.Service.Desc = "Samsung Mobile OBEX Interface"
+
+
+CustomerDataPath = "Samsung Mobile Modem Device"
+DriverSet = "Samsung Mobile Modem Device Software"
+UninstallFile = "SSECUninstall.exe"
+McciOptions = "Uninstallable"
+
+
+;END ENG - US English Strings
+
+;-----------------------------------------------------------------------------
+; The following are symbolic constants which don't change per locale.
+;-----------------------------------------------------------------------------
+
+
+;*** end of file ***

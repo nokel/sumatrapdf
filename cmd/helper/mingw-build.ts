@@ -107,6 +107,8 @@ const utils: LibDef = {
     {
       dir: "src/base",
       patterns: [
+        "AppendStore.h",
+        "AppendStore.cpp",
         "ApiHook.*",
         "Archive.*",
         "Arena.*",
@@ -244,6 +246,7 @@ const sumatraFiles: FileGroup[] = [
     dir: "src",
     patterns: [
       "Annotation.*",
+      "PdfSign.*",
       "ChmFile.*",
       "DocProperties.*",
       "EngineBase.*",
@@ -311,6 +314,7 @@ const sumatraFiles: FileGroup[] = [
       "ChangeScrollbarDialog.*",
       "ChangeThemeDialog.*",
       "CustomZoomDialog.*",
+      "SignDocumentDialog.*",
       "EbookSettingsDialog.*",
       "GetPasswordDialog.*",
       "GoToPageDialog.*",

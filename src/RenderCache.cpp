@@ -473,7 +473,7 @@ USHORT RenderCache::GetTileRes(DisplayModel* dm, int pageNo) const {
 
     USHORT res = 0;
     if (factorAvg > 1.5) {
-        res = (USHORT)ceilf(math_logf(factorAvg) / math_logf(2.0f));
+        res = (USHORT)ceilf(logf(factorAvg) / logf(2.0f));
     }
     // limit res to 30, so that (1 << res) doesn't overflow for 32-bit signed int
     return std::min(res, (USHORT)30);
@@ -507,6 +507,7 @@ bool RenderCache::ReduceTileSize() {
     } else {
         maxTileSize.dy /= 2;
     }
+    nTileSizeReductions++;
 
     // invalidate all rendered bitmaps and all requests (force-clear: PaintTile may
     // hold refs from Find(), so DropCacheEntryIfNotUsed would never make progress)
@@ -869,6 +870,30 @@ bool RenderCache::IsRenderingFor(DisplayModel* dm) {
     return false;
 }
 
+// What the render threads and the cache are doing right now, in one line. A
+// test (or a CI run) that times out waiting for a render otherwise only knows
+// "still busy", which doesn't say whether one tile is taking forever, tiles
+// keep being thrown away and rendered again, or the tiles are simply huge.
+TempStr RenderCache::BusyInfoTemp(DisplayModel* dm) {
+    ScopedRecursiveMutex scope(&requestAccess);
+    u64 now = GetTickCount64();
+    TempStr res =
+        fmt("tile=%dx%d cache=%d reduced=%d", maxTileSize.dx, maxTileSize.dy, cacheCount, nTileSizeReductions);
+    for (int i = 0; i < nRenderThreads; i++) {
+        auto* r = curReqs[i];
+        if (!r) {
+            continue;
+        }
+        u64 age = r->timestamp <= now ? now - r->timestamp : 0;
+        Str aborted = r->abort ? StrL(",abort") : Str();
+        Str otherDm = (dm && r->dm != dm) ? StrL(",other-dm") : Str();
+        TempStr one = fmt(" t%d=p%d,res%d,r%dc%d,%dms%s%s", i, r->pageNo, (int)r->tile.res, (int)r->tile.row,
+                          (int)r->tile.col, (int)age, aborted, otherDm);
+        res = str::JoinTemp(res, one);
+    }
+    return res;
+}
+
 // true if a worker is rendering a visible page of dm or one is queued.
 // Off-screen predictive work does not count: the picture the user (or a
 // test capture) sees does not wait on those.
@@ -896,9 +921,15 @@ bool RenderCache::IsBusyFor(DisplayModel* dm) {
 // true when every on-screen tile of dm is cached at the resolution Paint()
 // would ask for. A low-res preview (res 0, or a tile from another zoom) does
 // not count: that is the picture waitForWindowIdle mistakes for "done".
-bool RenderCache::VisibleTargetTilesReady(DisplayModel* dm) {
-    if (!dm || !dm->GetEngine()) {
+bool RenderCache::VisibleTargetTilesReady(DisplayModel* dm, Str* whyNot) {
+    auto no = [whyNot](TempStr reason) -> bool {
+        if (whyNot) {
+            *whyNot = str::DupTemp(reason);
+        }
         return false;
+    };
+    if (!dm || !dm->GetEngine()) {
+        return no(StrL("no-dm"));
     }
     int pageCount = dm->PageCount();
     bool anyVisible = false;
@@ -908,7 +939,7 @@ bool RenderCache::VisibleTargetTilesReady(DisplayModel* dm) {
             continue;
         }
         if (pi->pageOnScreen.IsEmpty()) {
-            return false;
+            return no(fmt("p%d no-rect", pageNo));
         }
         anyVisible = true;
         if (!dm->ShouldCacheRendering(pageNo)) {
@@ -917,7 +948,7 @@ bool RenderCache::VisibleTargetTilesReady(DisplayModel* dm) {
         int rotation = dm->GetRotation();
         float zoom = dm->GetZoomReal(pageNo);
         if (zoom <= 0) {
-            return false;
+            return no(fmt("p%d zoom=%.2f", pageNo, zoom));
         }
         USHORT targetRes = GetTileRes(dm, pageNo);
         Rect screen(Point(), dm->GetViewPort().Size());
@@ -939,7 +970,7 @@ bool RenderCache::VisibleTargetTilesReady(DisplayModel* dm) {
             if (tile.res == targetRes) {
                 sawTarget = true;
                 if (!Exists(dm, pageNo, rotation, zoom, &tile)) {
-                    return false;
+                    return no(fmt("p%d miss res=%d r%d,c%d", pageNo, (int)tile.res, (int)tile.row, (int)tile.col));
                 }
                 continue;
             }
@@ -953,10 +984,22 @@ bool RenderCache::VisibleTargetTilesReady(DisplayModel* dm) {
                 TilePosition((USHORT)(tile.res + 1), (USHORT)((tile.row * 2) + 1), (USHORT)((tile.col * 2) + 1)));
         }
         if (!sawTarget) {
-            return false;
+            return no(fmt("p%d no-tile-at-res=%d", pageNo, (int)targetRes));
         }
     }
-    return anyVisible;
+    if (!anyVisible) {
+        // No page overlaps the viewport. That is a real, settled state, not
+        // work in progress: a document with one page far wider than the rest
+        // centers the narrow ones in a canvas as wide as the widest, so
+        // scrolled to the left edge the viewport can show no page at all
+        // (issue #1438's document). There is nothing left to render, so this
+        // is idle - unless the pages have not been laid out yet, which is what
+        // an empty canvas means.
+        if (dm->GetCanvasSize().IsEmpty()) {
+            return no(StrL("no-layout"));
+        }
+    }
+    return true;
 }
 
 void RenderCache::AbortRendering(DisplayModel* dm) {
@@ -1055,6 +1098,9 @@ static DWORD WINAPI RenderCacheThread(LPVOID data) {
         EngineBase* engine = req.dm->GetEngine();
 
         RenderPageArgs args(req.pageNo, req.zoom, req.rotation, &req.pageRect, RenderTarget::View, &req.abortCookie);
+        // the canvas paints the document background before drawing the page,
+        // so a page with transparency composites over it (#5844)
+        args.keepAlpha = true;
         DarkModeProfile darkProfile;
         BuildViewDarkModeProfile(engine, &darkProfile);
         if (darkProfile.mode != PageColorMode::Normal) {
@@ -1073,7 +1119,7 @@ static DWORD WINAPI RenderCacheThread(LPVOID data) {
         auto durMs = TimeSinceInMs(timeStart);
         if (durMs > 100) {
             auto path = engine->FilePath();
-            logfa("Slow rendering: %.2f ms, page: %d in '%s'\n", (float)durMs, req.pageNo, path);
+            logf("Slow rendering: %.2f ms, page: %d in '%s'\n", (float)durMs, req.pageNo, path);
         }
 
         req.bmp = bmp;
@@ -1232,6 +1278,7 @@ int RenderCache::Paint(HDC hdc, Rect bounds, DisplayModel* dm, int pageNo, PageI
         area = dm->GetEngine()->Transform(area, pageNo, zoom, rotation, true);
 
         RenderPageArgs args(pageNo, zoom, rotation, &area);
+        args.keepAlpha = true; // see the other RenderPageArgs above (#5844)
         Pixmap* bmp = dm->GetEngine()->RenderPage(args);
         bool success = bmp && BlitPixmap(bmp, hdc, bounds);
         FreePixmap(bmp);

@@ -935,6 +935,9 @@
     <ClCompile Include="..\src\PdfSidecar.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\PdfSign.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\PdfSync.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -1026,6 +1029,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ShortcutParse.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SignDocumentDialog.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\SimpleBrowserWindow.cpp">
@@ -1130,10 +1136,16 @@
     <ClCompile Include="..\src\base\UtAssert.cpp">
       <Filter>src\base</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\base\tests\AppendStore_ut.cpp">
+      <Filter>src\base\tests</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\base\tests\Base_ut.cpp">
       <Filter>src\base\tests</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\tests\ByteReaderWriter_ut.cpp">
+      <Filter>src\base\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\base\tests\ClipboardImage_ut.cpp">
       <Filter>src\base\tests</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\tests\Crypto_ut.cpp">

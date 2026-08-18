@@ -79,8 +79,8 @@ static NO_INLINE bool MaybeMakePluginWindow(MainWindow* win, HWND hwndParent) {
     if (!hwndParent) {
         return true;
     }
-    logfa("MakePluginWindow: win: 0x%p, hwndParent: 0x%p (isWindow: %d), gPluginURL: %s\n", win, hwndParent,
-          (int)IsWindow(hwndParent), len(gPluginURL) == 0 ? "<nulL>" : gPluginURL);
+    logf("MakePluginWindow: win: 0x%p, hwndParent: 0x%p (isWindow: %d), gPluginURL: %s\n", win, hwndParent,
+         (int)IsWindow(hwndParent), len(gPluginURL) == 0 ? "<nulL>" : gPluginURL);
     ReportIf(!gPluginMode);
 
     if (!IsWindow(hwndParent)) {
@@ -1824,7 +1824,7 @@ int fz_redirect_io_to_existing_console();
 #define FZ_ENABLE_JS 1
 #define FZ_ENABLE_PDF 1
 #define FZ_ENABLE_BARCODE 0
-#define FZ_VERSION "1.27.2"
+#define FZ_VERSION "1.28.2"
 
 using MutoolFunc = int (*)(int argc, char* argv[]);
 
@@ -2236,22 +2236,6 @@ int APIENTRY WinMain(_In_ HINSTANCE /*hInstance*/, _In_opt_ HINSTANCE /*hPrevIns
     // (default policy is to disallow everything)
     InitializePolicies(flags.restrictedUse);
 
-#if defined(DEBUG)
-    if (false) {
-        Str dir = "C:\\Users\\kjk\\Downloads";
-        auto di = DirIter{dir};
-        di.recurse = true;
-        for (DirIterEntry* d : di) {
-            logf("d->filePath: '%s'\n", d->filePath);
-        }
-    }
-    if (false) {
-        TempStr exePath = GetSelfExePathTemp();
-        RunNonElevated(exePath);
-        return 0;
-    }
-#endif
-
     // in debug build, default
     if (gIsDebugBuild) {
         if (!flags.logFile) {
@@ -2514,7 +2498,7 @@ int APIENTRY WinMain(_In_ HINSTANCE /*hInstance*/, _In_opt_ HINSTANCE /*hPrevIns
     gCrashOnOpen = flags.crashOnOpen;
 
     gRenderCache->textColor = ThemePageRenderColors(gRenderCache->backgroundColor);
-    // logfa("retrieved doc colors in WinMain: 0x%x 0x%x\n", gRenderCache->textColor, gRenderCache->backgroundColor);
+    // logf("retrieved doc colors in WinMain: 0x%x 0x%x\n", gRenderCache->textColor, gRenderCache->backgroundColor);
 
     gIsStartup = true;
     if (!RegisterWinClass()) {

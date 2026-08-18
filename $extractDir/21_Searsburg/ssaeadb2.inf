@@ -1,0 +1,124 @@
+;/*++
+;
+;Abstract:
+;    Installation inf for the Android USB Bulk device
+;
+;--*/
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=USB
+ClassGuid={F72FE0D4-CBCB-407d-8814-9ED673D0DD6B}
+Provider=%Provider%
+DriverVer=02/05/2010,5.14.0.0
+CatalogFile=ssaeadb.cat
+
+; ================= Class section =====================
+
+[ClassInstall32]
+Addreg=SamsungUsbClassReg
+
+[SamsungUsbClassReg]
+HKR,,,0,%ClassName%
+HKR,,Icon,,-5
+
+[SourceDisksNames.x86]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"ssaeadb.sys",,\i386
+
+[SourceDisksNames.amd64]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"ssaeadb.sys",,\amd64
+
+[SourceDisksFiles]
+ssaeadb.sys = 1
+
+[DestinationDirs]
+DefaultDestDir = 12
+SAMSUNGAdb.NT.CopyFiles		= 12
+
+; ================= Device section =====================
+
+[Manufacturer]
+%MfgName%=SAMSUNG, NTamd64
+
+[SAMSUNG]
+%SAMSUNGAdb.Desc% = SAMSUNGAdb.Install, USB\VID_04E8&PID_6850&MI_04&OS_NT
+
+[SAMSUNG.NTamd64]
+%SAMSUNGAdb.Desc% = SAMSUNGAdb.Install, USB\VID_04E8&PID_6850&MI_04&OS_NT
+
+[SAMSUNGAdb.Install.NT]
+CopyFiles=SAMSUNGAdb.NT.CopyFiles
+
+[SAMSUNGAdb.NT.CopyFiles]
+ssaeadb.sys
+ssaeCoInstaller01005.dll
+
+[SAMSUNGAdb.Install.NT.Services]
+Addservice = androidusb, 0x00000002, SAMSUNGAdb.AddService
+
+[SAMSUNGAdb.AddService]
+DisplayName    = %SAMSUNGAdb.SvcDesc%
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 3                  ; SERVICE_DEMAND_START
+ErrorControl   = 1                  ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %10%\System32\Drivers\ssaeadb.sys
+AddReg         = SAMSUNGAdb.AddReg
+LoadOrderGroup = Base
+
+[SAMSUNGAdb.AddReg]
+HKR,"Parameters","MaximumTransferSize",0x10001,4096
+HKR,"Parameters","DebugLevel",0x10001,2
+HKR, Parameters\Wdf, VerboseOn,       0x00010001, 1
+HKR, Parameters\Wdf, VerifierOn,      0x00010001, 1
+HKR, Parameters\Wdf, DbgBreakOnError, 0x00010001, 1
+
+;-------------- WDF Coinstaller installation
+[DestinationDirs]
+CoInstaller_CopyFiles = 11
+
+[SAMSUNGAdb.Install.NT.CoInstallers]
+AddReg=CoInstaller_AddReg
+CopyFiles=CoInstaller_CopyFiles
+
+[CoInstaller_CopyFiles]
+ssaeCoInstaller01005.dll
+
+[SourceDisksFiles]
+ssaeCoInstaller01005.dll=1 ; make sure the number matches with SourceDisksNames
+
+[CoInstaller_AddReg]
+HKR,,CoInstallers32,0x00010000, "ssaecoinstaller01005.dll,WdfCoInstaller"
+
+[SAMSUNGAdb.Install.NT.Wdf]
+KmdfService = androidusb, androidusb_wdfsect
+
+[androidusb_wdfsect]
+KmdfLibraryVersion = 1.5
+
+
+;****************************************************************************
+; Localizable Strings
+;****************************************************************************
+[Strings]
+Provider = "SAMSUNG Electronics Co., Ltd. "
+MfgName = "SAMSUNG Electronics Co., Ltd. "
+DiskString = "SAMSUNG Android ADB Installation Disk"
+SAMSUNGAdb.Desc = "SAMSUNG Android ADB Interface"
+SAMSUNGAdb.SvcDesc = "SAMSUNG Android ADB Interface Driver"
+ClassName = "ADB Interface"
+
+CustomerDataPath = "SAMSUNG Android Driver"
+DriverSet = "SAMSUNG Android Driver Software"
+UninstallFile = "SSAEUninstall.exe"
+McciOptions = "Uninstallable"
+
+
+;END ENG - US English Strings
+
+;-----------------------------------------------------------------------------
+; Following are symbolic constants which don't change per locale.
+;-----------------------------------------------------------------------------
+
+;*** end of file ***

@@ -1,0 +1,130 @@
+; Samsung USB Host Driver for Windows 2000, XP Home, XP Pro
+; Copyright (c) 2002,2003,2004,2005,2006 Samsung 7.1.28.49 07-Jan-2010
+;
+
+[Version]
+Signature = "$Windows NT$"
+Class = "Wireless Communication Devices"
+ClassGuid = {4F919108-4ADF-11d5-882D-00B0D02FE381}
+Provider = %Manufacturer%
+DriverVer = 02/05/2010,7.1.30.51
+CatalogFile = ccdcmbsax64.cat
+
+[DestinationDirs]
+DefaultDestDir=10,System32\Drivers
+WMCClassInstallerCopyFiles=10,System32
+DLLCopyFiles=10,System32
+DriverCopyFiles=10,System32\Drivers
+CoInstaller_CopyFiles = 11
+
+; ================= Class section =====================
+
+[ClassInstall32]
+CopyFiles=WMCClassInstallerCopyFiles
+AddReg=WMCClassReg
+
+[WMCClassReg]
+HKR,,,0,%WMCClassName%
+HKR,,Icon,,100
+HKR,,Installer32,,"nmwcdclsx64.dll,WMCClassInstaller"
+
+[WMCClassInstallerCopyFiles]
+nmwcdclsx64.dll
+
+
+;*****************************************
+; Device Install Section
+;*****************************************
+
+[Manufacturer]
+%Manufacturer% = DeviceList, NTamd64
+
+[ControlFlags]
+ExcludeFromSelect=*
+
+[DeviceList.NTamd64]
+%SamsungSymbianS60Phone1%=DriverInstall,USB\VID_04E8&PID_6651
+%SamsungSymbianS60Phone2%=DriverInstall,USB\VID_04E8&PID_6711
+%SamsungSymbianS60Phone3%=DriverInstall,USB\VID_04E8&PID_6721
+
+
+
+;------------------------------------------------------------------------------
+;  Windows AMD64 Sections
+;------------------------------------------------------------------------------
+
+
+[DriverInstall.NTamd64]
+CopyFiles=DriverCopyFiles,DLLCopyFiles
+AddReg = CoInstaller_AddReg
+
+
+
+[DriverInstall.NTamd64.CoInstallers]
+AddReg=CoInstaller_AddReg
+CopyFiles=CoInstaller_CopyFiles
+
+[CoInstaller_CopyFiles]
+wdfcoinstaller01009.dll
+
+[DriverInstall.NTamd64.Wdf]
+KmdfService = %ServiceName%, ccdcmb_wdfsect
+
+[ccdcmb_wdfsect]
+KmdfLibraryVersion = 1.9
+
+[DriverInstall.NTamd64.Services]
+AddService = %ServiceName%, 0x00000002, DriverService
+
+
+
+
+
+;the "2" means that this service will be the function driver for the device.
+
+[DriverService]
+DisplayName   = %ServiceDisplayName%
+ServiceType   = 1	;Kernel mode driver
+StartType     = 3	;Demand-loaded by the PnP Manager
+ErrorControl  = 1	;Errors that occur during loading should be logged, but should not by themselves prevent the system from starting:
+ServiceBinary = %10%\system32\drivers\ccdcmbsax64.sys
+LoadOrderGroup = Extended Base
+
+
+[CoInstaller_AddReg]
+HKLM,System\CurrentControlSet\Control\CoDeviceInstallers,{4D36E978-E325-11CE-BFC1-08002BE10318},0x00010008, "nmwcdcoclsx64.dll,WMCCoClassInstaller"
+HKR,,CoInstallers32,0x00010000, "wdfcoinstaller01009.dll,WdfCoInstaller"
+
+
+
+[DriverCopyFiles]
+ccdcmbsax64.sys
+
+[DLLCopyFiles]
+
+[SourceDisksNames]
+1=%DISKNAME%,,,
+
+[SourceDisksFiles]
+ccdcmbsax64.sys=1
+nmwcdclsx64.dll=1
+wdfcoinstaller01009.dll=1
+
+
+;------------------------------------------------------------------------------
+;  String Definitions
+;------------------------------------------------------------------------------
+
+[Strings]
+WMCClassName = "Wireless Communication Devices"
+Manufacturer = "Samsung"
+SamsungPhone="Samsung Phone USB Phone Parent"
+SamsungSymbianS60Phone1="Samsung Symbian S60 Phone USB Phone Parent"
+SamsungSymbianS60Phone2="Samsung Symbian S60 Phone USB Phone Parent"
+SamsungSymbianS60Phone3="Samsung Symbian S60 Phone USB Phone Parent"
+
+
+
+ServiceName = "nmwcdsax64"
+ServiceDisplayName = "Samsung USB Phone Parent"
+DISKNAME = "Samsung USB Installation Disk"

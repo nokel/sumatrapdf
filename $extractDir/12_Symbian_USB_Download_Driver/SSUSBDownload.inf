@@ -1,0 +1,115 @@
+;*********************************************************************************************
+;
+; Name		: SSUSBDownload.inf
+;
+; Function	: Install USB Downloader Driver on Windows 2000/XP/VISTA
+;
+; Copyright (c) DevGuru
+;
+;*********************************************************************************************
+
+[Version]
+Signature="$CHICAGO$"
+Class=USB
+ClassGUID={36FC9E60-C465-11CF-8056-444553540000}
+provider=%Provider%
+DriverVer=07/29/2008,1.1.807.29178
+CatalogFile=SSUSBDownload.cat
+
+[ControlFlags]
+ExcludeFromSelect = *
+
+;-----------------------------------------------------------------------------
+; Source Disk Name
+;-----------------------------------------------------------------------------
+[SourceDisksNames.x86]
+1 = %DiskString%,,,\i386
+
+[SourceDisksNames.amd64]
+1 = %DiskString%,,,\amd64
+
+[SourceDisksNames.ia64]
+1 = %DiskString%,,,\ia64
+
+[SourceDisksFiles]
+SSUSBDownload.sys = 1
+
+;-----------------------------------------------------------------------------
+; Specify target paths...
+;-----------------------------------------------------------------------------
+
+[DestinationDirs]
+DefaultDestDir  = 11             	; system32\drivers
+SSUSBDownload.Files.Ext = 12
+
+;-----------------------------------------------------------------------------
+; Table of Contents
+;-----------------------------------------------------------------------------
+[Manufacturer]
+%PRIMERA% = PRIMERA, NTx86, NTamd64, NTia64
+
+[PRIMERA]
+%USB\VID_04E8&PID_6765.DeviceDesc%=SSUSBDownload.Install, USB\VID_04E8&PID_6765
+
+
+[PRIMERA.NTx86]
+%USB\VID_04E8&PID_6765.DeviceDesc%=SSUSBDownload.Install, USB\VID_04E8&PID_6765
+
+[PRIMERA.NTamd64]
+%USB\VID_04E8&PID_6765.DeviceDesc%=SSUSBDownload.Install, USB\VID_04E8&PID_6765
+
+[PRIMERA.NTia64]
+%USB\VID_04E8&PID_6765.DeviceDesc%=SSUSBDownload.Install, USB\VID_04E8&PID_6765
+
+;-----------------------------------------------------------------------------
+; Installation instructions
+;-----------------------------------------------------------------------------
+[SSUSBDownload.Install.NT]
+CopyFiles=SSUSBDownload.Files.Ext
+AddReg=SSUSBDownload.AddReg
+
+;-----------------------------------------------------------------------------
+;  Registry
+;-----------------------------------------------------------------------------
+[SSUSBDownload.AddReg]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,SSUSBDownload.sys
+
+
+;-----------------------------------------------------------------------------
+;  NT Services installation
+;-----------------------------------------------------------------------------
+[SSUSBDownload.Install.NT.Services]
+Addservice = SSUSBDownload, 0x00000002, SSUSBDownload.AddService
+
+[SSUSBDownload.AddService]
+DisplayName    = %SSUSBDownload.SvcName%
+Description		 = %SSUSBDownload.SvcDesc%
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 3                  ; SERVICE_DEMAND_START
+ErrorControl   = 1                  ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\SSUSBDownload.sys
+LoadOrderGroup = Base
+
+;-----------------------------------------------------------------------------
+;  Copy lists
+;-----------------------------------------------------------------------------
+[SSUSBDownload.Files.Ext]
+SSUSBDownload.sys
+
+
+;-----------------------------------------------------------------------------
+; STRINGS
+;-----------------------------------------------------------------------------
+[Strings]
+Provider   		= "SAMSUNG Electronics Co., Ltd"
+PRIMERA       = "SAMSUNG SYMBIAN USB Downloader Driver"
+
+DiskString = "USB Download Driver installation disk"
+
+USB\VID_04E8&PID_6765.DeviceDesc="SAMSUNG SYMBIAN USB Downloader Driver"
+
+SSUSBDownload.SvcName="SAMSUNG SYMBIAN USB Downloader Driver"
+SSUSBDownload.SvcDesc="SAMSUNG SYMBIAN USB Downloader Driver"
+
+

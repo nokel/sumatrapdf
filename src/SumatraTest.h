@@ -24,3 +24,9 @@ TempStr DestZoomNavResultTemp(int destNo, int startZoomPerc, int* exitCodeOut = 
 TempStr MarkdownTocNavigateResultTemp(int destNo, int minScrollY, int* exitCodeOut = nullptr);
 TempStr MarkdownFollowLinkResultTemp(Str href, bool follow, int* exitCodeOut = nullptr);
 TempStr CadEnhanceColorsResultTemp(Str path, int pageNo, int zoomPercent, int* exitCodeOut = nullptr);
+TempStr ImageRenderEdgesResultTemp(Str path, int zoomPercent, int clipKind, int* exitCodeOut = nullptr);
+TempStr ImageInsertResultTemp(Str pdfPath, Str imagePath, int* exitCodeOut = nullptr);
+TempStr PageRenderColorsResultTemp(Str path, int* exitCodeOut = nullptr);
+TempStr ListSigningCertsResultTemp(int* exitCodeOut = nullptr);
+TempStr SignDocumentResultTemp(Str pdfPath, Str destPath, Str thumbprint, Str certPath, Str certPassword,
+                               Str imagePath = {}, int appearanceFlags = -1, int* exitCodeOut = nullptr);

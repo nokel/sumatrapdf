@@ -1,0 +1,174 @@
+; ==============================================================
+; +++++++++++++++++ Copyright Notification +++++++++++++++++++++
+; ==============================================================
+; VIA Telecom ETS Setup File
+; Copyright (c) 2004-2006 VIA Telecommunications
+; Manufacturer: VIA Telecom
+
+
+; ==============================================================
+; ================= Version/Class Sections =====================
+; ==============================================================
+[Version]
+CatalogFile = ViaTelecomFile.cat
+DriverVer   = 06/14/2008,2.0.13
+Signature   = "$CHICAGO$"
+Provider    = %SAMSUNG%
+Class       = USB
+ClassGUID   = {36FC9E60-C465-11CF-8056-444553540000} 
+
+
+; ==============================================================
+; =================== Table of Contents ========================
+; ==============================================================
+[Manufacturer]
+%VIATelecom% = DeviceList,NTia64,NTamd64
+
+
+; ==============================================================
+; ================= Control Flags Sections =====================
+; ==============================================================
+[ControlFlags]
+ExcludeFromSelect = USB\VID_15eb&PID_0001&MI_01
+ExcludeFromSelect = USB\VID_04E8&PID_6755&MI_01
+
+
+; ==============================================================
+; ================== Driver/Device Sections ====================
+; ==============================================================
+;[VIATelecom]        ; Device ID match
+;%VIA_USB_ETS_DEVICE% = DriverInstall, USB\VID_0421&PID_0162&MI_01;USB\VID_15EB&PID_0001&MI_01 ; ETS
+
+[DeviceList]
+%VIATelecomEts% = DriverInstall, USB\VID_15eb&PID_0001&MI_01
+%SAMSUNGEts% = DriverInstall, USB\VID_04E8&PID_6755&MI_01;USB\VID_15EB&PID_0001&MI_01 ; ETS
+
+[DeviceList.NTia64]
+%VIATelecomEts% = DriverInstall, USB\VID_15eb&PID_0001&MI_01
+%SAMSUNGEts% = DriverInstall, USB\VID_04E8&PID_6755&MI_01;USB\VID_15EB&PID_0001&MI_01 ; ETS
+
+[DeviceList.NTamd64]
+%VIATelecomEts% = DriverInstall, USB\VID_15eb&PID_0001&MI_01
+%SAMSUNGEts% = DriverInstall, USB\VID_04E8&PID_6755&MI_01;USB\VID_15EB&PID_0001&MI_01 ; ETS
+; =========================================================
+; ---------------- Windows 98/ME Sections -----------------
+; =========================================================
+;[DriverInstall]
+;CopyFiles = DrvFiles, CoInstaller
+;AddReg    = DriverAddReg, DeviceAddReg, PowerPropPageAddReg
+
+
+; ==============================================================
+; ---------------- Windows 2000 & XP Sections ------------------
+; ==============================================================
+[DriverInstall.NT]
+CopyFiles = DrvFiles
+AddReg    = DriverAddReg
+
+;[DriverInstall.NT.CoInstallers]
+;CopyFiles = CoInstaller
+;AddReg    = PowerPropPageAddReg
+
+[DriverInstall.NT.HW]        ; Reference to put ChildID key in hardware devnode
+AddReg = DeviceAddReg
+
+
+; ==============================================================
+; =================== Copy Files Section =======================
+; ==============================================================
+[DestinationDirs]
+;DrvFiles    = 10,System32\Drivers	; \Windows\System32\drivers 
+;CoInstaller = 11					; \Windows\System32
+;SysFiles   = 11					; \Windows\System32
+DrvFiles   = 12					; \Windows\System32\drivers 
+
+[DrvFiles]
+ViaUsbEts.sys,,,0x2
+
+;[CoInstaller]
+;samclass.dll,,,2
+
+[SourceDisksFiles]
+ViaUsbEts.sys = 1,,	
+;samclass.dll = 1,,
+
+[SourceDisksNames]
+1 = %SOURCE_DISKS_NAMES%
+
+
+; ==============================================================
+; ===================== Pre-Copy Section =======================
+; ==============================================================
+;[PreCopySection]
+;HKR,,NoSetupUI,,1
+
+
+; ==============================================================
+; =============== Services Description Sections ================
+; ==============================================================
+[DriverInstall.NT.Services]
+;DelService = ViaUsbEtsDriver, 0x00000204 
+AddService = ViaUsbEtsDriver, 0x00000002, DriverService
+;AddService = ViaUsbEtsDriver, 0x0000013A, DriverService
+
+
+[DriverService]
+DisplayName   = %DESCRIPTION%
+ServiceType   = %SERVICE_KERNEL_DRIVER%
+StartType     = %SERVICE_DEMAND_START%
+ErrorControl  = %SERVICE_ERROR_NORMAL%
+ServiceBinary = %10%\system32\drivers\ViaUsbEts.sys
+
+
+; ==============================================================
+; ================= Common AddReg Sections =====================
+; ==============================================================
+; Property providers can be registered for a specific device by 
+; using the following addreg entry in the device install section. 
+; Doing this makes HKR relative to the driver section and thus 
+; is invoked only for the specific device. 
+
+;[PowerPropPageAddReg]
+;HKR,,EnumPropPages32,,samclass.dll
+;HKR,,Icon,,101
+
+
+; ==============================================================
+; --------------------- Registry Sections ----------------------
+; ==============================================================
+[DriverAddReg]
+HKR,,,,VIA
+HKR,,Icon,,-5
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,ViaUsbEts.sys
+
+[DeviceAddReg]
+;HKR,,"DebugEnable", 0x10001, 1
+;HKR,,"DebugLevel", 0x10001, 0x00000000
+;HKR,,"DebugAreas", 0x10001, 0x00000000
+;HKR,,"DebugPrintingEnable", 0x10001, 1
+;HKR,,"SelectSuspendEnable", 0x10001, 1
+;HKR,,"PowerConservationIdleTimeout", 0x10001, 0
+;HKR,,"PerformanceIdleTimeout", 0x10001, 0
+;HKR,,"SerialNumber", 0x10001, 32
+
+;[ServiceAddReg]
+;HKR,"Parameters","LastSerialNumberUsed", 0x10001, 
+;HKR,"Parameters","MaxSerialNumber", 0x10001, 
+;HKR,"Parameters","SerialNumbersUsed", 0x10001, 
+
+
+; ==============================================================
+; =================== Strings Sections =========================
+; ==============================================================
+[Strings]
+VIATelecom            = "SAMSUNG Inc"
+DESCRIPTION           = "SAMSUNG Ets Device Driver"
+VIA_USB_ETS_DEVICE    = "SAMSUNG Ets Device" 
+SAMSUNG                 = "SAMSUNG Inc"   
+SOURCE_DISKS_NAMES    = "VIA Telecom\\VIA CBP USB Driver"
+SERVICE_KERNEL_DRIVER = 1
+SERVICE_DEMAND_START  = 3
+SERVICE_ERROR_NORMAL  = 1
+SAMSUNGEts = "SAMSUNG Ets Device"
+VIATelecomEts = "VIA Telecom USB ETS"

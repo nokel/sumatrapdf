@@ -1,5 +1,6 @@
 import { Socket, createConnection } from "node:net";
 import { killAndWait, testWindowPos } from "./winapi.ts";
+import { SLOW_BUILD_FACTOR } from "./util.ts";
 
 export enum ControlCommand {
   Ping = 1,
@@ -48,9 +49,26 @@ export enum ControlCommand {
   TestFindPageRange = 52,
   TestDocumentFontList = 53,
   WaitRenderIdle = 54,
+  SetNotificationsEnabled = 55,
+  TestHomeSelection = 56,
+  TestImageRenderEdges = 57,
+  TestInsertImage = 58,
+  TestRenderPageColors = 59,
+  TestListSigningCerts = 60,
+  TestSignDocument = 61,
 }
 
 export type ControlArg = number | string | Uint8Array | ControlArg[];
+
+export type HomeSelection = {
+  ready: boolean;
+  sel: number;
+  entries: number;
+  searchFocus: boolean;
+  searchBox: boolean;
+  path: string;
+  raw: string;
+};
 
 const enum ArgType {
   End = 0,
@@ -276,7 +294,7 @@ export class ControlClient {
 
   constructor(readonly socket: Socket) {}
 
-  static async connect(pipeName: string, timeoutMs = 10000): Promise<ControlClient> {
+  static async connect(pipeName: string, timeoutMs = 10000 * SLOW_BUILD_FACTOR): Promise<ControlClient> {
     const path = pipePath(pipeName);
     const deadline = Date.now() + timeoutMs;
     let lastErr: unknown;
@@ -326,13 +344,50 @@ export class ControlClient {
   // see — not the low-res preview Paint() blits while tiles are still coming.
   // timeoutMs is forwarded to the app (default 15s there too).
   async waitForRenderIdle(timeoutMs = 15000): Promise<string> {
-    const res = await this.request(ControlCommand.WaitRenderIdle, [timeoutMs]);
+    // scaled, so a test that asks for "30s" gets 30s of debug-build rendering
+    const res = await this.request(ControlCommand.WaitRenderIdle, [timeoutMs * SLOW_BUILD_FACTOR]);
     const code = typeof res[0] === "number" ? res[0] : -1;
     const info = String(res[1] ?? "");
     if (code !== 0) {
       throw new Error(`WaitRenderIdle failed: ${info || code}`);
     }
     return info;
+  }
+
+  // What the home page's keyboard navigation is doing: the selected entry, how
+  // many entries the search box currently leaves, and whether it has the focus.
+  // Wait on this after sending a key rather than sleeping.
+  async homeSelection(): Promise<HomeSelection> {
+    const res = await this.request(ControlCommand.TestHomeSelection, []);
+    const code = typeof res[0] === "number" ? res[0] : -1;
+    const raw = String(res[1] ?? "").trim();
+    if (code !== 0) {
+      return { ready: false, sel: -1, entries: 0, searchFocus: false, searchBox: false, path: "", raw };
+    }
+    const m = /OK sel=(-?\d+) entries=(\d+) searchFocus=(\d) searchBox=(\d) path=(.*)$/.exec(raw);
+    if (!m) {
+      throw new Error(`homeSelection: could not parse '${raw}'`);
+    }
+    return {
+      ready: true,
+      sel: parseInt(m[1], 10),
+      entries: parseInt(m[2], 10),
+      searchFocus: m[3] === "1",
+      searchBox: m[4] === "1",
+      path: m[5].trim(),
+      raw,
+    };
+  }
+
+  // Notifications are drawn over the document and linger for ~2s, so a test
+  // that reads pixels would have to wait them out. Turning them off also takes
+  // down any that are already showing.
+  async setNotificationsEnabled(enabled: boolean): Promise<void> {
+    const res = await this.request(ControlCommand.SetNotificationsEnabled, [enabled ? 1 : 0]);
+    const code = typeof res[0] === "number" ? res[0] : -1;
+    if (code !== 0) {
+      throw new Error(`SetNotificationsEnabled failed: ${String(res[1] ?? code)}`);
+    }
   }
 
   close(): void {

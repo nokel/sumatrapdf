@@ -145,11 +145,14 @@ struct PageDestinationMupdf : IPageDestination {
     Str value;
     Str name;
 
-    // anchor (x, y) on the destination page resolved from the link URI.
-    // Valid after hasResolvedCoords; values may be kDestUseDefault when the
+    // destination on the target page, resolved from the link URI.
+    // Valid after hasResolvedCoords; x/y/w/h may be kDestUseDefault when the
     // PDF destination left a coordinate unspecified (null / Fit).
+    // IPageDestination::rect stays the source annotation box (issue #5944).
     float destX = 0.f;
     float destY = 0.f;
+    float destW = kDestUseDefault;
+    float destH = kDestUseDefault;
     bool hasResolvedCoords = false;
     // /XYZ zoom level requested by the link (1.0 = 100%). 0 means
     // "not specified" — caller should use document default.
@@ -165,12 +168,11 @@ struct PageDestinationMupdf : IPageDestination {
     RectF GetRect2() override {
         // Prefer URI-resolved coords (page-level /Fit and /XYZ nulls become
         // kDestUseDefault). outline->x/y are often 0 and would scroll to the
-        // bottom of the page in PDF space. FitR keeps width/height on `rect`.
+        // bottom of the page in PDF space. FitR keeps width/height on destW/H;
+        // `rect` is the source annotation and must not be used as the dest
+        // (issue #5944).
         if (hasResolvedCoords) {
-            if (rect.dx != kDestUseDefault && rect.dy != kDestUseDefault && rect.dx > 0 && rect.dy > 0) {
-                return rect;
-            }
-            return RectF{destX, destY, kDestUseDefault, kDestUseDefault};
+            return RectF{destX, destY, destW, destH};
         }
         if (outline) {
             RectF r{outline->x, outline->y, 0, 0};
@@ -458,12 +460,10 @@ static IPageDestination* NewPageDestinationMupdf(fz_context* ctx, fz_document* d
     if (pageNo > 0) {
         dest->destX = destRect.x;
         dest->destY = destRect.y;
+        dest->destW = destRect.dx;
+        dest->destH = destRect.dy;
         dest->destZoom = z;
         dest->hasResolvedCoords = true;
-        // For FitR, w/h must reach ScrollTo; store on base rect as well.
-        if (destRect.dx != kDestUseDefault || destRect.dy != kDestUseDefault) {
-            dest->rect = destRect;
-        }
     }
     return dest;
 }
@@ -1752,7 +1752,7 @@ static bool RemoveHeWhoFullyContains(Vec<IPageElement*>& els) {
             }
             auto r2 = els[j]->GetRect();
             if (RectFullyContains(r1, r2)) {
-                // logfa("el %d fully obscures %d\n", i, j);
+                // logf("el %d fully obscures %d\n", i, j);
                 els.RemoveAtFast(i);
                 return true;
             }
@@ -1823,15 +1823,6 @@ NO_INLINE static IPageElement* FzGetElementAtPos(FzPageInfo* pageInfo, PointF pt
         fz_rect ir = img->rect;
         if (IsPointInRect(ir, p)) {
             res.Append(img->imageElement);
-        }
-    }
-
-    if (false) {
-        int i = 0;
-        for (auto&& el : res) {
-            Rect r = el->GetRect().Round();
-            logfa("el %d: pos: %d-%d, size: %d-%d, kind: %s\n", (int)i, r.x, r.y, r.dx, r.dy, Str(el->GetKind()));
-            i++;
         }
     }
     return PickBestElement(res);
@@ -2358,7 +2349,7 @@ static Str PdfLoadAttachment(fz_context* ctx, pdf_document* doc, int no) {
     }
     fz_catch(ctx) {
         fz_report_error(ctx);
-        logfa("PdfLoadAttachment() failed\n");
+        logf("PdfLoadAttachment() failed\n");
     }
     return res;
 }
@@ -2382,7 +2373,7 @@ static Str PdfLoadAnnotationAttachment(fz_context* ctx, pdf_document* doc, int o
     }
     fz_catch(ctx) {
         fz_report_error(ctx);
-        logfa("PdfLoadAnnotationAttachment(objNum=%d) failed\n", objNum);
+        logf("PdfLoadAnnotationAttachment(objNum=%d) failed\n", objNum);
     }
     return res;
 }
@@ -2430,7 +2421,7 @@ static fz_outline* PdfLoadAttachments(fz_context* ctx, pdf_document* doc, Str pa
     }
     fz_catch(ctx) {
         fz_report_error(ctx);
-        logfa("PdfLoadAttachments() failed for '%s'\n", path);
+        logf("PdfLoadAttachments() failed for '%s'\n", path);
     }
     return root.next;
 }
@@ -3928,7 +3919,7 @@ bool EngineMupdf::FinishLoading() {
             mbox = {};
         }
         if (fz_is_empty_rect(mbox)) {
-            logfa("cannot find page size for page %d", pageNo);
+            logf("cannot find page size for page %d", pageNo);
             mbox.x0 = 0;
             mbox.y0 = 0;
             mbox.x1 = 612;
@@ -3948,7 +3939,7 @@ bool EngineMupdf::FinishLoading() {
         // this information is not critical and checking the
         // error might prevent loading some pdfs that would
         // otherwise get displayed
-        logfa("Couldn't load outline for '%s'\n", FilePath());
+        logf("Couldn't load outline for '%s'\n", FilePath());
     }
 
     attachments = PdfLoadAttachments(ctx, pdfdoc, FilePath());
@@ -5467,11 +5458,11 @@ void EngineMupdf::RunCadDetection() {
     cadHairlineVector = res.hairlineVector;
     cadDetectDone = true;
     if (cadDetectEnable) {
-        logfa("CAD enhance detect: score=%d reason=%s raster=%d hairline=%d\n", cadDetectScore,
-              Str(CadEnhanceReasonName(res.reason)), (int)cadRasterDominant, (int)cadHairlineVector);
+        logf("CAD enhance detect: score=%d reason=%s raster=%d hairline=%d\n", cadDetectScore,
+             Str(CadEnhanceReasonName(res.reason)), (int)cadRasterDominant, (int)cadHairlineVector);
     } else if (cadDetectScore >= 30) {
-        logfa("CAD enhance not enabled: score=%d hairline=%d (auto threshold 60, or metadata+45)\n", cadDetectScore,
-              (int)cadHairlineVector);
+        logf("CAD enhance not enabled: score=%d hairline=%d (auto threshold 60, or metadata+45)\n", cadDetectScore,
+             (int)cadHairlineVector);
     }
 }
 
@@ -5576,6 +5567,9 @@ Pixmap* EngineMupdf::RenderPage(RenderPageArgs& args) {
                 fz_clear_pixmap_with_value(ctx, pix, 0xff);
             }
             dev = fz_new_draw_device(ctx, ctm, pix);
+            if (disableAntiAlias) {
+                fz_enable_device_hints(ctx, dev, FZ_DONT_INTERPOLATE_IMAGES);
+            }
             DarkModeReplayState replayState{};
             if (objectLevelDark && pdfdoc) {
                 DarkModePageAnalysis* analysis =
@@ -5632,6 +5626,9 @@ Pixmap* EngineMupdf::RenderPage(RenderPageArgs& args) {
             pix = fz_new_pixmap_with_bbox(ctx, csRgb, ibounds, nullptr, 1);
             fz_clear_pixmap_with_value(ctx, pix, 0xff);
             dev = fz_new_draw_device(ctx, ctm, pix);
+            if (disableAntiAlias) {
+                fz_enable_device_hints(ctx, dev, FZ_DONT_INTERPOLATE_IMAGES);
+            }
             if (hideAnnotations) {
                 pdf_run_page_contents_with_usage(ctx, pdfpage, dev, fz_identity, usageZ, fzcookie);
                 pdf_run_page_widgets_with_usage(ctx, pdfpage, dev, fz_identity, usageZ, fzcookie);
@@ -5660,6 +5657,9 @@ Pixmap* EngineMupdf::RenderPage(RenderPageArgs& args) {
             pix = fz_new_pixmap_with_bbox(ctx, csRgb, ibounds, nullptr, 1);
             fz_clear_pixmap_with_value(ctx, pix, 0xff);
             dev = fz_new_draw_device(ctx, ctm, pix);
+            if (disableAntiAlias) {
+                fz_enable_device_hints(ctx, dev, FZ_DONT_INTERPOLATE_IMAGES);
+            }
             fz_run_page_contents(ctx, page, dev, fz_identity, nullptr);
             fz_close_device(ctx, dev);
             fz_drop_device(ctx, dev);
@@ -5749,7 +5749,7 @@ static void HandleLinkMupdf(EngineMupdf* e, IPageDestination* dest, ILinkHandler
     }
     fz_catch(ctx) {
         fz_report_error(ctx);
-        logfa("HandleLinkMupdf: fz_resolve_link() for '%s' failed\n", uri);
+        logf("HandleLinkMupdf: fz_resolve_link() for '%s' failed\n", uri);
     }
     if (pageNo < 0) {
         TempStr localPath;
@@ -5821,7 +5821,7 @@ Str EngineMupdf::GetImageDataForPageElement(IPageElement* ipel) {
         return {};
     }
     if (type != FZ_IMAGE_JPEG && type != FZ_IMAGE_PNG && type != FZ_IMAGE_GIF && type != FZ_IMAGE_BMP &&
-        type != FZ_IMAGE_TIFF) {
+        type != FZ_IMAGE_TIFF && type != FZ_IMAGE_WEBP) {
         return {};
     }
     unsigned char* data = nullptr;
@@ -7067,6 +7067,61 @@ Annotation* EngineMupdfGetAdjacentWidget(EngineBase* engine, Annotation* cur, bo
         }
     }
     return nullptr;
+}
+
+static bool FormFieldValueIsEmpty(int wt, const char* val) {
+    if (!val || !val[0]) {
+        return true;
+    }
+    if (wt == PDF_WIDGET_TYPE_CHECKBOX || wt == PDF_WIDGET_TYPE_RADIOBUTTON) {
+        return str::Eq(val, "Off");
+    }
+    return str::IsEmptyOrWhiteSpace(Str(val));
+}
+
+// Page-space rects of empty fillable fields on pageNo (issue #5966). skip is
+// the field currently being edited, if any, so its overlay isn't double-tinted.
+void EngineMupdfGetFormFieldHighlightRects(EngineBase* engine, int pageNo, Annotation* skip, Vec<RectF>& out) {
+    EngineMupdf* epdf = AsEngineMupdf(engine);
+    if (!epdf || !epdf->pdfdoc) {
+        return;
+    }
+    FzPageInfo* pi = epdf->GetFzPageInfoCanFail(pageNo);
+    if (!pi) {
+        return;
+    }
+    auto* ctx = epdf->Ctx();
+    ScopedRecursiveMutex cs(&epdf->docLock);
+    for (Annotation* w : pi->widgets) {
+        if (!w || w == skip || !w->pdfannot || w->bounds.IsEmpty()) {
+            continue;
+        }
+        bool highlight = false;
+        fz_try(ctx) {
+            int aflags = pdf_annot_flags(ctx, w->pdfannot);
+            int hidden = PDF_ANNOT_IS_HIDDEN | PDF_ANNOT_IS_NO_VIEW | PDF_ANNOT_IS_INVISIBLE;
+            if (!(aflags & hidden)) {
+                int flags = pdf_annot_field_flags(ctx, w->pdfannot);
+                if (!(flags & PDF_FIELD_IS_READ_ONLY)) {
+                    int wt = (int)pdf_widget_type(ctx, w->pdfannot);
+                    if (wt == PDF_WIDGET_TYPE_SIGNATURE) {
+                        highlight = !pdf_widget_is_signed(ctx, w->pdfannot);
+                    } else if (wt == PDF_WIDGET_TYPE_TEXT || wt == PDF_WIDGET_TYPE_COMBOBOX ||
+                               wt == PDF_WIDGET_TYPE_LISTBOX || wt == PDF_WIDGET_TYPE_CHECKBOX ||
+                               wt == PDF_WIDGET_TYPE_RADIOBUTTON) {
+                        highlight = FormFieldValueIsEmpty(wt, pdf_annot_field_value(ctx, w->pdfannot));
+                    }
+                }
+            }
+        }
+        fz_catch(ctx) {
+            fz_report_error(ctx);
+            highlight = false;
+        }
+        if (highlight) {
+            out.Append(w->bounds);
+        }
+    }
 }
 
 // Note: this code is compiled in release mode even if debug build so

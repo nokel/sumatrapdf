@@ -118,6 +118,19 @@ Pixmap* PixmapFromRenderedBitmap(RenderedBitmap* rb) {
     return p;
 }
 
+// The alpha in a DIB section is straight, not premultiplied: that is what PNG,
+// CF_DIBV5 and GDI+ all expect of a 32bpp bitmap, and mupdf hands us
+// premultiplied pixels. Undoing it here keeps the invariant in one place.
+static void UnpremultiplyBgra(u8* d) {
+    u32 a = d[3];
+    if (a == 0 || a == 255) {
+        return;
+    }
+    d[0] = (u8)std::min<u32>(255, ((u32)d[0] * 255 + (a / 2)) / a);
+    d[1] = (u8)std::min<u32>(255, ((u32)d[1] * 255 + (a / 2)) / a);
+    d[2] = (u8)std::min<u32>(255, ((u32)d[2] * 255 + (a / 2)) / a);
+}
+
 RenderedBitmap* RenderedBitmapFromPixmap(Pixmap* px) {
     if (!px) {
         return nullptr;
@@ -152,6 +165,9 @@ RenderedBitmap* RenderedBitmapFromPixmap(Pixmap* px) {
                     memcpy(dst, src, 4);
                     src += 4;
                 }
+                if (px->premultiplied) {
+                    UnpremultiplyBgra(dst);
+                }
                 dst += 4;
             }
         }
@@ -183,9 +199,17 @@ void FreePixmapNativeBitmap(Pixmap* p) {
     p->data = nullptr;
 }
 
+static bool BlitPixmapRegionComposited(Pixmap* p, HDC hdc, Rect target, Rect source);
+
 bool BlitPixmapRegion(Pixmap* p, HDC hdc, Rect target, Rect source) {
     if (!p || !p->data || target.IsEmpty() || source.IsEmpty()) {
         return false;
+    }
+    // a pixmap that carries real transparency (an image with an alpha channel)
+    // has to be blended with what's underneath, or SRCCOPY paints its
+    // transparent parts black (issue #5844)
+    if (p->hasAlpha && p->format == PixmapFormat::BGRA8 && !p->hbmp) {
+        return BlitPixmapRegionComposited(p, hdc, target, source);
     }
     SetStretchBltMode(hdc, HALFTONE);
     if (p->hbmp) {
@@ -276,6 +300,65 @@ bool BlitPixmapAlpha(Pixmap* p, HDC hdc, Rect target) {
                 const u8* s = p->data + ((size_t)y * p->stride);
                 u8* d = dst->data + ((size_t)y * dst->stride);
                 for (int x = 0; x < dx; x++, s += 4, d += 4) {
+                    u32 a = s[3];
+                    if (a == 0) {
+                        continue;
+                    }
+                    if (a == 255) {
+                        d[0] = s[0];
+                        d[1] = s[1];
+                        d[2] = s[2];
+                        continue;
+                    }
+                    d[0] = BlendOver(s[0], d[0], a, p->premultiplied);
+                    d[1] = BlendOver(s[1], d[1], a, p->premultiplied);
+                    d[2] = BlendOver(s[2], d[2], a, p->premultiplied);
+                }
+            }
+            GdiFlush();
+            ok = BitBlt(hdc, target.x, target.y, dx, dy, memDC, 0, 0, SRCCOPY) != 0;
+            SelectObject(memDC, prev);
+        }
+        DeleteDC(memDC);
+    }
+    FreePixmap(dst);
+    return ok;
+}
+
+// Draw a region of an alpha-carrying pixmap, blending over what's already on
+// the target so the document background - a solid colour, or the checkered
+// pattern - shows through the transparent parts (issue #5844).
+//
+// Hand-rolled for the same reason as BlitPixmapAlpha: msimg32's AlphaBlend()
+// isn't linked into every consumer of base. Unlike that one this has to handle
+// a scaling blit, because a stale tile is stretched while the new one renders.
+// The sampling is nearest-neighbour, which is all a stretched stale tile is.
+static bool BlitPixmapRegionComposited(Pixmap* p, HDC hdc, Rect target, Rect source) {
+    source = Rect(0, 0, p->width, p->height).Intersect(source);
+    if (source.IsEmpty()) {
+        return false;
+    }
+    int dx = target.dx;
+    int dy = target.dy;
+    Pixmap* dst = AllocPixmapDIB(dx, dy);
+    if (!dst) {
+        return false;
+    }
+    bool ok = false;
+    HDC memDC = CreateCompatibleDC(hdc);
+    if (memDC) {
+        HGDIOBJ prev = SelectObject(memDC, dst->hbmp);
+        if (prev) {
+            // read the background, blend the source over it, put it back
+            BitBlt(memDC, 0, 0, dx, dy, hdc, target.x, target.y, SRCCOPY);
+            GdiFlush();
+            for (int y = 0; y < dy; y++) {
+                int sy = (dy == source.dy) ? y : (int)(((i64)y * source.dy) / dy);
+                const u8* srcRow = p->data + ((size_t)(source.y + sy) * p->stride);
+                u8* d = dst->data + ((size_t)y * dst->stride);
+                for (int x = 0; x < dx; x++, d += 4) {
+                    int sx = (dx == source.dx) ? x : (int)(((i64)x * source.dx) / dx);
+                    const u8* s = srcRow + ((size_t)(source.x + sx) * 4);
                     u32 a = s[3];
                     if (a == 0) {
                         continue;

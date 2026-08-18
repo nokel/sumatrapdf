@@ -13,7 +13,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cmdId, tmpPath } from "./util";
-import { captureWindowPixels, sendMessage, waitForWindowIdle, WM_COMMAND } from "./winapi";
+import { captureWindowPixels, sendMessage, WM_COMMAND } from "./winapi";
 import { findCanvas, launchControlled, sendCommand, waitForExit, killAndWait } from "./win-automation";
 
 // white pages, with a small black square in the top-left corner of page 1
@@ -46,6 +46,16 @@ function makePdf(nPages: number, square: number): string {
   return body;
 }
 
+// A fixed window, not the runner's/screen's: at 25600% the cost of getting the
+// visible tiles rendered scales with the viewport, and it scales badly. On the
+// GitHub CI runner (ASan build, window over the whole work area) waiting for
+// the first render took longer than the 2 minutes this test allows and the run
+// failed; the same 1853x1111 window here needs 32s where 900x700 needs 0.2s.
+// The test only looks at a small square in the top-left corner of the page, so
+// a small window is all it ever needed - and it makes the pixel counts below
+// the same everywhere.
+const WINDOW_POS = ["-window-pos", "900x700@40x40"];
+
 type Result = { zoom: number; dark: number };
 
 // the built-in zoom levels written out, which docs/md/Scrolling-and-zooming.md
@@ -76,10 +86,16 @@ async function openAtZoom(
 
   // no -for-testing: this test reads the zoom the app writes into settings.
   // -dbg-control so we can wait for the real tiles, not the blurry preview.
-  const { proc, client, frame } = await launchControlled(["-appdata", appdata, "-zoom", zoom, "-scroll", "0,0", pdf], {
-    saveSettings: true,
-  });
+  const { proc, client, frame } = await launchControlled(
+    [...WINDOW_POS, "-appdata", appdata, "-zoom", zoom, "-scroll", "0,0", pdf],
+    { saveSettings: true },
+  );
   try {
+    // the "Zoom: N%" notification is drawn over the top-left of the page, which
+    // is exactly where the black square is, and it lingers ~2s. Turning
+    // notifications off (which also takes down the one -zoom already showed)
+    // is what makes the pixel measurements below immediate instead of a wait.
+    await client.setNotificationsEnabled(false);
     await client.waitForRenderIdle(30000);
     const canvas = findCanvas(frame);
     for (let i = 0; i < nZoomIn; i++) {
@@ -87,12 +103,6 @@ async function openAtZoom(
       sendMessage(frame, WM_COMMAND, cmdId("CmdZoomIn"), 0);
       await client.waitForRenderIdle(30000);
     }
-    // only the dark-pixel comparison needs the second, sharper tile pass.
-    // at high zoom that pass arrives ~2s after the first cached tiles
-    if (needPixels && canvas) {
-      await waitForWindowIdle(canvas, 12000, 2200);
-    }
-
     const px = needPixels ? captureWindowPixels(canvas) : null;
     let dark = 0;
     if (px) {

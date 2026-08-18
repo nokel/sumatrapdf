@@ -13,6 +13,8 @@
 #include "EngineBase.h"
 #include "base/GuessFileType.h"
 #include "EngineAll.h"
+#include "Annotation.h"
+#include "ImageReader.h"
 #include "PdfCadDetect.h"
 #include "DisplayModel.h"
 #include "PdfSync.h"
@@ -1312,7 +1314,11 @@ TempStr PageLinksResultTemp(Str path, int pageNo, int* exitCodeOut) {
         }
         nLinks++;
         Str value = PageDestGetValue(dest);
-        out.Append(fmt("kind=%s page=%d value=%s\n", Str(dest->GetKind()), PageDestGetPageNo(dest), value));
+        RectF src = el->GetRect();
+        RectF destRc = PageDestGetRect(dest);
+        out.Append(fmt("kind=%s page=%d src=%g,%g,%g,%g dest=%g,%g,%g,%g value=%s\n", Str(dest->GetKind()),
+                       PageDestGetPageNo(dest), src.x, src.y, src.dx, src.dy, destRc.x, destRc.y, destRc.dx, destRc.dy,
+                       value));
     }
     if (nLinks == 0) {
         if (exitCodeOut) {
@@ -1445,6 +1451,353 @@ TempStr CadEnhanceColorsResultTemp(Str path, int pageNo, int zoomPercent, int* e
     }
     FreePixmap(bmp);
     SafeEngineRelease(&engine);
+    if (exitCodeOut) {
+        *exitCodeOut = 0;
+    }
+    return ToStrTemp(out);
+}
+
+// Render an image page and report dest size plus the RGB of the left and right
+// edge pixels. clipKind=1 uses the slightly-off page rect that Copy Selection
+// produces after CvtFromScreen (issue #3434).
+TempStr ImageRenderEdgesResultTemp(Str path, int zoomPercent, int clipKind, int* exitCodeOut) {
+    ScopedGdiPlus gdiPlus;
+    EnsureTestGlobalPrefs();
+
+    str::Builder out;
+    auto fail = [&out, exitCodeOut](Str msg) {
+        if (exitCodeOut) {
+            *exitCodeOut = 1;
+        }
+        out.Append(msg);
+        return ToStrTemp(out);
+    };
+
+    EngineBase* engine = CreateEngineFromFile(path, nullptr, false);
+    if (!engine) {
+        return fail(fmt("ERROR engine-create-failed path=%s\n", path));
+    }
+    RectF box = engine->PageMediabox(1);
+    float zoom = (float)zoomPercent / 100.f;
+    RectF clip;
+    RectF* pageRect = nullptr;
+    if (clipKind != 0) {
+        // same half-pixel pull-back CvtFromScreen applies to a pixel-aligned
+        // selection of the whole image
+        clip = RectF(-0.499f, -0.499f, box.dx, box.dy);
+        pageRect = &clip;
+    }
+    RenderPageArgs args(1, zoom, 0, pageRect, RenderTarget::Export);
+    Pixmap* bmp = engine->RenderPage(args);
+    if (!bmp) {
+        SafeEngineRelease(&engine);
+        return fail(fmt("ERROR render-failed box=%gx%g zoom=%g\n", box.dx, box.dy, zoom));
+    }
+    if (bmp->width < 2 || bmp->height < 1 || !bmp->data) {
+        TempStr msg = fmt("ERROR pixmap-too-small bmp=%dx%d fmt=%d box=%gx%g\n", bmp->width, bmp->height,
+                          (int)bmp->format, box.dx, box.dy);
+        FreePixmap(bmp);
+        SafeEngineRelease(&engine);
+        return fail(msg);
+    }
+    int bpp = PixmapBytesPerPixel(bmp->format);
+    if (bpp < 3) {
+        FreePixmap(bmp);
+        SafeEngineRelease(&engine);
+        return fail(fmt("ERROR pixmap-fmt=%d\n", (int)bmp->format));
+    }
+
+    auto pixel = [&](int x, int y, int* r, int* g, int* b) {
+        const u8* px = bmp->data + ((size_t)y * (size_t)bmp->stride) + ((size_t)x * bpp);
+        if (bmp->format == PixmapFormat::RGBA8) {
+            *r = px[0];
+            *g = px[1];
+            *b = px[2];
+        } else {
+            *b = px[0];
+            *g = px[1];
+            *r = px[2];
+        }
+    };
+    int lr, lg, lb, rr, rg, rb;
+    pixel(0, bmp->height / 2, &lr, &lg, &lb);
+    pixel(bmp->width - 1, bmp->height / 2, &rr, &rg, &rb);
+    out.Append(fmt("size=%dx%d left=%d,%d,%d right=%d,%d,%d\n", bmp->width, bmp->height, lr, lg, lb, rr, rg, rb));
+
+    FreePixmap(bmp);
+    SafeEngineRelease(&engine);
+    if (exitCodeOut) {
+        *exitCodeOut = 0;
+    }
+    return ToStrTemp(out);
+}
+
+// Stamp an image file onto page 1 of a PDF (the #1744 "electronic signature"
+// path) and report how many annotations the page has plus how many red-ish
+// pixels the render shows. The fixture image is solid red so a successful
+// stamp lights up a block of red.
+TempStr ImageInsertResultTemp(Str pdfPath, Str imagePath, int* exitCodeOut) {
+    ScopedGdiPlus gdiPlus;
+    EnsureTestGlobalPrefs();
+
+    str::Builder out;
+    auto fail = [&out, exitCodeOut](Str msg) {
+        if (exitCodeOut) {
+            *exitCodeOut = 1;
+        }
+        out.Append(msg);
+        return ToStrTemp(out);
+    };
+
+    EngineBase* engine = CreateEngineFromFile(pdfPath, nullptr, false);
+    if (!engine) {
+        return fail(fmt("ERROR engine-create-failed path=%s\n", pdfPath));
+    }
+    if (!EngineSupportsAnnotations(engine)) {
+        SafeEngineRelease(&engine);
+        return fail(StrL("ERROR annots-not-supported\n"));
+    }
+    Str data = file::ReadFile(imagePath);
+    Pixmap* image = PixmapFromData(data);
+    str::Free(data);
+    if (!image) {
+        SafeEngineRelease(&engine);
+        return fail(fmt("ERROR image-load-failed path=%s\n", imagePath));
+    }
+    if (!engine->BenchLoadPage(1)) {
+        FreePixmap(image);
+        SafeEngineRelease(&engine);
+        return fail(StrL("ERROR page-load-failed\n"));
+    }
+
+    AnnotCreateArgs args{AnnotationType::Stamp};
+    args.stampImage = image;
+    Annotation* annot = EngineMupdfCreateAnnotation(engine, 1, PointF{72.f, 100.f}, &args);
+    if (!annot) {
+        TempStr msg = fmt("ERROR stamp-create-failed fmt=%d %dx%d\n", (int)image->format, image->width, image->height);
+        FreePixmap(image);
+        SafeEngineRelease(&engine);
+        return fail(msg);
+    }
+    FreePixmap(image);
+
+    Vec<Annotation*> annots;
+    EngineGetAnnotations(engine, annots);
+    int nAnnots = len(annots);
+    RectF ar = GetRect(annot);
+    out.Append(fmt("annot=%s rect=%g,%g,%g,%g\n", AnnotationReadableNameTemp(Type(annot)), ar.x, ar.y, ar.dx, ar.dy));
+
+    RenderPageArgs rargs(1, 1.f, 0, nullptr, RenderTarget::Export);
+    Pixmap* bmp = engine->RenderPage(rargs);
+    if (!bmp || !bmp->data) {
+        FreePixmap(bmp);
+        SafeEngineRelease(&engine);
+        return fail(StrL("ERROR render-failed\n"));
+    }
+    Pixmap* rgb = (bmp->format == PixmapFormat::BGRA8) ? bmp : PixmapCopyAs32bppDIB(bmp);
+    if (!rgb || !rgb->data) {
+        FreePixmap(bmp);
+        SafeEngineRelease(&engine);
+        return fail(fmt("ERROR pixmap-convert-failed fmt=%d\n", (int)bmp->format));
+    }
+    int bpp = PixmapBytesPerPixel(rgb->format);
+    int red = 0;
+    int nonWhite = 0;
+    if (bpp >= 3) {
+        for (int y = 0; y < rgb->height; y++) {
+            const u8* row = rgb->data + ((size_t)y * (size_t)rgb->stride);
+            for (int x = 0; x < rgb->width; x++) {
+                const u8* px = row + ((size_t)x * bpp);
+                int r, g, b;
+                if (rgb->format == PixmapFormat::RGBA8) {
+                    r = px[0];
+                    g = px[1];
+                    b = px[2];
+                } else {
+                    b = px[0];
+                    g = px[1];
+                    r = px[2];
+                }
+                if (r < 250 || g < 250 || b < 250) {
+                    nonWhite++;
+                }
+                if (r > 180 && g < 80 && b < 80) {
+                    red++;
+                }
+            }
+        }
+    }
+    out.Append(fmt("annots=%d red=%d nonwhite=%d size=%dx%d\n", nAnnots, red, nonWhite, rgb->width, rgb->height));
+    if (rgb != bmp) {
+        FreePixmap(rgb);
+    }
+    FreePixmap(bmp);
+    SafeEngineRelease(&engine);
+    if (exitCodeOut) {
+        *exitCodeOut = (nAnnots >= 1 && red > 50) ? 0 : 1;
+    }
+    if (nAnnots < 1 || red <= 50) {
+        out.Append(StrL("ERROR stamp-not-visible\n"));
+    }
+    return ToStrTemp(out);
+}
+
+// Open any document, render page 1, and report dest size plus how many
+// red-ish / non-white pixels it has. Used to check that a WebP inside an
+// EPUB actually paints (issue #3415) instead of the IMAGE placeholder.
+TempStr PageRenderColorsResultTemp(Str path, int* exitCodeOut) {
+    EnsureTestGlobalPrefs();
+
+    str::Builder out;
+    auto fail = [&out, exitCodeOut](Str msg) {
+        if (exitCodeOut) {
+            *exitCodeOut = 1;
+        }
+        out.Append(msg);
+        return ToStrTemp(out);
+    };
+
+    EngineBase* engine = CreateEngineFromFile(path, nullptr, false);
+    if (!engine) {
+        return fail(fmt("ERROR engine-create-failed path=%s\n", path));
+    }
+    if (!engine->BenchLoadPage(1)) {
+        SafeEngineRelease(&engine);
+        return fail(StrL("ERROR page-load-failed\n"));
+    }
+
+    RenderPageArgs rargs(1, 1.f, 0, nullptr, RenderTarget::Export);
+    Pixmap* bmp = engine->RenderPage(rargs);
+    if (!bmp || !bmp->data) {
+        FreePixmap(bmp);
+        SafeEngineRelease(&engine);
+        return fail(StrL("ERROR render-failed\n"));
+    }
+    Pixmap* rgb = (bmp->format == PixmapFormat::BGRA8) ? bmp : PixmapCopyAs32bppDIB(bmp);
+    if (!rgb || !rgb->data) {
+        FreePixmap(bmp);
+        SafeEngineRelease(&engine);
+        return fail(fmt("ERROR pixmap-convert-failed fmt=%d\n", (int)bmp->format));
+    }
+    int bpp = PixmapBytesPerPixel(rgb->format);
+    int red = 0;
+    int nonWhite = 0;
+    if (bpp >= 3) {
+        for (int y = 0; y < rgb->height; y++) {
+            const u8* row = rgb->data + ((size_t)y * (size_t)rgb->stride);
+            for (int x = 0; x < rgb->width; x++) {
+                const u8* px = row + ((size_t)x * bpp);
+                int r, g, b;
+                if (rgb->format == PixmapFormat::RGBA8) {
+                    r = px[0];
+                    g = px[1];
+                    b = px[2];
+                } else {
+                    b = px[0];
+                    g = px[1];
+                    r = px[2];
+                }
+                if (r < 250 || g < 250 || b < 250) {
+                    nonWhite++;
+                }
+                if (r > 180 && g < 80 && b < 80) {
+                    red++;
+                }
+            }
+        }
+    }
+    out.Append(
+        fmt("red=%d nonwhite=%d size=%dx%d pages=%d\n", red, nonWhite, rgb->width, rgb->height, engine->PageCount()));
+    if (rgb != bmp) {
+        FreePixmap(rgb);
+    }
+    FreePixmap(bmp);
+    SafeEngineRelease(&engine);
+    if (exitCodeOut) {
+        *exitCodeOut = 0;
+    }
+    return ToStrTemp(out);
+}
+
+// SHA-1 thumbprints and drop-down labels of CurrentUser\MY certs that can
+// sign, one pair per cert. Used to check the store enumeration for #5965.
+TempStr ListSigningCertsResultTemp(int* exitCodeOut) {
+    StrVec thumbs;
+    StrVec labels;
+    ListWindowsSigningCertificates(thumbs, labels);
+    str::Builder out;
+    out.Append(fmt("n=%d\n", len(thumbs)));
+    for (int i = 0; i < len(thumbs); i++) {
+        out.Append(fmt("thumb=%s\nlabel=%s\n", thumbs[i], labels[i]));
+    }
+    if (exitCodeOut) {
+        *exitCodeOut = 0;
+    }
+    return ToStrTemp(out);
+}
+
+// Sign pdfPath with a Windows-store cert (thumbprint) or a .pfx (certPath +
+// password), write destPath, and report ok=1 on success. The dest file is a
+// copy of the source so the signature can be saved incrementally.
+TempStr SignDocumentResultTemp(Str pdfPath, Str destPath, Str thumbprint, Str certPath, Str certPassword, Str imagePath,
+                               int appearanceFlags, int* exitCodeOut) {
+    EnsureTestGlobalPrefs();
+
+    str::Builder out;
+    auto fail = [&out, exitCodeOut](Str msg) {
+        if (exitCodeOut) {
+            *exitCodeOut = 1;
+        }
+        out.Append(msg);
+        return ToStrTemp(out);
+    };
+
+    if (len(thumbprint) == 0 && len(certPath) == 0) {
+        return fail(StrL("ERROR need thumbprint or certPath\n"));
+    }
+    if (!file::Exists(pdfPath)) {
+        return fail(fmt("ERROR pdf-missing path=%s\n", pdfPath));
+    }
+    if (!file::Copy(destPath, pdfPath, false)) {
+        return fail(fmt("ERROR copy-failed dest=%s\n", destPath));
+    }
+
+    EngineBase* engine = CreateEngineFromFile(destPath, nullptr, false);
+    if (!engine) {
+        return fail(fmt("ERROR engine-create-failed path=%s\n", destPath));
+    }
+
+    PdfSignArgs args;
+    args.certThumbprint = thumbprint;
+    args.certPath = certPath;
+    args.certPassword = certPassword;
+    args.imagePath = imagePath;
+    args.appearanceFlags = appearanceFlags;
+    args.pageNo = 1;
+    StrVec fieldNames;
+    Vec<int> fieldPages;
+    EngineMupdfGetUnsignedSignatureFields(engine, fieldNames, fieldPages);
+    if (len(fieldNames) > 0) {
+        args.fieldName = fieldNames[0];
+        args.pageNo = fieldPages[0];
+    }
+
+    Str err;
+    bool ok = EngineMupdfSignDocument(engine, args, &err);
+    if (!ok) {
+        TempStr msg = fmt("ERROR sign-failed %s\n", err ? err : StrL("(no message)"));
+        str::Free(err);
+        SafeEngineRelease(&engine);
+        return fail(msg);
+    }
+    str::Free(err);
+
+    if (!EngineMupdfSaveUpdated(engine, destPath, {})) {
+        SafeEngineRelease(&engine);
+        return fail(StrL("ERROR save-failed\n"));
+    }
+    SafeEngineRelease(&engine);
+    out.Append(StrL("ok=1\n"));
     if (exitCodeOut) {
         *exitCodeOut = 0;
     }

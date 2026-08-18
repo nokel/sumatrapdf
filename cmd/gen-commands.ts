@@ -293,6 +293,9 @@ export const commands = [
     "CmdZoomToSelection", "Zoom: To Selection",
     "CmdToggleHoverPreview", "Toggle Hover Preview",
     "CmdToggleDisableLinks", "Toggle Disable Links",
+    "CmdSignDocument", "Sign Document...",
+    "CmdInsertImage", "Insert Image...",
+    "CmdToggleHighlightFormFields", "Toggle Highlight Form Fields",
     "CmdNone", "Do nothing",
 ];
 

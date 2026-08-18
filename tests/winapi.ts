@@ -40,6 +40,8 @@ const user32 = dlopen("user32.dll", {
   IsWindow: { args: [FFIType.ptr], returns: FFIType.bool },
   GetWindowRect: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.bool },
   IsWindowVisible: { args: [FFIType.ptr], returns: FFIType.bool },
+  WindowFromPoint: { args: [FFIType.i64], returns: FFIType.u64 },
+  GetAncestor: { args: [FFIType.ptr, FFIType.u32], returns: FFIType.u64 },
   SetForegroundWindow: { args: [FFIType.ptr], returns: FFIType.bool },
   GetForegroundWindow: { args: [], returns: FFIType.u64 },
   GetWindowDC: { args: [FFIType.ptr], returns: FFIType.u64 },
@@ -361,13 +363,35 @@ export async function waitForWindowIdle(hwnd: number, timeoutMs = 5000, settleMs
   return false;
 }
 
-// The upper-right quarter of the work area. Tests put SumatraPDF there: a
-// window of that size renders and, more to the point, captures a quarter of
-// the pixels a default-sized one does, and every captureWindowPixels() walk
-// over the result costs a quarter as much. Upper-right keeps it clear of the
-// taskbar's usual place and of anything at the top-left of the desktop
+// Where tests put the SumatraPDF window. "quarter" is the default and what a
+// developer wants: a quarter of the screen stays out of the way of whatever
+// else is on the desktop and renders (and captures) a quarter of the pixels.
+// "workArea" is for a runner on a machine nobody is looking at, where the
+// screen is small (a GitHub runner boots at 1024x768) and a quarter of it is
+// too cramped for toolbars, sidebars and dialogs.
+export type TestWindowLayout = "quarter" | "workArea";
+
+let gTestWindowLayout: TestWindowLayout = "quarter";
+
+// Set by the test runner (run-all.ts vs run-github-ci.ts) before running any
+// test; every launch path takes its geometry from testWindowPos(), so this is
+// the only knob.
+export function setTestWindowLayout(layout: TestWindowLayout): void {
+  gTestWindowLayout = layout;
+}
+
+export function getTestWindowLayout(): TestWindowLayout {
+  return gTestWindowLayout;
+}
+
+// The upper-right quarter of the work area (or all of it, see
+// setTestWindowLayout). Upper-right keeps it clear of the taskbar's usual
+// place and of anything at the top-left of the desktop.
 export function testWindowPos(): WindowPos {
   const wa = getWorkArea();
+  if (gTestWindowLayout === "workArea") {
+    return { x: wa.left, y: wa.top, dx: wa.right - wa.left, dy: wa.bottom - wa.top };
+  }
   const dx = Math.floor((wa.right - wa.left) / 2);
   const dy = Math.floor((wa.bottom - wa.top) / 2);
   return { x: wa.left + dx, y: wa.top, dx, dy };
@@ -709,6 +733,21 @@ export function getWindowRect(hwnd: number): Rect {
 // it rather than resizing it to nothing). Ask the OS instead.
 export function isWindowVisible(hwnd: number): boolean {
   return user32.symbols.IsWindowVisible(hwnd);
+}
+
+// The top-level window that owns whatever is drawn at this screen point, i.e.
+// what a click there would hit. Use it to check that the window you are about
+// to read pixels from is really the one on screen at that spot -- another
+// (possibly always-on-top) window covering it is otherwise indistinguishable
+// from your window not painting.
+export function topLevelWindowFromPoint(x: number, y: number): number {
+  const pt = (BigInt(y >>> 0) << 32n) | BigInt(x >>> 0);
+  const h = Number(user32.symbols.WindowFromPoint(pt));
+  if (!h) {
+    return 0;
+  }
+  const GA_ROOT = 2;
+  return Number(user32.symbols.GetAncestor(h, GA_ROOT)) || h;
 }
 
 export function setForegroundWindow(hwnd: number): boolean {

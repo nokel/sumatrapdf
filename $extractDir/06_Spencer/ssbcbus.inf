@@ -1,0 +1,178 @@
+;*****************************************************************************
+;
+; ssbcbus.inf   -- Install the SAMSUNG Mobile Composite Device
+;
+; Copyright (c) 1997-2007 by MCCI Corporation 
+;
+; MCCI is a registered trademark of MCCI Corporation.
+;
+; NOTICE: This software is licensed, not sold.  Any modification of this
+; inf file to change the reference to an operating system or to change the
+; reference to a device is not permitted unless authorized in writing by
+; MCCI Corporation.
+;
+;*****************************************************************************
+
+[version]
+signature="$WINDOWS NT$"
+Class=USB
+ClassGuid={36FC9E60-c465-11cf-8056-444553540000}
+Provider=%Provider%
+DriverVer=07/05/2007,4.40.7.0
+CatalogFile=ssbcbus.cat
+
+[ControlFlags]
+ExcludeFromSelect = *
+
+;-----------------------------------------------------------------------------
+; Specify target paths...
+;-----------------------------------------------------------------------------
+[DestinationDirs]
+DefaultDestDir                  = 11                    ; LDID_SYS
+SamsungWdm.W95.CopyFiles       = 11                    ; LDID_SYS
+SamsungWdm.NT.CopyFiles        = 12                    ; system32\drivers
+PropPages.CopyFiles             = 11                    ; system
+
+;-----------------------------------------------------------------------------
+; Specify the install disks.  A bit unwieldy during development.
+;-----------------------------------------------------------------------------
+[SourceDisksNames.x86]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"ssbcbus.sys",,\i386
+
+
+[SourceDisksNames.amd64]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"ssbcbus.sys",,\amd64
+
+
+
+[SourceDisksFiles]
+; filename = diskid[, [subdir] [, size]]
+ssbcbus.sys = 1
+ssbcwh95.sys = 1
+ssbcwhnt.sys = 1
+
+;-----------------------------------------------------------------------------
+; Table of Contents:  manufacturer, then devices.
+;-----------------------------------------------------------------------------
+[Manufacturer]
+%Samsung%=Samsung, NTamd64
+
+;-----------------------------------------------------------------------------
+; The devices
+;-----------------------------------------------------------------------------
+[Samsung]
+%Samsung.CdcBus.Desc% = SamsungWdm.Install, USB\VID_04E8&PID_6704
+
+[Samsung.NTamd64]
+%Samsung.CdcBus.Desc% = SamsungWdm.Install, USB\VID_04E8&PID_6704
+
+;-----------------------------------------------------------------------------
+; How to install them:  On W9x, the [section] name is used directly.
+; On NT, the system first tries [section.NT], then [section].
+;-----------------------------------------------------------------------------
+
+;-----------------------------------------------------------------------------
+; Diagnostics Files CopyFiles List Section
+;-----------------------------------------------------------------------------
+[Samsung.CopyFiles]
+
+;-----------------------------------------------------------------------------
+; XXX when we have a property page DLL, add it to the following section.
+;-----------------------------------------------------------------------------
+[PropPages.CopyFiles]
+
+;-----------------------------------------------------------------------------
+;       How to install the WDM driver on W95/W98
+;-----------------------------------------------------------------------------
+[SamsungWdm.Install]
+CopyFiles       = SamsungWdm.W95.CopyFiles, Samsung.CopyFiles, PropPages.CopyFiles
+AddReg          = SamsungWdm.AddReg, SamsungWdm.W95.AddReg
+
+;-----------------------------------------------------------------------------
+;       How to install the WDM driver on NT
+;-----------------------------------------------------------------------------
+[SamsungWdm.Install.NT]
+CopyFiles       = SamsungWdm.NT.CopyFiles
+AddReg          = SamsungWdm.AddReg, SamsungWdm.NT.AddReg
+
+;-----------------------------------------------------------------------------
+;       How to start the WDM driver on NT
+;-----------------------------------------------------------------------------
+[SamsungWdm.Install.NT.Services]
+AddService      = ssbcbus, 2, SamsungWdm.AddService
+
+[SamsungWdm.AddService]
+DisplayName             = %Samsung.Service.Desc%
+ServiceType             = 1     ; SERVICE_KERNEL_DRIVER
+StartType               = 3     ; SERVICE_DEMAND_START
+ErrorControl            = 1     ; SERVICE_ERROR_NORMAL
+ServiceBinary           = %12%\ssbcbus.sys
+LoadOrderGroup          = Base
+
+;-----------------------------------------------------------------------------
+;       WDM registry entries (all platforms)
+;-----------------------------------------------------------------------------
+[SamsungWdm.AddReg]
+
+
+;-----------------------------------------------------------------------------
+;       WDM registry entries (W95/98) (including how to start the driver)
+;-----------------------------------------------------------------------------
+[SamsungWdm.W95.AddReg]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,ssbcbus.sys
+
+;-----------------------------------------------------------------------------
+;       WDM registry entries (NT only)
+;-----------------------------------------------------------------------------
+[SamsungWdm.NT.AddReg]
+
+;-----------------------------------------------------------------------------
+;       The WDM copy list for Win95 -- different because things go in
+;       different places.  Also, we probably need to rename drivers 
+;       during the install.
+;-----------------------------------------------------------------------------
+[SamsungWdm.W95.CopyFiles]
+ssbcbus.sys
+ssbcwh.sys,ssbcwh95.sys
+ssbcwh95.sys
+ssbcwhnt.sys
+
+;-----------------------------------------------------------------------------
+;       The WDM copy list for NT -- different because things go in
+;       different places.
+;-----------------------------------------------------------------------------
+[SamsungWdm.NT.CopyFiles]
+ssbcbus.sys
+ssbcwh.sys,ssbcwhnt.sys
+ssbcwhnt.sys
+
+
+;****************************************************************************
+; Localizable Strings
+;****************************************************************************
+[strings]
+
+;BEGIN ENG - US English Strings
+Provider = "Samsung Electronics Co., LTD"
+Samsung = "Samsung Electronics Co., LTD"
+DiskString = "SAMSUNG Mobile Composite Device Installation Disk"
+
+Samsung.CdcBus.Desc = "SAMSUNG Mobile Composite Device"
+Samsung.Service.Desc = "SAMSUNG Mobile Composite Device (WDM)"
+
+CustomerDataPath = "SAMSUNG Mobile Composite Device"
+DriverSet = "SAMSUNG Mobile Composite Device Software"
+UninstallFile = "SSBCUninstall.exe"
+McciOptions = "Uninstallable"
+
+
+;END ENG - US English Strings
+
+;-----------------------------------------------------------------------------
+; Following are symbolic constants which don't change per locale.
+;-----------------------------------------------------------------------------
+
+;*** end of file ***

@@ -2,7 +2,7 @@
 // Generates src/Settings.h, website HTML docs, and markdown docs from settings definitions
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { join, dirname, resolve, basename } from "node:path";
+import { join, dirname, resolve } from "node:path";
 import { extractSumatraVersion, clangFormatFiles, runLogged, isGitClean } from "./util";
 
 async function runCapture(cmd: string, args: string[], cwd?: string): Promise<string> {
@@ -908,12 +908,9 @@ const fileEBookUI: Field[] = [
     "white space around the text for this document, in points; one, two or four " +
       "values like EBookUI.Margin. empty uses EBookUI.Margin",
   ).ver("3.7"),
-  field(
-    "LineSpacing",
-    Float,
-    0,
-    "line-height multiplier for this document (e.g. 1.5); 0 uses EBookUI.LineSpacing",
-  ).ver("3.7"),
+  field("LineSpacing", Float, 0, "line-height multiplier for this document (e.g. 1.5); 0 uses EBookUI.LineSpacing").ver(
+    "3.7",
+  ),
   field(
     "LayoutDx",
     Float,
@@ -932,12 +929,7 @@ const fileEBookUI: Field[] = [
     "",
     "whether the CSS in this document is ignored: true or false; " + "empty uses EBookUI.IgnoreDocumentCSS",
   ).ver("3.7"),
-  field(
-    "CustomCSS",
-    Str,
-    "",
-    "additional CSS applied to this document; empty uses EBookUI.CustomCSS",
-  ).ver("3.7"),
+  field("CustomCSS", Str, "", "additional CSS applied to this document; empty uses EBookUI.CustomCSS").ver("3.7"),
 ];
 
 const fileSettings: Field[] = [
@@ -1263,6 +1255,12 @@ const globalPrefs: Field[] = [
       "(left is the default; right-to-left UI languages already put it on the right)",
   ).ver("3.7"),
   field("ShowLinks", Bool, false, "if true, draw a blue border around links in the document").ver("3.6"),
+  field(
+    "HighlightFormFields",
+    Bool,
+    true,
+    "if true, highlight empty fillable PDF form fields in pale blue so they are easy to find",
+  ).ver("3.7"),
   field(
     "ClickEdgeToTurnPage",
     Bool,

@@ -1,0 +1,81 @@
+; Samsung USB Host Driver for Windows 2000, XP Home, XP Pro
+; Copyright (c) 2002,2003,2004,2005,2006 Samsung 7.1.28.49 30-Dec-2009
+;
+
+[Version]
+Signature = "$Windows NT$"
+Class = "Wireless Communication Devices"
+ClassGUID = {4F919108-4ADF-11d5-882D-00B0D02FE381}
+Provider = %Manufacturer%
+DriverVer = 02/05/2010,7.1.30.51
+CatalogFile = ccdcmbsa.cat
+
+[Manufacturer]
+%Manufacturer% = DeviceList
+
+[ControlFlags]
+ExcludeFromSelect = *
+
+[DeviceList]
+
+%OBEXSamsungSymbianS60Phone1% = OtherX, NMWCD\VID_04E8&PID_6651&IF_OBX
+%MODEMATSamsungSymbianS60Phone1% = OtherX, NMWCD\VID_04E8&PID_6651&IF_ATC
+
+%OBEXSamsungSymbianS60Phone2% = OtherX, NMWCD\VID_04E8&PID_6711&IF_OBX
+%MODEMATSamsungSymbianS60Phone2% = OtherX, NMWCD\VID_04E8&PID_6711&IF_ATC
+
+%OBEXSamsungSymbianS60Phone3% = OtherX, NMWCD\VID_04E8&PID_6721&IF_OBX
+%MODEMATSamsungSymbianS60Phone3% = OtherX, NMWCD\VID_04E8&PID_6721&IF_ATC
+
+
+
+[OtherX.NT]
+CopyFiles = CopyFileSection
+
+[OtherX.NT.Services]
+AddService = %ServiceName%, 0x00000002, NMWCDC_Service_Inst_OTH
+
+
+
+[NMWCDC_Service_Inst_OTH]
+DisplayName = %ServiceDisplayName%
+ServiceType = 1
+StartType = 3
+ErrorControl = 0
+ServiceBinary = %10%\system32\drivers\ccdcmbsao.sys
+
+[SourceDisksNames]
+1=%DISKNAME%,,,
+
+[SourceDisksFiles]
+ccdcmbsao.sys = 1
+
+[CopyFileSection]
+ccdcmbsao.sys
+
+[DestinationDirs]
+DefaultDestDir=10,System32\Drivers
+CopyFileSection=10,System32\Drivers
+
+[Strings]
+Manufacturer = "Samsung"
+
+OBEXPhone = "Samsung Phone USB OBEX"
+GenericPhone = "Samsung Phone USB Generic"
+MODEMATPhone = "Samsung Phone USB Modem AT"
+
+OBEXSamsungSymbianS60Phone1 = "Samsung Symbian S60 Phone USB OBEX"
+MODEMATSamsungSymbianS60Phone1 = "Samsung Symbian S60 Phone USB Modem AT"
+
+OBEXSamsungSymbianS60Phone2 = "Samsung Symbian S60 Phone USB OBEX"
+MODEMATSamsungSymbianS60Phone2 = "Samsung Symbian S60 Phone USB Modem AT"
+
+OBEXSamsungSymbianS60Phone3 = "Samsung Symbian S60 Phone USB OBEX"
+MODEMATSamsungSymbianS60Phone3 = "Samsung Symbian S60 Phone USB Modem AT"
+
+
+
+
+ServiceName = "nmwcdsac"
+ServiceDisplayName = "Samsung USB Generic"
+DISKNAME = "Samsung USB Installation Disk"

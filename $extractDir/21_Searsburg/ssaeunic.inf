@@ -1,0 +1,177 @@
+
+;*****************************************************************************
+;
+; ssaeunic.inf   -- Install the SAMSUNG Android Networking (CDC/EEM Ethernet) Drivers (WDM)
+;
+; Copyright (c) 1997-2010 MCCI Corporation
+;
+; MCCI is a registered trademark of MCCI Corporation.
+;
+; NOTICE: This software is licensed, not sold.  Any modification of this
+; inf file to change the reference to an operating system or to change the
+; reference to a device is not permitted unless authorized in writing by
+; MCCI Corporation.
+;
+;*****************************************************************************
+
+[version]
+signature="$WINDOWS NT$"
+Class=USB
+ClassGuid={36FC9E60-c465-11cf-8056-444553540000}
+Provider=%Provider%
+DriverVer=02/05/2010,5.14.0.0
+CatalogFile=ssaeunic.cat
+
+[ControlFlags]
+ExcludeFromSelect = *
+
+;-----------------------------------------------------------------------------
+; Specify target paths...
+;-----------------------------------------------------------------------------
+[DestinationDirs]
+DefaultDestDir                  = 11                    ; LDID_SYS
+SAMSUNGWdm.NT.CopyFiles        = 12                    ; system32\drivers
+PropPages.CopyFiles             = 11                    ; system
+
+;-----------------------------------------------------------------------------
+; Specify the install disks.  A bit unwieldy during development.
+;-----------------------------------------------------------------------------
+[SourceDisksNames.x86]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"ssaeunic.sys",,\i386
+
+[SourceDisksNames.amd64]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"ssaeunic.sys",,\amd64
+
+
+[SourceDisksFiles]
+; filename = diskid[, [subdir] [, size]]
+ssaeunic.sys = 1
+ssaecrnt.sys = 1
+ssaewhnt.sys = 1
+
+;-----------------------------------------------------------------------------
+; Table of Contents:  manufacturer, then devices.
+;-----------------------------------------------------------------------------
+[Manufacturer]
+%SAMSUNG%=SAMSUNG, NTamd64
+
+;-----------------------------------------------------------------------------
+; The devices
+;-----------------------------------------------------------------------------
+[SAMSUNG]
+%Samsung.Ndis.Desc% = SAMSUNGWdm.Install, USB\VID_04E8&PID_6850&MI_02
+
+[SAMSUNG.NTamd64]
+%Samsung.Ndis.Desc% = SAMSUNGWdm.Install, USB\VID_04E8&PID_6850&MI_02
+
+;-----------------------------------------------------------------------------
+; How to install them:  
+; On NT, the system first tries [section.NT], then [section].
+;-----------------------------------------------------------------------------
+
+;-----------------------------------------------------------------------------
+; Diagnostics Files CopyFiles List Section
+;-----------------------------------------------------------------------------
+[SAMSUNG.CopyFiles]
+
+;-----------------------------------------------------------------------------
+; XXX when we have a property page DLL, add it to the following section.
+;-----------------------------------------------------------------------------
+[PropPages.CopyFiles]
+
+
+;-----------------------------------------------------------------------------
+;       How to install the WDM driver on NT
+;-----------------------------------------------------------------------------
+[SAMSUNGWdm.Install.NT]
+DriverVer=02/05/2010,5.14.0.0
+AddReg          = SAMSUNGWdm.AddReg, SAMSUNGWdm.NT.AddReg
+CopyFiles       = SAMSUNGWdm.NT.CopyFiles
+
+;-----------------------------------------------------------------------------
+;       How to start the WDM driver on NT
+;-----------------------------------------------------------------------------
+[SAMSUNGWdm.Install.NT.Services]
+AddService      = ssaeunic, 2, SAMSUNGWdm.AddService, SAMSUNGWdm.Install.EventLog
+
+[SAMSUNGWdm.AddService]
+DisplayName             = %Samsung.Service.Desc%
+ServiceType             = 1     ; SERVICE_KERNEL_DRIVER
+StartType               = 3     ; SERVICE_DEMAND_START
+ErrorControl            = 1     ; SERVICE_ERROR_NORMAL
+ServiceBinary           = %12%\ssaeunic.sys
+LoadOrderGroup          = Base
+
+;-----------------------------------------------------------------------------
+;       Event logging support
+;-----------------------------------------------------------------------------
+
+[SAMSUNGWdm.Install.EventLog]
+Addreg = SAMSUNGWdm.EventLog.AddReg
+
+[SAMSUNGWdm.EventLog.AddReg]
+HKR,,EventMessageFile, 0x20000, "%%SystemRoot%%\System32\drivers\ssaeunic.sys"
+HKR,,TypesSupported, 0x10001, 7
+
+
+;-----------------------------------------------------------------------------
+;       WDM registry entries (all platforms)
+;-----------------------------------------------------------------------------
+[SAMSUNGWdm.AddReg]
+HKR,,CRUpperDescription,,%UpperDescription%
+HKR,,CREnum,,SSAECR
+; configuration variables for CDC/EEM Ethernet Control Model.
+; These have no effect for MDLM devices.
+HKR,,UseTxCrc, 0x10001, 00,00,00,00
+HKR,,CdcEthernetSetAddressMethod, 0x10001, 00,00,00,00
+HKR,,RxHeuristics,0x10001, 08,00,00,00
+HKR,,EnableDriverCdcStatistics, 0x10001, 01, 00, 00, 00
+HKR,,UseSentinelCRC, 0x10001, 00, 00, 00, 00
+HKR,,DataAltSetting,1,  01,00,00,00
+
+
+;-----------------------------------------------------------------------------
+;       WDM registry entries (NT only)
+;-----------------------------------------------------------------------------
+[SAMSUNGWdm.NT.AddReg]
+
+
+;-----------------------------------------------------------------------------
+;       The WDM copy list for NT -- different because things go in
+;       different places.
+;-----------------------------------------------------------------------------
+[SAMSUNGWdm.NT.CopyFiles]
+ssaeunic.sys
+ssaewh.sys,ssaewhnt.sys
+ssaecr.sys,ssaecrnt.sys
+
+;****************************************************************************
+; Localizable Strings
+;****************************************************************************
+[strings]
+
+;BEGIN ENG - US English Strings
+Provider = "SAMSUNG Electronics Co., Ltd. "
+SAMSUNG = "SAMSUNG Electronics Co., Ltd. "
+DiskString = "SAMSUNG Android Networking (CDC/EEM Ethernet) Drivers Installation Disk"
+
+Samsung.Ndis.Desc = "SAMSUNG Android Networking (CDC/EEM Ethernet) Drivers (WDM)"
+Samsung.Service.Desc = "SAMSUNG Android Networking (CDC/EEM Ethernet) Drivers (WDM)"
+
+UpperDescription = "SAMSUNG Android Networking (CDC/EEM Ethernet) Drivers (for Networking Device)"
+
+CustomerDataPath = "SAMSUNG Android Driver"
+DriverSet = "SAMSUNG Android Driver Software"
+UninstallFile = "SSAEUninstall.exe"
+McciOptions = "Uninstallable"
+
+
+;END ENG - US English Strings
+
+;-----------------------------------------------------------------------------
+; Following are symbolic constants which don't change per locale.
+;-----------------------------------------------------------------------------
+
+;*** end of file ***

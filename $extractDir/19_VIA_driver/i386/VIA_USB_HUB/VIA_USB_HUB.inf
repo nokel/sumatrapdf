@@ -1,0 +1,77 @@
+; ==============================================================
+; +++++++++++++++++ Copyright Notification +++++++++++++++++++++
+; ==============================================================
+; VIA Telecom USB Hub Setup File
+; Copyright (c) 2004-2009 VIA Telecommunications
+; Manufacturer: VIA Telecom
+
+
+; ==============================================================
+; ================= Version/Class Sections =====================
+; ==============================================================
+[Version]
+CatalogFile = VIA_USB_HUB.cat
+signature   = "$CHICAGO$"
+Class       = USB
+ClassGUID   = {36FC9E60-C465-11CF-8056-444553540000} 
+Provider    = %VENDOR%
+DriverVer   = 12/01/2009,2.2.11
+
+      
+; ==============================================================
+; =================== Table of Contents ========================
+; ==============================================================
+[Manufacturer]
+%VENDOR% = DeviceList,NTia64,NTamd64
+      
+
+; ==============================================================
+; ================= Control Flags Sections =====================
+; ==============================================================
+[ControlFlags]
+ExcludeFromSelect = *
+
+
+; ==============================================================
+; ================== Driver/Device Sections ====================
+; ==============================================================
+[DeviceList]
+%DEV.VIA% = Composite.Dev, USB\VID_15eb&PID_0001
+%DEV.VIA% = Composite.Dev, USB\VID_15eb&PID_0101
+%DEV.SS%  = Composite.Dev, USB\VID_04E8&PID_6755
+
+
+[DeviceList.NTia64]
+%DEV.VIA% = Composite.Dev, USB\VID_15eb&PID_0001
+%DEV.VIA% = Composite.Dev, USB\VID_15eb&PID_0101
+%DEV.SS%  = Composite.Dev, USB\VID_04E8&PID_6755
+
+
+[DeviceList.NTamd64]
+%DEV.VIA% = Composite.Dev, USB\VID_15eb&PID_0001
+%DEV.VIA% = Composite.Dev, USB\VID_15eb&PID_0101
+%DEV.SS%  = Composite.Dev, USB\VID_04E8&PID_6755
+
+
+; =========================================================
+; ---------------- Windows 98/ME Sections -----------------
+; =========================================================
+[Composite.Dev]
+AddReg    = Hub.AddReg
+include   = usb.inf
+
+
+; ==============================================================
+; ---------------- Windows 2000 & XP Sections ------------------
+; ==============================================================
+[Composite.Dev.NT]
+AddReg    = StandardHub.AddReg.NT
+include   = usb.inf
+
+; ==============================================================
+; =================== Strings Sections =========================
+; ==============================================================
+[Strings]
+VENDOR   = "SAMSUNG Inc"
+DEV.VIA  = "VIA Telecom USB HUB" 
+DEV.SS   = "SAMSUNG USB HUB"        

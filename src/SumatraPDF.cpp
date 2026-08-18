@@ -79,6 +79,7 @@
 #include "Favorites.h"
 #include "FileThumbnails.h"
 #include "Menu.h"
+#include "ImageReader.h"
 #include "PngOptimizer.h"
 #include "Print.h"
 #include "SearchAndDDE.h"
@@ -2608,7 +2609,7 @@ void ReloadDocument(MainWindow* win, bool autoRefresh, bool canAskForPassword) {
         logf("ReloadDocument: tab->filePath is empty, auto refresh: %d\n", (int)autoRefresh);
         return;
     }
-    logfa("ReloadDocument: %s, auto refresh: %d\n", path, (int)autoRefresh);
+    logf("ReloadDocument: %s, auto refresh: %d\n", path, (int)autoRefresh);
 
     // Save display state before potentially destroying the old controller
     FileState* fs = NewFileState(path);
@@ -4845,6 +4846,9 @@ static void CloseDocumentInCurrentTab(MainWindow* win, bool keepUIEnabled, bool 
     // so the overlay's widget pointer can't dangle (cancel: don't write/re-render
     // a document that's being closed or reloaded)
     CommitFormFieldEdit(false);
+    // signing writes into this document's engine; a tab switch or close would
+    // leave the hidden placement dialog aimed at a dead model
+    CloseSignDocumentDialog(win);
     bool wasntFixed = !win->AsFixed();
     // the canvas HWND is shared across tabs; wipe leftover page pixels so a
     // following markdown/CHM tab cannot flash this document on resize
@@ -8441,6 +8445,9 @@ static void OnFrameKeyEsc(MainWindow* win) {
     if (StopSelectTextWithKeyboard(win)) {
         return;
     }
+    if (CancelPlacingSignature(win)) {
+        return;
+    }
     if (AbortFinding(win, true)) {
         return;
     }
@@ -9836,6 +9843,63 @@ static void SetAnnotCreateArgs(AnnotCreateArgs& args, CustomCommand* cmd) {
     }
 }
 
+// Place an image stamp at the canvas click (LPARAM from the context menu) or,
+// when invoked from the File menu / palette, near the top of the visible page.
+static Annotation* CreateImageStampAnnotation(MainWindow* win, WindowTab* tab, DisplayModel* dm, Pixmap* image,
+                                              LPARAM lp) {
+    if (!win || !tab || !dm || !image) {
+        return nullptr;
+    }
+    EngineBase* engine = dm->GetEngine();
+    if (!engine || !EngineSupportsAnnotations(engine)) {
+        return nullptr;
+    }
+    Point pt = HwndGetCursorPos(win->hwndCanvas);
+    if (lp != 0) {
+        pt.x = GET_X_LPARAM(lp);
+        pt.y = GET_Y_LPARAM(lp);
+    }
+    int pageNoUnderCursor = dm->GetPageNoByPoint(pt);
+    if (pageNoUnderCursor < 0) {
+        auto r = HwndWindowRect(win->hwndCanvas);
+        pt.x = r.dx / 2;
+        pt.y = 20;
+        pageNoUnderCursor = dm->GetPageNoByPoint(pt);
+    }
+    if (pageNoUnderCursor < 0) {
+        return nullptr;
+    }
+    PointF ptOnPage = dm->CvtFromScreen(pt, pageNoUnderCursor);
+    AnnotCreateArgs args{AnnotationType::Stamp};
+    args.stampImage = image;
+    return EngineMupdfCreateAnnotation(engine, pageNoUnderCursor, ptOnPage, &args);
+}
+
+static TempStr PickImageFilePathTemp(HWND hwnd) {
+    WCHAR pathW[MAX_PATH + 1]{};
+    str::Builder fileFilter(256);
+    fileFilter.Append(_TRA("Image files"));
+    fileFilter.Append("\1*.png;*.jpg;*.jpeg;*.jfif;*.bmp;*.gif;*.tif;*.tiff;*.webp;*.heic;*.heif\1");
+    fileFilter.Append(_TRA("All files"));
+    fileFilter.Append("\1*.*\1");
+    Str fileFilterStr = ToStr(fileFilter);
+    str::TransCharsInPlace(fileFilterStr, StrL("\1"), StrL("\0"));
+
+    OPENFILENAME ofn{};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = hwnd;
+    ofn.lpstrFile = pathW;
+    ofn.nMaxFile = dimofi(pathW);
+    ofn.lpstrFilter = CWStrTemp(fileFilterStr);
+    ofn.nFilterIndex = 1;
+    ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+    str::Free(fileFilterStr);
+    if (!GetOpenFileNameW(&ofn)) {
+        return {};
+    }
+    return ToUtf8Temp(pathW);
+}
+
 static void PasteImageFromClipboard(MainWindow* win) {
     if (!OpenClipboard(nullptr)) {
         return;
@@ -10677,6 +10741,11 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
                     HideSelectionToolbar(w);
                 }
             }
+            if (str::EqI(settingName, StrL("HighlightFormFields"))) {
+                for (MainWindow* w : gWindows) {
+                    w->RedrawAll(true);
+                }
+            }
             break;
         }
 
@@ -11169,6 +11238,10 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
             SaveAnnotationsToMaybeNewPdfFile(tab);
             break;
         }
+
+        case CmdSignDocument:
+            ShowSignDocumentDialog(win);
+            break;
 
         case CmdToggleMenuBar: {
             if (ShouldToggle(cmd, gGlobalPrefs->showMenubar)) {
@@ -11751,6 +11824,13 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
             }
             break;
 
+        case CmdToggleHighlightFormFields:
+            gGlobalPrefs->highlightFormFields = !gGlobalPrefs->highlightFormFields;
+            for (auto& w : gWindows) {
+                w->RedrawAll(true);
+            }
+            break;
+
         case CmdToggleDisableLinks:
             if (ShouldToggle(cmd, gGlobalPrefs->disableLinks)) {
                 gGlobalPrefs->disableLinks = !gGlobalPrefs->disableLinks;
@@ -12146,44 +12226,45 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
         } break;
 
         case CmdCreateAnnotImageFromClipboard: {
-            if (!win || !tab || !dm) {
+            Pixmap* image = GetClipboardImageAsPixmap();
+            if (!image) {
+                NotificationCreateArgs nargs;
+                nargs.hwndParent = win ? win->hwndCanvas : nullptr;
+                nargs.timeoutMs = 3000;
+                nargs.msg = _TRA("No image in the clipboard");
+                ShowNotification(nargs);
+                return 0;
+            }
+            lastCreatedAnnot = CreateImageStampAnnotation(win, tab, dm, image, lp);
+            FreePixmap(image);
+        } break;
+
+        case CmdInsertImage: {
+            // File / document menu: pick a PNG (or other image) and stamp it on
+            // the page — the Fill & Sign-style electronic signature (#1744).
+            if (!win || !tab || !dm || !CanAccessDisk()) {
                 return 0;
             }
             EngineBase* engine = dm->GetEngine();
             if (!engine || !EngineSupportsAnnotations(engine)) {
                 return 0;
             }
-            Pixmap* image = GetClipboardImageAsPixmap();
+            TempStr path = PickImageFilePathTemp(win->hwndFrame);
+            if (!path) {
+                return 0;
+            }
+            Str data = file::ReadFile(path);
+            Pixmap* image = PixmapFromData(data);
+            str::Free(data);
             if (!image) {
                 NotificationCreateArgs nargs;
                 nargs.hwndParent = win->hwndCanvas;
                 nargs.timeoutMs = 3000;
-                nargs.msg = _TRA("No image in the clipboard");
+                nargs.msg = fmt(_TRA("Couldn't load image '%s'").s, path::GetBaseNameTemp(path));
                 ShowNotification(nargs);
                 return 0;
             }
-            Point pt = HwndGetCursorPos(win->hwndCanvas);
-            if (lp != 0) {
-                // when sent from the context menu, the click position is in LPARAM
-                pt.x = GET_X_LPARAM(lp);
-                pt.y = GET_Y_LPARAM(lp);
-            }
-            int pageNoUnderCursor = dm->GetPageNoByPoint(pt);
-            if (pageNoUnderCursor < 0) {
-                // invoked without a position (palette / shortcut): place near top
-                auto r = HwndWindowRect(win->hwndCanvas);
-                pt.x = r.dx / 2;
-                pt.y = 20;
-                pageNoUnderCursor = dm->GetPageNoByPoint(pt);
-            }
-            if (pageNoUnderCursor < 0) {
-                FreePixmap(image);
-                return 0;
-            }
-            PointF ptOnPage = dm->CvtFromScreen(pt, pageNoUnderCursor);
-            AnnotCreateArgs args{AnnotationType::Stamp};
-            args.stampImage = image;
-            lastCreatedAnnot = EngineMupdfCreateAnnotation(engine, pageNoUnderCursor, ptOnPage, &args);
+            lastCreatedAnnot = CreateImageStampAnnotation(win, tab, dm, image, lp);
             FreePixmap(image);
         } break;
 

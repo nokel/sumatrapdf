@@ -1,0 +1,110 @@
+; Samsung USB Host Driver for Windows 2000, XP Home, XP Pro
+; Copyright (c) 2002,2003,2004,2005,2006 Samsung 7.1.28.49 29-Dec-2009
+;
+
+[Version]
+Signature = "$Windows NT$"
+Class = Ports
+ClassGUID = {4D36E978-E325-11CE-BFC1-08002BE10318}
+Provider = %Manufacturer%
+DriverVer = 02/05/2010,7.1.30.51
+CatalogFile = ccdcmbsa.cat
+
+[Manufacturer]
+%Manufacturer% = DeviceList
+
+[ControlFlags]
+ExcludeFromSelect = *
+
+[DeviceList]
+%DeviceSamsungSymbianS60Phone1% = PortsDeviceInstall, NMWCD\VID_04E8&PID_6651&IF_JAVACOMM
+%DeviceSamsungSymbianS60Phone2% = PortsDeviceInstall, NMWCD\VID_04E8&PID_6711&IF_JAVACOMM
+%DeviceSamsungSymbianS60Phone3% = PortsDeviceInstall, NMWCD\VID_04E8&PID_6721&IF_JAVACOMM
+
+
+;==================================================
+; NT
+;==================================================
+
+[PortsDeviceInstall.NT]
+include=mdmcpq.inf
+CopyFiles=FakeModemCopyFileSection,UsbserFiltCopy 
+AddReg=DeviceAddReg.NT
+
+[DeviceAddReg.NT]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,usbser.sys
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+
+[PortsDeviceInstall.NT.Services]
+AddService = usbser, 0x00000002, CCDCMBJ_Service_Inst_MOD
+AddService = UsbserFilt,,UsbserFiltService
+
+[PortsDeviceInstall.NT.HW]
+AddReg=UsbserLowerFilterAddReg
+
+[UsbserLowerFilterAddReg]
+HKR,,"LowerFilters",0x00010000,"UsbserFilt" ; REG_MULTI_SZ value 
+
+
+[CCDCMBJ_Service_Inst_MOD]
+DisplayName = %ServiceDisplayName%
+ServiceType = 1
+StartType = 3
+ErrorControl = 0
+ServiceBinary = %10%\system32\drivers\usbser.sys
+
+;=====================================================
+; General
+;=====================================================
+
+[SourceDisksNames]
+1=%DISKNAME%,,,
+
+[SourceDisksFiles]
+wdfcoinstaller01007.dll=1
+usbser_lowerfltsaj.sys=1
+
+[UsbserFiltCopy]
+usbser_lowerfltsaj.sys,,,2
+
+[UsbserFiltService]
+ServiceType=1
+ErrorControl=1
+StartType=3
+ServiceBinary=%12%\usbser_lowerfltsaj.sys
+
+[DestinationDirs]
+UpperDevCoInstallerCopyFiles = 11
+
+[UpperDev.NT.CoInstallers]
+AddReg=UpperDevCoInstallerAddReg
+CopyFiles=UpperDevCoInstallerCopyFiles
+
+[UpperDevCoInstallerAddReg]
+HKR,,CoInstaller32,0x00010000, "wdfcoinstaller01009.dll,WdfCoInstaller"
+
+[UpperDevCoInstallerCopyFiles]
+wdfcoinstaller01009.dll
+
+[UpperDev.NT.Wdf]
+KmdfService = UpperDev, UpperDev_wdfsect
+
+[UpperDev_wdfsect]
+KmdfLibraryVersion = 1.9
+
+
+;
+; Strings 
+;
+
+[Strings]
+Manufacturer = "Samsung"
+DeviceSamsungSymbianS60Phone1 = "Samsung Symbian S60 Phone USB"
+DeviceSamsungSymbianS60Phone2 = "Samsung Symbian S60 Phone USB"
+DeviceSamsungSymbianS60Phone3 = "Samsung Symbian S60 Phone USB"
+
+
+ServiceName = "nmwcdsacj"
+ServiceDisplayName = "Samsung USB Serial Port"
+DISKNAME = "Samsung USB Installation Disk"

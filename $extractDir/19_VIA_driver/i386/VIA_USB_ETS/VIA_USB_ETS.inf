@@ -1,0 +1,153 @@
+; ==============================================================
+; +++++++++++++++++ Copyright Notification +++++++++++++++++++++
+; ==============================================================
+; VIA Telecom ETS Setup File
+; Copyright (c) 2004-2009 VIA Telecommunications
+; Manufacturer: VIA Telecom
+
+
+; ==============================================================
+; ================= Version/Class Sections =====================
+; ==============================================================
+[Version]
+CatalogFile = VIA_USB_ETS.cat
+DriverVer   = 10/12/2009,1.1.0.9
+Signature   = "$CHICAGO$"
+Provider    = %VENDOR%
+Class       = USB
+ClassGUID   = {36FC9E60-C465-11CF-8056-444553540000} 
+
+
+; ==============================================================
+; =================== Table of Contents ========================
+; ==============================================================
+[Manufacturer]
+%VENDOR% = DeviceList,NTia64,NTamd64
+
+; ==============================================================
+; ================= Control Flags Sections =====================
+; ==============================================================
+[ControlFlags]
+ExcludeFromSelect = *
+
+; ==============================================================
+; ================== Driver/Device Sections ====================
+; ==============================================================
+
+[DeviceList]
+%DEV.VIA% = DriverInstall, USB\VID_15EB&PID_0001&MI_01
+%DEV.VIA% = DriverInstall, USB\VID_15EB&PID_0101&MI_00
+%DEV.SS%  = DriverInstall, USB\VID_04E8&PID_6755&MI_01
+
+
+[DeviceList.NTia64]
+%DEV.VIA% = DriverInstall, USB\VID_15EB&PID_0001&MI_01
+%DEV.VIA% = DriverInstall, USB\VID_15EB&PID_0101&MI_00
+%DEV.SS%  = DriverInstall, USB\VID_04E8&PID_6755&MI_01
+
+
+[DeviceList.NTamd64]
+%DEV.VIA% = DriverInstall, USB\VID_15EB&PID_0001&MI_01
+%DEV.VIA% = DriverInstall, USB\VID_15EB&PID_0101&MI_00
+%DEV.SS%  = DriverInstall, USB\VID_04E8&PID_6755&MI_01
+
+
+; ==============================================================
+; ---------------- Windows 2000 & XP Sections ------------------
+; ==============================================================
+[DriverInstall.NT]
+CopyFiles = DrvFiles
+AddReg    = DriverAddReg
+
+
+[DriverInstall.NT.HW]        ; Reference to put ChildID key in hardware devnode
+AddReg = DeviceAddReg
+
+
+; ==============================================================
+; =================== Copy Files Section =======================
+; ==============================================================
+[DestinationDirs]
+DrvFiles   = 12					; \Windows\System32\drivers 
+
+[DrvFiles]
+VIA_USB_ETS.sys,,,0x2
+
+[SourceDisksFiles]
+VIA_USB_ETS.sys = 1,,	
+
+[SourceDisksNames]
+1 = %SOURCE_DISKS_NAMES%
+
+
+; ==============================================================
+; ===================== Pre-Copy Section =======================
+; ==============================================================
+;[PreCopySection]
+;HKR,,NoSetupUI,,1
+
+
+; ==============================================================
+; =============== Services Description Sections ================
+; ==============================================================
+[DriverInstall.NT.Services]
+;DelService = VIA_USB_ETS, 0x00000204
+AddService = VIA_USB_ETS, 0x00000002, DriverService
+
+
+[DriverService]
+DisplayName   = %SERVICENAME%
+ServiceType   = 1
+StartType     = 3
+ErrorControl  = 1
+ServiceBinary = %12%\VIA_USB_ETS.sys
+
+
+; ==============================================================
+; ================= Common AddReg Sections =====================
+; ==============================================================
+; Property providers can be registered for a specific device by 
+; using the following addreg entry in the device install section. 
+; Doing this makes HKR relative to the driver section and thus 
+; is invoked only for the specific device. 
+
+;[PowerPropPageAddReg]
+;HKR,,EnumPropPages32,,samclass.dll
+;HKR,,Icon,,101
+
+
+; ==============================================================
+; --------------------- Registry Sections ----------------------
+; ==============================================================
+[DriverAddReg]
+HKR,,,,VIA
+HKR,,Icon,,-5
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,VIA_USB_ETS.sys
+
+[DeviceAddReg]
+;HKR,,"DebugEnable", 0x10001, 1
+;HKR,,"DebugLevel", 0x10001, 0x00000000
+;HKR,,"DebugAreas", 0x10001, 0x00000000
+;HKR,,"DebugPrintingEnable", 0x10001, 1
+;HKR,,"SelectSuspendEnable", 0x10001, 1
+;HKR,,"PowerConservationIdleTimeout", 0x10001, 0
+;HKR,,"PerformanceIdleTimeout", 0x10001, 0
+;HKR,,"SerialNumber", 0x10001, 32
+
+;[ServiceAddReg]
+;HKR,"Parameters","LastSerialNumberUsed", 0x10001, 
+;HKR,"Parameters","MaxSerialNumber", 0x10001, 
+;HKR,"Parameters","SerialNumbersUsed", 0x10001, 
+
+
+; ==============================================================
+; =================== Strings Sections =========================
+; ==============================================================
+[Strings]
+VENDOR              = "SAMSUNG Inc"
+SERVICENAME         = "VIA Telecom USB ETS Driver"
+SOURCE_DISKS_NAMES  = "SAMSUNG\\SAMSUNG Mobile USB Driver\\VIA_USB_ETS"
+DEV.VIA             = "VIA Telecom USB ETS"
+DEV.TP              = "TIMESPOWER USB ETS"
+DEV.SS              = "SAMSUNG USB ETS"

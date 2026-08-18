@@ -1,0 +1,174 @@
+
+;*****************************************************************************
+;
+; ssecunic.inf   -- Install the Samsung Mobile Ethernet
+;
+; Copyright (c) 1997-2008 MCCI Corporation
+;
+; MCCI is a registered trademark of MCCI Corporation.
+;
+; NOTICE: This software is licensed, not sold.  Any modification of this
+; inf file to change the reference to an operating system or to change the
+; reference to a device is not permitted unless authorized in writing by
+; MCCI Corporation.
+;
+;*****************************************************************************
+
+[version]
+signature="$WINDOWS NT$"
+Class=USB
+ClassGuid={36FC9E60-c465-11cf-8056-444553540000}
+Provider=%Provider%
+DriverVer=01/15/2009,4.50.3.0
+CatalogFile=ssecunic.cat
+
+[ControlFlags]
+ExcludeFromSelect = *
+
+;-----------------------------------------------------------------------------
+; Specify target paths...
+;-----------------------------------------------------------------------------
+[DestinationDirs]
+DefaultDestDir                  = 11                    ; LDID_SYS
+ssecWdm.NT.CopyFiles        = 12                    ; system32\drivers
+PropPages.CopyFiles             = 11                    ; system
+
+;-----------------------------------------------------------------------------
+; Specify the install disks.  A bit unwieldy during development.
+;-----------------------------------------------------------------------------
+[SourceDisksNames.x86]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"ssecunic.sys",,\i386
+
+[SourceDisksNames.amd64]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"ssecunic.sys",,\amd64
+
+
+[SourceDisksFiles]
+; filename = diskid[, [subdir] [, size]]
+ssecunic.sys = 1
+sseccr95.sys = 1
+sseccrnt.sys = 1
+ssecvcr.vxd = 1
+ssecwh95.sys = 1
+ssecwhnt.sys = 1
+
+;-----------------------------------------------------------------------------
+; Table of Contents:  manufacturer, then devices.
+;-----------------------------------------------------------------------------
+[Manufacturer]
+%ssec%=secumts, NTamd64
+
+;-----------------------------------------------------------------------------
+; The devices
+;-----------------------------------------------------------------------------
+[secumts]
+%ssec.Ndis.Desc% = ssecWdm.Install, USB\VID_04e8&PID_6777&Class_02&SubClass_0A&Prot_00
+
+[secumts.NTamd64]
+%ssec.Ndis.Desc% = ssecWdm.Install, USB\VID_04e8&PID_6777&Class_02&SubClass_0A&Prot_00
+
+;-----------------------------------------------------------------------------
+; How to install them:  On W9x, the [section] name is used directly.
+; On NT, the system first tries [section.NT], then [section].
+;-----------------------------------------------------------------------------
+
+;-----------------------------------------------------------------------------
+; Diagnostics Files CopyFiles List Section
+;-----------------------------------------------------------------------------
+[ssec.CopyFiles]
+
+;-----------------------------------------------------------------------------
+; XXX when we have a property page DLL, add it to the following section.
+;-----------------------------------------------------------------------------
+[PropPages.CopyFiles]
+
+;-----------------------------------------------------------------------------
+;       How to install the WDM driver on W95/W98
+;-----------------------------------------------------------------------------
+
+;-----------------------------------------------------------------------------
+;       How to install the WDM driver on NT
+;-----------------------------------------------------------------------------
+[ssecWdm.Install.NT]
+DriverVer=01/15/2009,4.50.3.0
+AddReg          = ssecWdm.AddReg, ssecWdm.NT.AddReg
+CopyFiles       = ssecWdm.NT.CopyFiles
+
+;-----------------------------------------------------------------------------
+;       How to start the WDM driver on NT
+;-----------------------------------------------------------------------------
+[ssecWdm.Install.NT.Services]
+AddService      = ssecunic, 2, ssecWdm.AddService
+
+[ssecWdm.AddService]
+DisplayName             = %ssec.Service.Desc%
+ServiceType             = 1     ; SERVICE_KERNEL_DRIVER
+StartType               = 3     ; SERVICE_DEMAND_START
+ErrorControl            = 1     ; SERVICE_ERROR_NORMAL
+ServiceBinary           = %12%\ssecunic.sys
+LoadOrderGroup          = Base
+
+;-----------------------------------------------------------------------------
+;       WDM registry entries (all platforms)
+;-----------------------------------------------------------------------------
+[ssecWdm.AddReg]
+HKR,,CRUpperDescription,,%UpperDescription%
+HKR,,CREnum,,SSECCR
+; configuration variables for CDC Ethernet Control Model.
+; These have no effect for MDLM devices.
+HKR,,UseTxCrc, 0x10001, 00,00,00,00
+HKR,,CdcEthernetSetAddressMethod, 0x10001, 00,00,00,00
+HKR,,EnableRxBulkStream, 0x10001, 01,00,00,00
+HKR,,MCCIUSB_DebugLevel, 0x10001, ff,ff,ff,ff
+HKR,,nRxBulkStreamObjects, 0x10001,08,00,00,00
+HKR,,EnableNdisEncmBlockProcessing,0x10001,  00,00,00,00
+HKR,,DataAltSetting,1,  02,00,00,00
+HKR,,EnableCR3840, 0x10001, 01,00,00,00
+HKR,,EnableCR3329, 0x10001, 01,00,00,00
+
+
+;-----------------------------------------------------------------------------
+;       WDM registry entries (NT only)
+;-----------------------------------------------------------------------------
+[ssecWdm.NT.AddReg]
+
+
+;-----------------------------------------------------------------------------
+;       The WDM copy list for NT -- different because things go in
+;       different places.
+;-----------------------------------------------------------------------------
+[ssecWdm.NT.CopyFiles]
+ssecunic.sys
+ssecwh.sys,ssecwhnt.sys
+sseccr.sys,sseccrnt.sys
+
+;****************************************************************************
+; Localizable Strings
+;****************************************************************************
+[strings]
+
+;BEGIN ENG - US English Strings
+Provider = "SAMSUNG Electronics Co., Ltd. "
+ssec = "SAMSUNG Electronics Co., Ltd. "
+DiskString = "Samsung Mobile Ethernet Installation Disk"
+
+ssec.Ndis.Desc = "Samsung Mobile Ethernet"
+ssec.Service.Desc = "Samsung Mobile Ethernet (WDM)"
+
+UpperDescription = "Samsung Mobile Ethernet (for Networking Device)"
+
+CustomerDataPath = "Samsung Mobile Modem Device"
+DriverSet = "Samsung Mobile Modem Device Software"
+UninstallFile = "SSECUninstall.exe"
+McciOptions = "Uninstallable"
+
+
+;END ENG - US English Strings
+
+;-----------------------------------------------------------------------------
+; Following are symbolic constants which don't change per locale.
+;-----------------------------------------------------------------------------
+
+;*** end of file ***

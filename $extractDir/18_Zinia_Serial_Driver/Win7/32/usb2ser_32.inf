@@ -1,0 +1,60 @@
+[Version]
+CatalogFile=usb2ser.cat
+Signature="$Windows NT$"
+Class=Ports
+ClassGUID={4D36E978-E325-11CE-BFC1-08002BE10318}
+Provider=%Mfg%
+LayoutFile=layout.inf
+DriverVer =06/15/2009,1.0
+
+[SourceDisksFiles]
+usb2ser.sys=1
+
+[Manufacturer]
+%Mfg% = DeviceList
+
+[DestinationDirs]
+DefaultDestDir=12
+
+[DeviceList]
+%DESCRIPTION% = DriverInstall,USB\VID_04E8&PID_680E, \
+                              USB\VID_04E8&PID_687A, \
+                              USB\VID_04E8&PID_687C, \
+                              USB\VID_04E8&PID_687D
+
+
+[SourceDisksNames]
+1=%Ait.Disk%,,,
+
+;------------------------------------------------------------------------------
+; Windows 2000/XP Sections
+;------------------------------------------------------------------------------
+
+[DriverInstall.NT]
+include=mdmcpq.inf
+CopyFiles=DriverCopyFiles
+AddReg=DriverInstall.nt.AddReg
+
+[DriverCopyFiles]
+usbser.sys,,,0x20
+
+[DriverInstall.NT.AddReg] 
+HKR,,DevLoader,,*ntkern 
+HKR,,NTMPDriver,,usbser.sys 
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider" 
+
+[DriverInstall.NT.Services]
+AddService=usbser, 0x00000002, DriverService
+
+[DriverService]
+DisplayName=%SERVICE%
+ServiceType= 1
+StartType = 3
+ErrorControl = 1
+ServiceBinary = %12%\usbser.sys
+
+[Strings]
+Mfg = "SAMSUNG Electronics Co.,Ltd."
+DESCRIPTION = "USB Virtual COM Port"
+SERVICE ="USB Virtual COM Driver"
+Ait.Disk="USB Virtual COM Driver Disk"

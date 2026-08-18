@@ -33,6 +33,7 @@
 #include "LinkFollow.h"
 #include "SelectTextKeyboard.h"
 #include "HomePage.h"
+#include "Notifications.h"
 #include "AIChatCommon.h"
 #include "SumatraDialogs.h"
 #include "EditAnnotations.h"
@@ -275,6 +276,13 @@ enum class ControlCmd : u16 {
     TestFindPageRange = 52,
     TestDocumentFontList = 53,
     WaitRenderIdle = 54,
+    SetNotificationsEnabled = 55,
+    TestHomeSelection = 56,
+    TestImageRenderEdges = 57,
+    TestInsertImage = 58,
+    TestRenderPageColors = 59,
+    TestListSigningCerts = 60,
+    TestSignDocument = 61,
 };
 
 enum class ControlArgType : u16 {
@@ -322,7 +330,7 @@ struct ControlRequest {
     str::Builder results;
     HANDLE done = nullptr;
     RenderIdleState idleState = RenderIdleState::NotReady;
-    char idleInfo[160]{};
+    char idleInfo[320]{};
 };
 
 static void DeleteControlRequest(ControlRequest* req) {
@@ -533,6 +541,19 @@ static void ExecuteControlRequest(ControlRequest* req) {
             AppendArgEnd(req->results);
             PostAppExit();
             break;
+
+        // A notification covers part of the document for a couple of seconds,
+        // so a test that reads pixels either waits it out or turns them off.
+        case ControlCmd::SetNotificationsEnabled: {
+            i32 enabled = 0;
+            if (!IntArg(req, 0, enabled)) {
+                AppendError(req, "SetNotificationsEnabled expects int enabled");
+                break;
+            }
+            SetNotificationsEnabled(enabled != 0);
+            AppendTestResult(req, 0, enabled ? StrL("OK enabled") : StrL("OK disabled"));
+            break;
+        }
 
         case ControlCmd::TestSynctex: {
             i32 line = 0;
@@ -787,6 +808,76 @@ static void ExecuteControlRequest(ControlRequest* req) {
             break;
         }
 
+        case ControlCmd::TestInsertImage: {
+            Str pdfPath = StringArg(req, 0);
+            Str imagePath = StringArg(req, 1);
+            if (!pdfPath || !imagePath) {
+                AppendError(req, "TestInsertImage expects string pdfPath, string imagePath");
+                break;
+            }
+            int exitCode = 0;
+            Str res = ImageInsertResultTemp(pdfPath, imagePath, &exitCode);
+            AppendTestResult(req, exitCode, res);
+            break;
+        }
+
+        case ControlCmd::TestListSigningCerts: {
+            int exitCode = 0;
+            Str res = ListSigningCertsResultTemp(&exitCode);
+            AppendTestResult(req, exitCode, res);
+            break;
+        }
+
+        case ControlCmd::TestSignDocument: {
+            Str pdfPath = StringArg(req, 0);
+            Str destPath = StringArg(req, 1);
+            Str thumbprint = StringArg(req, 2);
+            Str certPath = StringArg(req, 3);
+            Str certPassword = StringArg(req, 4);
+            Str imagePath = StringArg(req, 5);
+            i32 appearanceFlags = -1;
+            IntArg(req, 6, appearanceFlags);
+            if (!pdfPath || !destPath) {
+                AppendError(req,
+                            "TestSignDocument expects string pdfPath, string destPath [, thumbprint] [, certPath] [, "
+                            "password] [, imagePath] [, appearanceFlags]");
+                break;
+            }
+            int exitCode = 0;
+            Str res = SignDocumentResultTemp(pdfPath, destPath, thumbprint, certPath, certPassword, imagePath,
+                                             appearanceFlags, &exitCode);
+            AppendTestResult(req, exitCode, res);
+            break;
+        }
+
+        case ControlCmd::TestRenderPageColors: {
+            Str path = StringArg(req, 0);
+            if (!path) {
+                AppendError(req, "TestRenderPageColors expects string path");
+                break;
+            }
+            int exitCode = 0;
+            Str res = PageRenderColorsResultTemp(path, &exitCode);
+            AppendTestResult(req, exitCode, res);
+            break;
+        }
+
+        case ControlCmd::TestImageRenderEdges: {
+            Str path = StringArg(req, 0);
+            i32 zoomPercent = 100;
+            i32 clipKind = 0;
+            if (!path) {
+                AppendError(req, "TestImageRenderEdges expects string path [, int zoomPercent] [, int clipKind]");
+                break;
+            }
+            IntArg(req, 1, zoomPercent);
+            IntArg(req, 2, clipKind);
+            int exitCode = 0;
+            Str res = ImageRenderEdgesResultTemp(path, zoomPercent, clipKind, &exitCode);
+            AppendTestResult(req, exitCode, res);
+            break;
+        }
+
         case ControlCmd::TestCadEnhanceColors: {
             Str path = StringArg(req, 0);
             i32 pageNo = 1;
@@ -922,6 +1013,13 @@ static void ExecuteControlRequest(ControlRequest* req) {
             }
             int exitCode = 0;
             Str res = MarkdownFollowLinkResultTemp(href, follow != 0, &exitCode);
+            AppendTestResult(req, exitCode, res);
+            break;
+        }
+
+        case ControlCmd::TestHomeSelection: {
+            int exitCode = 0;
+            Str res = HomeSelectionResultTemp(&exitCode);
             AppendTestResult(req, exitCode, res);
             break;
         }
@@ -1069,10 +1167,17 @@ static void SnapshotRenderIdle(ControlRequest* req) {
     float zoomR = dm->GetZoomReal(pageNo);
     USHORT res = gRenderCache ? gRenderCache->GetTileRes(dm, pageNo) : (USHORT)0;
     Size vp = dm->GetViewPort().Size();
-    bool ready = gRenderCache && !gRenderCache->IsBusyFor(dm) && gRenderCache->VisibleTargetTilesReady(dm);
+    Str whyNot;
+    bool busy = gRenderCache && gRenderCache->IsBusyFor(dm);
+    bool ready = gRenderCache && !busy && gRenderCache->VisibleTargetTilesReady(dm, &whyNot);
+    if (busy) {
+        whyNot = StrL("rendering");
+    }
     int nQ = gRenderCache ? gRenderCache->requestCount : -1;
-    str::BufSet(Str(req->idleInfo, dimof(req->idleInfo)), fmt("zoomV=%.1f zoomR=%.3f res=%d vp=%dx%d ready=%d q=%d",
-                                                              zoomV, zoomR, (int)res, vp.dx, vp.dy, ready ? 1 : 0, nQ));
+    TempStr busyInfo = gRenderCache ? gRenderCache->BusyInfoTemp(dm) : (TempStr) "";
+    str::BufSet(Str(req->idleInfo, dimof(req->idleInfo)),
+                fmt("zoomV=%.1f zoomR=%.3f res=%d vp=%dx%d ready=%d q=%d why=%s %s", zoomV, zoomR, (int)res, vp.dx,
+                    vp.dy, ready ? 1 : 0, nQ, whyNot, busyInfo));
     req->idleState = ready ? RenderIdleState::Idle : (gRenderCache ? RenderIdleState::Busy : RenderIdleState::NotReady);
     SetEvent(req->done);
 }

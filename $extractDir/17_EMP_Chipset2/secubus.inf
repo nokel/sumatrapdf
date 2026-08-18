@@ -1,0 +1,160 @@
+;*****************************************************************************
+;
+; secubus.inf   -- Install the Samsung Mobile USB Modem drivers
+;
+; Copyright (c) 1997-2009 by MCCI Corporation 
+;
+; MCCI is a registered trademark of MCCI Corporation.
+;
+; NOTICE: This software is licensed, not sold.  Any modification of this
+; inf file to change the reference to an operating system or to change the
+; reference to a device is not permitted unless authorized in writing by
+; MCCI Corporation.
+;
+;*****************************************************************************
+
+[version]
+signature="$WINDOWS NT$"
+Class=USB
+ClassGuid={36FC9E60-c465-11cf-8056-444553540000}
+Provider=%Provider%
+DriverVer=06/19/2009,4.52.5.0
+CatalogFile=secubus.cat
+
+[ControlFlags]
+ExcludeFromSelect = *
+
+;-----------------------------------------------------------------------------
+; Specify target paths...
+;-----------------------------------------------------------------------------
+[DestinationDirs]
+DefaultDestDir                  = 11                    ; LDID_SYS
+SAMSUNGWdm.NT.CopyFiles        = 12                    ; system32\drivers
+PropPages.CopyFiles             = 11                    ; system
+
+;-----------------------------------------------------------------------------
+; Specify the install disks.  A bit unwieldy during development.
+;-----------------------------------------------------------------------------
+[SourceDisksNames.x86]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"secubus.sys",,\i386
+
+
+[SourceDisksNames.amd64]
+; diskid = description[, [tagfile] [, <unused>, subdir]]
+1=%DiskString%,"secubus.sys",,\amd64
+
+
+
+[SourceDisksFiles]
+; filename = diskid[, [subdir] [, size]]
+secubus.sys = 1
+secuwhnt.sys = 1
+
+;-----------------------------------------------------------------------------
+; Table of Contents:  manufacturer, then devices.
+;-----------------------------------------------------------------------------
+[Manufacturer]
+%Samsung%=SAMSUNG, NTamd64
+
+;-----------------------------------------------------------------------------
+; The devices
+;-----------------------------------------------------------------------------
+[SAMSUNG]
+%SAMSUNG.CdcBus.Desc% = SAMSUNGWdm.Install, USB\VID_04E8&PID_681B
+
+[SAMSUNG.NTamd64]
+%SAMSUNG.CdcBus.Desc% = SAMSUNGWdm.Install, USB\VID_04E8&PID_681B
+
+;-----------------------------------------------------------------------------
+; How to install them:  On W9x, the [section] name is used directly.
+; On NT, the system first tries [section.NT], then [section].
+;-----------------------------------------------------------------------------
+
+;-----------------------------------------------------------------------------
+; Diagnostics Files CopyFiles List Section
+;-----------------------------------------------------------------------------
+[SAMSUNG.CopyFiles]
+
+;-----------------------------------------------------------------------------
+; XXX when we have a property page DLL, add it to the following section.
+;-----------------------------------------------------------------------------
+[PropPages.CopyFiles]
+
+
+;-----------------------------------------------------------------------------
+;       How to install the WDM driver on NT
+;-----------------------------------------------------------------------------
+[SAMSUNGWdm.Install.NT]
+CopyFiles       = SAMSUNGWdm.NT.CopyFiles
+AddReg          = SAMSUNGWdm.AddReg, SAMSUNGWdm.NT.AddReg
+
+;-----------------------------------------------------------------------------
+;       How to start the WDM driver on NT
+;-----------------------------------------------------------------------------
+[SAMSUNGWdm.Install.NT.Services]
+AddService      = secubus, 2, SAMSUNGWdm.AddService, SAMSUNGWdm.Install.EventLog
+
+[SAMSUNGWdm.AddService]
+DisplayName             = %SAMSUNG.Service.Desc%
+ServiceType             = 1     ; SERVICE_KERNEL_DRIVER
+StartType               = 3     ; SERVICE_DEMAND_START
+ErrorControl            = 1     ; SERVICE_ERROR_NORMAL
+ServiceBinary           = %12%\secubus.sys
+LoadOrderGroup          = Base
+
+;-----------------------------------------------------------------------------
+;       Setup event logging, if driver supports it
+;-----------------------------------------------------------------------------
+
+[SAMSUNGWdm.Install.EventLog]
+
+;-----------------------------------------------------------------------------
+;       WDM registry entries (all platforms)
+;-----------------------------------------------------------------------------
+[SAMSUNGWdm.AddReg]
+
+
+
+;-----------------------------------------------------------------------------
+;       WDM registry entries (NT only)
+;-----------------------------------------------------------------------------
+[SAMSUNGWdm.NT.AddReg]
+
+
+;-----------------------------------------------------------------------------
+;       The WDM copy list for NT -- different because things go in
+;       different places.
+;-----------------------------------------------------------------------------
+[SAMSUNGWdm.NT.CopyFiles]
+secubus.sys
+secuwh.sys,secuwhnt.sys
+secuwhnt.sys
+
+
+;****************************************************************************
+; Localizable Strings
+;****************************************************************************
+[strings]
+
+;BEGIN ENG - US English Strings
+Provider = "SAMSUNG Electronics Co., Ltd. "
+Samsung = "SAMSUNG Electronics Co., Ltd. "
+DiskString = "Samsung Mobile USB Modem Installation disk"
+
+SAMSUNG.CdcBus.Desc = "Samsung Mobile USB Modem"
+SAMSUNG.Service.Desc = "Samsung Mobile USB Modem driver (WDM)"
+
+CustomerDataPath = "Samsung Mobile USB Modem Device"
+DriverSet = "Samsung Mobile USB Modem Device Software"
+UninstallFile = "SECUUninstall.exe"
+McciOptions = "Uninstallable"
+
+
+;END ENG - US English Strings
+
+;-----------------------------------------------------------------------------
+; Following are symbolic constants which don't change per locale.
+;-----------------------------------------------------------------------------
+
+;*** end of file ***

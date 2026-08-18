@@ -1,0 +1,82 @@
+; ===========================================
+; SAMSUNG HSP Plus USB Device Driver
+; ===========================================
+; Copyright (c) 2000-2005 MobileTop
+; Release Date. 2007-02-23
+; Ver 2.5.0.0
+; 
+[Version] 
+Signature = "$Windows NT$" 
+Class=USB
+ClassGUID={36fc9e60-c465-11cf-8056-444553540000} 
+Provider=%SHPPROVIDER% 
+DriverVer= 02/23/2007,2.5.0.0
+CatalogFile=SHPUSB.cat
+
+[SourceDisksNames.x86]
+1=%SHP_Usb_DriverDesc%,SHPUSB.sys,,\i386
+
+[SourceDisksNames.amd64]
+1=%SHP_Usb_DriverDesc%,SHPUSB.sys,,\amd64
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+; ================= Device section =====================
+
+[Manufacturer]
+%MfgName%=SAMSUNG,NTAMD64
+
+[SAMSUNG]
+%SHP_Usb_DriverDesc%=SHP_Usb_Driver_Inst.Dev, USB\VID_04E8&PID_7080  
+
+; For XP and later
+[SAMSUNG.NTAMD64]
+%SHP_Usb_DriverDesc%=SHP_Usb_Driver_Inst.Dev, USB\VID_04E8&PID_7080
+
+[SHP_Usb_Driver_Inst.Dev.NT]
+CopyFiles=SHP_Usb_Driver_Inst.Files.Ext
+
+[SHP_Usb_Driver_Inst.Dev.NT.Services]
+Addservice = sshpusb, 0x00000002, SHP_Usb_Driver_Inst.AddService
+
+[SHP_Usb_Driver_Inst.AddService]
+DisplayName    = %SHP_Usb_Driver_Inst.SvcDesc%
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 3                  ; SERVICE_DEMAND_START
+ErrorControl   = 1                  ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\SHPUSB.sys
+;AddReg         = SHP_Usb_Driver_Inst.AddReg
+;LoadOrderGroup = Base
+
+
+[SHP_Usb_Driver_Inst.Files.Ext]
+SHPUSB.sys
+
+[SourceDisksFiles]
+SHPUSB.sys = 1
+
+[Strings] 
+;  *******Localizable Strings******* 
+SHPPROVIDER        = "MobileTop"
+MfgName            = "SAMSUNG"
+Disk_Description   = "SAMSUNG HSP Plus USB Driver disks" 
+SHP_Usb_DriverDesc = "SAMSUNG HSP Plus USB Driver" 
+ClassName          = "SAMSUNG HSP Plus USB Device"
+SHP_Usb_Driver_Inst.SvcDesc    = "SAMSUNG HSP Plus USB Driver disks"
+;  *******Non Localizable Strings******* 
+
+;SERVICE_BOOT_START = 0x0 
+;SERVICE_SYSTEM_START = 0x1 
+;SERVICE_AUTO_START = 0x2 
+;SERVICE_DEMAND_START = 0x3 
+;SERVICE_DISABLED = 0x4 
+
+;SERVICE_KERNEL_DRIVER = 0x1 
+;SERVICE_ERROR_IGNORE = 0x0 
+;SERVICE_ERROR_NORMAL = 0x1 
+;SERVICE_ERROR_SEVERE = 0x2 
+;SERVICE_ERROR_CRITICAL = 0x3 
+
+;REG_EXPAND_SZ = 0x00020000 
+;REG_DWORD = 0x00010001 

@@ -1,0 +1,294 @@
+; Samsung USB Host Driver for Windows 2000, XP Home, XP Pro
+; Copyright (c) 2002,2003,2004,2005,2006 Samsung 7.1.28.49 07-Jan-2010
+;
+
+[Version]
+Signature = "$Windows NT$"
+Class = Modem
+ClassGUID = {4D36E96D-E325-11CE-BFC1-08002BE10318}
+Provider = %Manufacturer%
+DriverVer = 02/05/2010,7.1.30.51
+CatalogFile = ccdcmbsax64.cat
+
+[Manufacturer]
+%Manufacturer% = DeviceList, NTamd64
+
+[ControlFlags]
+ExcludeFromSelect = *
+
+[DeviceList.NTamd64]
+%DeviceSamsungSymbianS60Phone1% = ModemDeviceInstallSamsungSymbianS60Phone, NMWCD\VID_04E8&PID_6651&Cdc_Modem
+%DeviceSamsungSymbianS60Phone2% = ModemDeviceInstallSamsungSymbianS60Phone, NMWCD\VID_04E8&PID_6711&Cdc_Modem
+%DeviceSamsungSymbianS60Phone3% = ModemDeviceInstallSamsungSymbianS60Phone, NMWCD\VID_04E8&PID_6721&Cdc_Modem
+
+
+
+[ModemDeviceInstallPhone.NT]
+Include=mdmcpq.inf
+CopyFiles=FakeModemCopyFileSection,UpperDevCopy
+AddReg = All, Settings.Samsung, ModemResponses, External
+
+[ModemDeviceInstallPhone.NT.Services]
+Include=mdmcpq.inf
+AddService=usbser, 0x00000000, LowerFilter_Service_Inst
+AddService=upperdev,,UpperDevService
+
+[ModemDeviceInstallPhone.NT.HW]
+Include=mdmcpq.inf
+AddReg = UpperDevAddReg
+
+
+[ModemDeviceInstallSamsungSymbianS60Phone.NT]
+Include=mdmcpq.inf
+CopyFiles=FakeModemCopyFileSection,UpperDevCopy
+AddReg = All, Settings.Samsung, ModemResponses.V42, ModemResponses, External
+
+[ModemDeviceInstallSamsungSymbianS60Phone.NT.Services]
+Include=mdmcpq.inf
+AddService=usbser, 0x00000000, LowerFilter_Service_Inst
+AddService=upperdev,,UpperDevService
+
+[ModemDeviceInstallSamsungSymbianS60Phone.NT.HW]
+Include=mdmcpq.inf
+AddReg = UpperDevAddReg
+
+[UpperDevCopy]
+usbser_lowerfltsax64.sys,,,2
+
+[UpperDevService]
+ServiceType=1
+ErrorControl=1
+StartType=3
+ServiceBinary=%12%\usbser_lowerfltsax64.sys
+
+[DestinationDirs]
+UpperDevCoInstallerCopyFiles = 11
+
+[UpperDev.NTamd64.CoInstallers]
+AddReg=UpperDevCoInstallerAddReg
+CopyFiles=UpperDevCoInstallerCopyFiles
+
+[UpperDevCoInstallerAddReg]
+HKR,,CoInstaller32,0x00010000, "wdfcoinstaller01009.dll,WdfCoInstaller"
+
+[UpperDevCoInstallerCopyFiles]
+wdfcoinstaller01009.dll
+
+[UpperDev.NTamd64.Wdf]
+KmdfService = UpperDev, UpperDev_wdfsect
+[SourceDisksFiles]
+wdfcoinstaller01009.dll=1
+usbser_lowerfltsax64.sys=1
+
+[UpperDev.NTamd64.Wdf]
+KmdfService = UpperDev, UpperDev_wdfsect
+
+[UpperDev_wdfsect]
+KmdfLibraryVersion = 1.9
+
+[UpperDevAddReg]
+HKR,,LowerFilters,0x00010000,upperdev,usbser
+HKLM, "SOFTWARE\Samsung\ModemOptions\Models\SamsungSymbianS60Phone", Options, 0x00010001, 0x11F
+
+[SourceDisksNames]
+1=%DISKNAME%,,,
+
+
+[All]
+HKR,,FriendlyDriver,,"Unimodem.vxd"
+HKR,,DevLoader,,*vcomm
+HKR,,ConfigDialog,,"modemui.dll"
+HKR,,EnumPropPages,,"modemui.dll,EnumPropPages"
+HKR,,PortSubClass,1,02
+HKR,Init,1,,"AT&F<cr>"
+
+[FaxRegEntries]
+HKR, Fax, SetupCommand,, "ATS7=255&D3"
+HKR, Fax, SerialSpeedInit,, "19200"
+HKR, Fax\Class2\AdaptiveAnswer\AnswerCommand, 1,, "ATS7=90S25=2"
+HKR, Fax\Class2\AdaptiveAnswer\AnswerCommand, 2,, "ATA"
+HKR, Fax\Class2\AdaptiveAnswer, ModemResponseFaxConnect,, "+FCO"
+HKR, Fax\Class2\AdaptiveAnswer, ModemResponseDataDetect,, "CARRIER"
+HKR, Fax\Class2\AdaptiveAnswer, ModemResponseDataConnect,, "CONNECT"
+
+
+[Settings.GSM]
+HKR,,Properties, 1, \
+	 80,00,00,00, \
+	 ff,00,00,00, \
+	 00,00,00,00, \
+	 00,00,00,00, \
+	 00,00,00,00, \
+	 30,00,00,00, \
+	 00,08,07,00, \
+	 00,08,07,00
+HKR,Init,2,,"AT E0 V1 &D2 &C1 &S0 S0=0<cr>"
+HKR,Init,3,,"AT+IFC=2,2;+CVHU=1<cr>"
+HKR, Monitor, 1,, "ATS0=0<cr>"
+HKR, Monitor, 2,, "None"
+HKR, Hangup, 1,, "ATH<cr>"
+HKR, Answer, 1,, "ATA<cr>"
+HKR,, Reset,, "ATZ<cr>"
+HKR, Settings, Prefix,, "AT"
+HKR, Settings, Terminator,, "<cr>"
+HKR, Settings, DialPrefix,, "D"
+HKR, Settings, DialSuffix,, ";"
+HKR, Settings, FlowControl_Off,, "&K0"
+HKR, Settings, FlowControl_Hard,, "&K3"
+HKR, Settings, FlowControl_Soft,, "&K4"
+HKR, Settings, Modulation_CCITT,, "B0"
+HKR, Settings, Modulation_Bell,, "B1"
+HKR, Settings, Pulse,, "P"
+HKR, Settings, Tone,, "T"
+HKR, Settings, Blind_Off,, "X5"
+HKR, Settings, Blind_On,, "X3"
+HKR, Settings, CallSetupFailTimer,, "S7=<#>"
+
+[Settings.Samsung]
+HKR,,Properties, 1, \
+	 80,00,00,00, \
+	 ff,00,00,00, \
+	 00,00,00,00, \
+	 00,00,00,00, \
+	 00,00,00,00, \
+	 00,00,00,00, \
+	 00,08,07,00, \
+	 00,08,07,00
+HKR,Init,2,,"AT E0 V1 &D2 &C1 S0=0<cr>"
+HKR, Monitor, 1,, "ATS0=0<cr>"
+HKR, Monitor, 2,, "None"
+HKR, Hangup, 1,, "ATH<cr>"
+HKR, Answer, 1,, "ATA<cr>"
+HKR,, Reset,, "ATZ<cr>"
+HKR, Settings, Prefix,, "AT"
+HKR, Settings, Terminator,, "<cr>"
+HKR, Settings, DialPrefix,, "D"
+HKR, Settings, DialSuffix,, ";"
+HKR, Settings, Modulation_CCITT,, "B0"
+HKR, Settings, Modulation_Bell,, "B1"
+HKR, Settings, Pulse,, "P"
+HKR, Settings, Tone,, "T"
+HKR, Settings, Blind_Off,, "X5"
+HKR, Settings, Blind_On,, "X3"
+HKR, Settings, CallSetupFailTimer,, "S7=<#>"
+
+
+[ModemResponses.V42]
+HKR, Responses, "<cr><lf>+DR: NONE<cr><lf>", 1, 01, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+DR: V42B<cr><lf>", 1, 01, 01, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+DR: V42B RD<cr><lf>", 1, 01, 01, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+DR: V42B TD<cr><lf>", 1, 01, 01, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+DR: MNP5<cr><lf>", 1, 01, 01, 00,00,00,00, 00,00,00,00
+
+[ModemResponses]
+; OK
+HKR, Responses, "<cr><lf>OK<cr><lf>", 1, 00, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "0<cr><lf>", 1, 00, 00, 00,00,00,00, 00,00,00,00
+
+; Negotiation Progress
+HKR, Responses, "<cr><lf>CARRIER<cr><lf>", 1, 01, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "16<cr><lf>", 1, 01, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>SMS<cr><lf>", 1, 01, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "17<cr><lf>", 1, 01, 00, 00,00,00,00, 00,00,00,00
+
+; Connect
+HKR, Responses, "<cr><lf>CONNECT<cr><lf>", 1,  02,  00,  00,00,00,00,  00,00,00,00
+HKR, Responses, "1<cr><lf>", 1, 02, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 300<cr><lf>", 1, 02, 00, 2c,01,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 1200<cr><lf>", 1, 02, 00, b0,04,00,00, 00,00,00,00
+HKR, Responses, "5<cr><lf>", 1, 02, 00, b0,04,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 2400<cr><lf>", 1, 02, 00, 60,09,00,00, 00,00,00,00
+HKR, Responses, "10<cr><lf>", 1, 02, 00, 60,09,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 4800<cr><lf>", 1, 02, 00, C0,12,00,00, 00,00,00,00
+HKR, Responses, "11<cr><lf>", 1, 02, 00, c0,12,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 9600<cr><lf>", 1, 02, 00, 80,25,00,00, 00,00,00,00
+HKR, Responses, "12<cr><lf>", 1, 02, 00, 80,25,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 14400<cr><lf>", 1, 02, 00, 40,38,00,00, 00,00,00,00
+HKR, Responses, "17<cr><lf>", 1, 02, 00, 40,38,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 19200<cr><lf>", 1, 02, 00, 00,4B,00,00, 00,00,00,00
+HKR, Responses, "18<cr><lf>", 1, 02, 00, 00,4B,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 28800<cr><lf>", 1, 02, 00, 80,70,00,00, 00,00,00,00
+HKR, Responses, "19<cr><lf>", 1, 02, 00, 80,70,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 38400<cr><lf>", 1, 02, 00, 00,96,00,00, 00,00,00,00
+HKR, Responses, "20<cr><lf>", 1, 02, 00, 00,96,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 43200<cr><lf>", 1, 02, 00, C0,A8,00,00, 00,00,00,00
+HKR, Responses, "21<cr><lf>", 1, 02, 00, C0,A8,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 48000<cr><lf>", 1, 02,00, 80,BB,00,00, 00,00,00,00
+HKR, Responses, "22<cr><lf>", 1, 02,00, 80,BB,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 56000<cr><lf>", 1, 02,00, C0,DA,00,00, 00,00,00,00
+HKR, Responses, "23<cr><lf>", 1, 02,00, C0,DA,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 57600<cr><lf>", 1, 02, 00, 00,E1,00,00, 00,00,00,00
+HKR, Responses, "24<cr><lf>", 1, 02, 00, 00,E1,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 115200<cr><lf>", 1, 02, 00,00,C2,01,00, 00,00,00,00
+HKR, Responses, "25<cr><lf>", 1, 02, 00,00,C2,01,00, 00,00,00,00
+
+; Error
+HKR, Responses, "<cr><lf>ERROR<cr><lf>", 1, 03, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "4<cr><lf>", 1, 03, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+FCERROR<cr><lf>", 1, 03, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "+F4<cr><lf>", 1, 03, 00, 00,00,00,00, 00,00,00,00
+
+; No Carrier
+HKR, Responses, "<cr><lf>NO CARRIER<cr><lf>", 1, 04, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "3<cr><lf>", 1, 04, 00, 00,00,00,00, 00,00,00,00
+
+;No Dial Tone
+HKR, Responses, "<cr><lf>NO DIALTONE<cr><lf>", 1, 05, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "6<cr><lf>", 1, 05, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "13<cr><lf>", 1, 05, 00, 00,00,00,00, 00,00,00,00
+
+HKR, Responses, "<cr><lf>BLACKLISTED<cr><lf>", 1, 1C, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "14<cr><lf>", 1, 1C, 00, 00,00,00,00, 00,00,00,00
+
+; Busy
+HKR, Responses, "<cr><lf>BUSY<cr><lf>", 1, 06, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "7<cr><lf>", 1, 06, 00, 00,00,00,00, 00,00,00,00
+
+; No Answer
+HKR, Responses, "<cr><lf>NO ANSWER<cr><lf>", 1, 07, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "8<cr><lf>", 1, 07, 00, 00,00,00,00, 00,00,00,00
+
+; Ring
+HKR, Responses, "<cr><lf>RING<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "2<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+
+; Compression
+
+; Service Reporting Control
+HKR, Responses, "<cr><lf>+CR: ASYNC<cr><lf>", 1, 01, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CR: REL ASYNC<cr><lf>", 1, 01, 00, 00,00,00,00, 00,00,00,00
+
+; Error Control Reporting
+HKR, Responses, "<cr><lf>+ER: NONE<cr><lf>", 1, 01, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+ER: LAMP<cr><lf>", 1, 01, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+ER: ALT<cr><lf>", 1, 01, 00, 00,00,00,00, 00,00,00,00
+
+; Distinctive Ring
+HKR, Responses, "<cr><lf>+CRING: ASYNC<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CRING: REL ASYNC<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CRING: FAX<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CRING: VOICE<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CRING: VOICE/ASYNC<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CRING: VOICE/REL ASYNC<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CRING: ALT VOICE/ASYNC<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CRING: ALT VOICE/REL ASYNC<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CRING: ALT ASYNC/VOICE<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CRING: ALT REL ASYNC/VOICE<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CRING: ALT VOICE/FAX<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>+CRING: ALT FAX/VOICE<cr><lf>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+
+
+[External]
+HKR,, DeviceType, 1, 01
+
+[Strings]
+ServiceName = "nmwcdsacmx64"
+Manufacturer = "Samsung"
+DevicePhone = "Samsung Phone USB Modem"
+DeviceSamsungSymbianS60Phone1 = "Samsung Symbian S60 Phone USB Modem"
+DeviceSamsungSymbianS60Phone2 = "Samsung Symbian S60 Phone USB Modem"
+DeviceSamsungSymbianS60Phone3 = "Samsung Symbian S60 Phone USB Modem"
+
+
+ServiceDisplayName = "Samsung USB Modem"
+DISKNAME = "Samsung USB Installation Disk"

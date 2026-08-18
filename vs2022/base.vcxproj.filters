@@ -21,6 +21,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\base\AppendStore.h">
+      <Filter>src\base</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\base\Archive.h">
       <Filter>src\base</Filter>
     </ClInclude>
@@ -166,6 +169,9 @@
     </ClCompile>
     <ClCompile Include="..\src\BasePch.cpp">
       <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\base\AppendStore.cpp">
+      <Filter>src\base</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\Archive.cpp">
       <Filter>src\base</Filter>

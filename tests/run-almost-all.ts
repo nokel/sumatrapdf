@@ -12,12 +12,15 @@
 // Register a new fast test here. Inherently-slow ones go in tests/run-all.ts.
 
 import { runNamedTests, runSuiteMain, type NamedTest, type SuiteOptions } from "./util.ts";
+import { setTestWindowLayout } from "./winapi.ts";
 import { testit as lintCommandIds } from "./lint-command-ids.ts";
 import { testit as lintMingwSources } from "./lint-mingw-sources.ts";
 import { testit as buildCli } from "./build-cli.ts";
 import { testit as combiningMarkFirst } from "./combining-mark-first.ts";
 import { testit as parseTipBrackets } from "./parse-tip-brackets.ts";
 import { testit as issue5840 } from "./issue-5840.ts";
+import { testit as issue5844 } from "./issue-5844.ts";
+import { testit as issue3434 } from "./issue-3434.ts";
 import { testit as issue5846 } from "./issue-5846.ts";
 import { testit as issue5941 } from "./issue-5941.ts";
 import { testit as issue2447 } from "./issue-2447.ts";
@@ -61,6 +64,9 @@ import { testit as issue5677 } from "./issue-5677.ts";
 import { testit as issue5681 } from "./issue-5681.ts";
 import { testit as issue1678 } from "./issue-1678.ts";
 import { testit as issue1724 } from "./issue-1724.ts";
+import { testit as issue1744 } from "./issue-1744.ts";
+import { testit as issue3415 } from "./issue-3415.ts";
+import { testit as issue5944 } from "./issue-5944.ts";
 import { testit as issue1201 } from "./issue-1201.ts";
 import { testit as issue1189 } from "./issue-1189.ts";
 import { testit as issue5871 } from "./issue-5871.ts";
@@ -74,7 +80,6 @@ import { testit as issue5751 } from "./issue-5751.ts";
 import { testit as issue5780 } from "./issue-5780.ts";
 import { testit as issue2254 } from "./issue-2254.ts";
 import { testit as issue5950 } from "./issue-5950.ts";
-import { testit as issue5958 } from "./issue-5958.ts";
 import { testit as issue5069 } from "./issue-5069.ts";
 import { testit as issue5792 } from "./issue-5792.ts";
 import { testit as issue5845 } from "./issue-5845.ts";
@@ -108,6 +113,9 @@ import { testit as issue5870ListDirs } from "./issue-5870-list-dirs.ts";
 import { testit as issue5899 } from "./issue-5899.ts";
 import { testit as issue5907 } from "./issue-5907.ts";
 import { testit as issue5934 } from "./issue-5934.ts";
+import { testit as issue5963 } from "./issue-5963.ts";
+import { testit as issue5964 } from "./issue-5964.ts";
+import { testit as issue5965 } from "./issue-5965.ts";
 
 export const tests: NamedTest[] = [
   // --- no Sumatra process -------------------------------------------------
@@ -117,6 +125,8 @@ export const tests: NamedTest[] = [
   ["parse-tip-brackets", parseTipBrackets],
   ["combining-mark-first", combiningMarkFirst],
   ["issue-5840", issue5840],
+  ["issue-5844", issue5844],
+  ["issue-3434", issue3434],
   ["issue-5846", issue5846],
   ["issue-5941", issue5941],
   ["issue-2447", issue2447],
@@ -161,6 +171,9 @@ export const tests: NamedTest[] = [
   ["issue-5681", issue5681],
   ["issue-1678", issue1678],
   ["issue-1724", issue1724],
+  ["issue-1744", issue1744],
+  ["issue-3415", issue3415],
+  ["issue-5944", issue5944],
   ["issue-1201", issue1201],
   ["issue-1189", issue1189],
   ["issue-5871", issue5871],
@@ -171,7 +184,6 @@ export const tests: NamedTest[] = [
   ["issue-1699", issue1699],
   ["issue-2254", issue2254],
   ["issue-5950", issue5950],
-  ["issue-5958", issue5958],
   ["issue-5069", issue5069],
   ["issue-5792", issue5792],
   ["issue-3472", issue3472],
@@ -181,6 +193,9 @@ export const tests: NamedTest[] = [
   ["issue-5845", issue5845],
   ["issue-5870", issue5870],
   ["issue-5934", issue5934],
+  ["issue-5963", issue5963],
+  ["issue-5964", issue5964],
+  ["issue-5965", issue5965],
 
   // --- isolated session: -appdata, saveSettings, or own window placement -
   ["issue-3744", issue3744],
@@ -214,6 +229,9 @@ export const tests: NamedTest[] = [
 ];
 
 export async function testit(opts?: SuiteOptions): Promise<void> {
+  // a quarter of the screen: this suite is run by a person, so the window
+  // stays out of the way (run-github-ci.ts asks for the whole work area)
+  setTestWindowLayout("quarter");
   await runNamedTests(tests, { heading: "run-almost-all", ...opts });
 }
 
