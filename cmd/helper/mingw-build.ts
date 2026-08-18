@@ -373,6 +373,7 @@ const sumatraFiles: FileGroup[] = [
       "JxlReader.*",
       "LibraryPage.*",
       "LibraryScan.*",
+      "LibraryStore.*",
       "LinkFollow.*",
       "MainWindow.*",
       "Menu.*",

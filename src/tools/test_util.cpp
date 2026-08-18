@@ -19,6 +19,7 @@ extern void DictTest();
 extern void FileUtilTest();
 extern void GuessFileTypeTest();
 extern void JsonTest();
+extern void LibraryStoreTest();
 extern void RefHoverTest();
 extern void SettingsUtilTest();
 extern void SimpleLogTest();
@@ -119,6 +120,7 @@ int main(int argc, char** argv) {
     RefHoverTest();
     SettingsUtilTest();
     SimpleLogTest();
+    LibraryStoreTest();
     SquareTreeTest();
     StrFormatTest();
     StrTest();

@@ -258,10 +258,16 @@
     <ClInclude Include="..\src\KeyboardHelp.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\LibraryData.h">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\LibraryPage.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\LibraryScan.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\LibraryStore.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\LinkFollow.h">
@@ -848,6 +854,9 @@
     <ClCompile Include="..\src\LibraryScan.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\LibraryStore.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\LinkFollow.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -1164,6 +1173,9 @@
       <Filter>src\base\tests</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\tests\JsonParser_ut.cpp">
+      <Filter>src\base\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\base\tests\LibraryStore_ut.cpp">
       <Filter>src\base\tests</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\tests\RefHover_ut.cpp">

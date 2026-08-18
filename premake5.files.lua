@@ -623,6 +623,8 @@ function sumatrapdf_files()
     "PdfSidecar.*",
     "LibraryPage.*",
     "LibraryScan.*",
+    "LibraryStore.*",
+    "LibraryData.h",
     "JsonVisitor.*",
     "Canvas.*",
     "CanvasAboutUI.*",
@@ -1352,6 +1354,7 @@ function test_util_files()
   files_in_dir("src", {
     --"AppTools.*",
     "Commands.*",
+    "LibraryStore.*",
     "CrashHandlerNoOp.cpp",
     "DisplayMode.*",
     "DocProperties.*",

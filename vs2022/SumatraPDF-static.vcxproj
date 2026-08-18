@@ -1202,8 +1202,10 @@
     <ClInclude Include="..\src\JsonVisitor.h" />
     <ClInclude Include="..\src\JxlReader.h" />
     <ClInclude Include="..\src\KeyboardHelp.h" />
+    <ClInclude Include="..\src\LibraryData.h" />
     <ClInclude Include="..\src\LibraryPage.h" />
     <ClInclude Include="..\src\LibraryScan.h" />
+    <ClInclude Include="..\src\LibraryStore.h" />
     <ClInclude Include="..\src\LinkFollow.h" />
     <ClInclude Include="..\src\LitDoc.h" />
     <ClInclude Include="..\src\MainWindow.h" />
@@ -1435,6 +1437,7 @@
     <ClCompile Include="..\src\KeyboardHelp_win.cpp" />
     <ClCompile Include="..\src\LibraryPage.cpp" />
     <ClCompile Include="..\src\LibraryScan.cpp" />
+    <ClCompile Include="..\src\LibraryStore.cpp" />
     <ClCompile Include="..\src\LinkFollow.cpp" />
     <ClCompile Include="..\src\LitDoc.cpp" />
     <ClCompile Include="..\src\MainWindow.cpp" />
@@ -1667,6 +1670,16 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze x64_asan|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\src\base\tests\JsonParser_ut.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release x64_asan|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|Win32'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|ARM64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze x64_asan|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="..\src\base\tests\LibraryStore_ut.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">true</ExcludedFromBuild>
