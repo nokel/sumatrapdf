@@ -50,3 +50,10 @@ translations/
 /bin/resvg.exe
 # agents.md is maintained per branch locally, so it can describe that branch
 /agents.md
+
+# android build output and machine-local gradle state
+android/app/build/
+android/.gradle/
+android/local.properties
+*.apk
+*.aab
