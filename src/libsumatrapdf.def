@@ -1797,13 +1797,19 @@ EXPORTS
 ; SumatraPDF.exe (and base) so the installer can extract libsumatrapdf.dll without
 ; calling into the delay-loaded DLL.
 
-; libwebp exports (needed for WebpReader)
+; libwebp exports (needed for WebpReader and WebpWriter)
 
 
 
 	WebPDecodeBGRAInto
 
 	WebPGetInfo
+
+	WebPEncodeBGR
+
+	WebPEncodeBGRA
+
+	WebPFree
 
 
 

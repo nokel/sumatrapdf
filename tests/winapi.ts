@@ -550,13 +550,21 @@ export function getScrollPos(hwnd: number, bar: number = SB_VERT): number {
 }
 
 // full scrollbar state of a window's scrollbar: range, page size and position
-export function getScrollInfo(hwnd: number, bar: number = SB_VERT): { min: number; max: number; page: number; pos: number } {
+export function getScrollInfo(
+  hwnd: number,
+  bar: number = SB_VERT,
+): { min: number; max: number; page: number; pos: number } {
   const buf = new Uint8Array(28);
   const dv = new DataView(buf.buffer);
   dv.setUint32(0, 28, true); // cbSize
   dv.setUint32(4, SIF_ALL, true); // fMask
   user32.symbols.GetScrollInfo(hwnd, bar, ptr(buf));
-  return { min: dv.getInt32(8, true), max: dv.getInt32(12, true), page: dv.getUint32(16, true), pos: dv.getInt32(20, true) };
+  return {
+    min: dv.getInt32(8, true),
+    max: dv.getInt32(12, true),
+    page: dv.getUint32(16, true),
+    pos: dv.getInt32(20, true),
+  };
 }
 
 export function postMessage(hwnd: number, msg: number, wParam: number, lParam: number): boolean {

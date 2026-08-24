@@ -345,6 +345,7 @@ end
 
 function libwebp_files()
   files("ext/libwebp/src/dec/*.c")
+  files("ext/libwebp/src/enc/*.c")
 
   files_in_dir("ext/libwebp/src/dsp", {
     "alpha_processing.c",
@@ -352,7 +353,18 @@ function libwebp_files()
     "alpha_processing_sse2.c",
     "alpha_processing_sse41.c",
     "cost.c",
+    "cost_neon.c",
+    "cost_sse2.c",
     "cpu.c",
+    "enc.c",
+    "enc_neon.c",
+    "enc_sse2.c",
+    "enc_sse41.c",
+    "lossless_enc.c",
+    "lossless_enc_avx2.c",
+    "lossless_enc_neon.c",
+    "lossless_enc_sse2.c",
+    "lossless_enc_sse41.c",
     "dec.c",
     "dec_clip_tables.c",
     "dec_neon.c",
@@ -381,7 +393,7 @@ function libwebp_files()
     "yuv_sse41.c",
   })
 
-  files("ext/libwebp/src/sharpyuv/*.c")
+  files("ext/libwebp/sharpyuv/*.c")
 
   files("ext/libwebp/src/utils/*.c")
 end
@@ -623,8 +635,15 @@ function sumatrapdf_files()
     "PdfSidecar.*",
     "LibraryPage.*",
     "LibraryScan.*",
+    "LibrarySidecar.*",
     "LibraryStore.*",
     "LibraryData.h",
+    "CoverData.h",
+    "CoverSpotVectors.h",
+    "CoverEditor.*",
+    "CoverModel.*",
+    "CoverOnline.*",
+    "CoverVision.*",
     "JsonVisitor.*",
     "Canvas.*",
     "CanvasAboutUI.*",
@@ -754,6 +773,7 @@ function sumatrapdf_files()
     "Version.h",
     "VirtWnd.*",
     "WebpReader.*",
+    "WebpWriter.*",
     "WindowTab.*",
   })
   filter { "configurations:Debug or DebugFull" }
@@ -1355,6 +1375,11 @@ function test_util_files()
     --"AppTools.*",
     "Commands.*",
     "LibraryStore.*",
+    "CoverData.h",
+    "CoverModel.*",
+    "CoverVision.h",
+    "WebpReader.*",
+    "WebpWriter.*",
     "CrashHandlerNoOp.cpp",
     "DisplayMode.*",
     "DocProperties.*",
@@ -1426,6 +1451,60 @@ end
 function bench_image_files()
   files {
     "src/tools/bench_image.cpp",
+  }
+end
+
+function bench_library_files()
+  files_in_dir("src/base", {
+    "AppendStore.*",
+    "Arena.*",
+    "Base.h",
+    "Base.cpp",
+    "Base_win.cpp",
+    "BitManip.*",
+    "ByteReaderWriter.*",
+    "CmdLineArgsIter.*",
+    "Color.*",
+    "Crypto.*",
+    "CssParser.*",
+    "Dict.*",
+    "DirScan.*",
+    "File.*",
+    "FileWatcher.*",
+    "Geom.*",
+    "GuessFileType.*",
+    "HtmlTags.*",
+    "JsonParser.*",
+    "Log.h",
+    "Pixmap.*",
+    "Scoped.*",
+    "SettingsUtil.*",
+    "Str.*",
+    "StrFormatParse.*",
+    "StrQueue.*",
+    "StrUtf8.*",
+    "StrVec.*",
+    "Strconv.*",
+    "Thread.*",
+    "Vec.*",
+    "Win.*",
+    "WinDynCalls.*",
+    "Zip.*",
+    "Archive.*",
+  })
+  files_in_dir("src", {
+    "BookBlob.*",
+    "BookFingerprint.*",
+    "LibraryData.h",
+    "LibraryStore.*",
+    "LibrarySidecar.*",
+    "PdfSidecar.*",
+    "CrashHandlerNoOp.cpp",
+    "SumatraConfig.*",
+    "SumatraLog.*",
+  })
+  files {
+    "src/tools/bench_library.cpp",
   }
 end
 

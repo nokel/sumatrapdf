@@ -25,3 +25,14 @@ bool PdfSidecarHasBlob(Str path);
 
 bool PdfSidecarWriteBlob(Str path, const u8* blob, int size, Str fingerprint, const Vec<PdfInfoField>* info,
                          Str* errOut);
+
+constexpr int kSidecarMaxCoverBytes = 4 << 20;
+
+bool PdfSidecarHasCover(Str path);
+bool PdfSidecarReadCover(Str path, Str* formatOut, Vec<u8>& out);
+bool PdfSidecarWriteCover(Str path, Str format, const u8* data, int size, Str* errOut);
+bool PdfSidecarRemoveCover(Str path, Str* errOut);
+
+// Performance counter: returns the number of fz_new_context calls so we can
+// see how often PdfSidecar is creating a fresh mupdf context.
+extern "C" int PdfSidecarPerfCounters(int* ctx, int* opened, int* blobDecoded, int* coverDecoded);

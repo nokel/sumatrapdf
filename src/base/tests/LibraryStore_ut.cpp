@@ -62,7 +62,11 @@ static void LibraryStoreRoundTripTest() {
     LibraryBook* dune = AddBook(store, StrL("id-dune"), StrL("Dune"));
     dune->author = str::Dup(StrL("Frank Herbert"));
     dune->series = str::Dup(StrL("Dune"));
+    dune->seriesParent = str::Dup(StrL("Dune Universe"));
     dune->seriesKey = str::Dup(StrL("k-dune"));
+    dune->genre = str::Dup(StrL("Science Fiction"));
+    dune->subgenre = str::Dup(StrL("Space Opera"));
+    dune->tags = str::Dup(StrL("desert;politics"));
     dune->path = str::Dup(StrL("C:\\books\\Dune.pdf"));
     dune->ext = str::Dup(StrL("pdf"));
     dune->pages = 412;
@@ -96,6 +100,13 @@ static void LibraryStoreRoundTripTest() {
     series->depth = 0;
     store->librarySeries->Append(series);
 
+    auto* roamed = new LibraryRoamed();
+    roamed->mark = str::Dup(StrL("fp1:mark"));
+    roamed->lastReadAt = 1750000000123LL;
+    roamed->timeSpentMs = 456789;
+    roamed->openCount = 17;
+    store->libraryRoamed->Append(roamed);
+
     Str data = LibraryStoreSerialize(store);
     utassert(len(data) > 0);
 
@@ -105,11 +116,16 @@ static void LibraryStoreRoundTripTest() {
     utassert(back->scannedAtMs == 1750000000000LL);
     utassert(back->libraryBooks->len == 3);
     utassert(back->librarySeries->len == 1);
+    utassert(back->libraryRoamed->len == 1);
 
     LibraryBook* duneBack = FindBook(back, StrL("id-dune"));
     utassert(duneBack != nullptr);
     utassert(str::Eq(duneBack->title, StrL("Dune")));
     utassert(str::Eq(duneBack->author, StrL("Frank Herbert")));
+    utassert(str::Eq(duneBack->seriesParent, StrL("Dune Universe")));
+    utassert(str::Eq(duneBack->genre, StrL("Science Fiction")));
+    utassert(str::Eq(duneBack->subgenre, StrL("Space Opera")));
+    utassert(str::Eq(duneBack->tags, StrL("desert;politics")));
     utassert(str::Eq(duneBack->path, StrL("C:\\books\\Dune.pdf")));
     utassert(duneBack->pages == 412);
     utassert(duneBack->year == 1965);
@@ -134,6 +150,10 @@ static void LibraryStoreRoundTripTest() {
 
     utassert(str::Eq((*back->librarySeries)[0]->name, StrL("Dune")));
     utassert((*back->librarySeries)[0]->books == 1);
+    utassert(str::Eq((*back->libraryRoamed)[0]->mark, StrL("fp1:mark")));
+    utassert((*back->libraryRoamed)[0]->lastReadAt == 1750000000123LL);
+    utassert((*back->libraryRoamed)[0]->timeSpentMs == 456789);
+    utassert((*back->libraryRoamed)[0]->openCount == 17);
 
     str::Free(data);
     LibraryStoreFree(store);
@@ -164,6 +184,23 @@ static void LibraryStoreFileTest() {
 
     utassert(dir::RemoveAll(dir));
     str::Free(dir);
+}
+
+static void LibraryRoamedTest() {
+    LibraryRoamed row{};
+    i64 addTime = -1;
+    i64 addOpens = -1;
+    utassert(LibraryRoamedMerge(&row, 100, 500, 3, &addTime, &addOpens));
+    utassert(addTime == 500 && addOpens == 3);
+    utassert(row.lastReadAt == 100 && row.timeSpentMs == 500 && row.openCount == 3);
+    utassert(!LibraryRoamedMerge(&row, 100, 500, 3, &addTime, &addOpens));
+    utassert(addTime == 0 && addOpens == 0);
+    utassert(LibraryRoamedMerge(&row, 90, 700, 2, &addTime, &addOpens));
+    utassert(addTime == 200 && addOpens == -1);
+    utassert(row.lastReadAt == 100 && row.timeSpentMs == 700 && row.openCount == 3);
+    utassert(LibraryRoamedMerge(&row, 120, 600, 8, &addTime, &addOpens));
+    utassert(addTime == -100 && addOpens == 5);
+    utassert(row.lastReadAt == 120 && row.timeSpentMs == 700 && row.openCount == 8);
 }
 
 // a PNG starts with a NUL-containing signature and is full of NUL bytes, so
@@ -244,7 +281,38 @@ static void LibraryThumbsTest() {
     utassert(gotC2.len == pngC.len);
     utassert(memcmp(gotC2.s, pngC.s, (size_t)pngC.len) == 0);
     str::Free(gotC2);
+
+    utassert(!LibraryThumbsRemove(again, StrL("")));
+    utassert(!LibraryThumbsRemove(again, StrL("id-nope")));
+    utassert(LibraryThumbsRemove(again, StrL("id-1")));
+    utassert(!LibraryThumbsRemove(again, StrL("id-1")));
+    utassert(!LibraryThumbsHas(again, StrL("id-1")));
+    utassert(LibraryThumbsGet(again, StrL("id-1")).len == 0);
+    utassert(LibraryThumbsCount(again) == 1);
+    utassert(LibraryThumbsHas(again, StrL("id-2")));
     LibraryThumbsClose(again);
+
+    LibraryThumbs* afterGone = LibraryThumbsOpen(dir);
+    utassert(afterGone != nullptr);
+    utassert(!LibraryThumbsHas(afterGone, StrL("id-1")));
+    utassert(LibraryThumbsCount(afterGone) == 1);
+    Str stillB = LibraryThumbsGet(afterGone, StrL("id-2"));
+    utassert(stillB.len == pngB.len);
+    str::Free(stillB);
+
+    utassert(LibraryThumbsPut(afterGone, StrL("id-1"), pngA));
+    utassert(LibraryThumbsHas(afterGone, StrL("id-1")));
+    utassert(LibraryThumbsCount(afterGone) == 2);
+    LibraryThumbsClose(afterGone);
+
+    LibraryThumbs* afterRedo = LibraryThumbsOpen(dir);
+    utassert(afterRedo != nullptr);
+    utassert(LibraryThumbsCount(afterRedo) == 2);
+    Str backA = LibraryThumbsGet(afterRedo, StrL("id-1"));
+    utassert(backA.len == pngA.len);
+    utassert(memcmp(backA.s, pngA.s, (size_t)pngA.len) == 0);
+    str::Free(backA);
+    LibraryThumbsClose(afterRedo);
 
     str::Free(pngA);
     str::Free(pngB);
@@ -257,5 +325,6 @@ void LibraryStoreTest() {
     LibraryStoreParseTest();
     LibraryStoreRoundTripTest();
     LibraryStoreFileTest();
+    LibraryRoamedTest();
     LibraryThumbsTest();
 }

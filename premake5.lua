@@ -1092,9 +1092,10 @@ workspace "SumatraPDF"
     mixed_dbg_rel_conf()
     disablewarnings { "4838" }
     defines { "SUMATRA_TEST_UTIL=1" }
-    includedirs { "src" }
+    includedirs { "src", "ext/libwebp/src" }
     test_util_files()
     setup_base_pch()
+    links { "libwebp" }
     links { "gdiplus", "comctl32", "shlwapi", "Version", "wininet", "shcore", "wintrust", "crypt32" }
 
   project "test_engines"
@@ -1157,6 +1158,30 @@ workspace "SumatraPDF"
     links {
       "gdiplus", "gdi32", "user32", "comctl32", "shlwapi", "Version",
       "ole32", "oleAut32", "windowscodecs", "shcore", "wininet",
+    }
+
+  -- SyncEmbeddedRecords perf bench: replays the BookBlob / PdfSidecar /
+  -- LibrarySidecar hot path that SyncEmbeddedRecords in src/LibraryPage.cpp
+  -- walks on every SumatraPDF startup when LibraryHome is enabled.
+  project "bench_library"
+    static_app_objdir()
+    static_linker_intermediates()
+    kind "ConsoleApp"
+    language "C++"
+    cppdialect "C++latest"
+    mixed_dbg_rel_conf()
+    disablewarnings { "4100", "4838" }
+    defines { "LIBARCHIVE_STATIC" }
+    includedirs { "src", "ext/mupdf/include", "ext/lzma/C", "ext/djvudec", "ext/libarchive", "ext/a-zlib", "ext/libwebp/src" }
+    bench_library_files()
+    setup_base_pch()
+    -- libarchive, unrar, libwebp, windowscodecs are pulled in by Archive.cpp
+    -- and mupdf's webp/jxr loaders
+    links { "base", "mupdf", "libarchive", "unrar", "libwebp", "a-zlib", "brotli" }
+    links {
+      "gdiplus", "gdi32", "user32", "comctl32", "shlwapi", "Version",
+      "wininet", "shcore", "wintrust", "crypt32", "shell32", "ole32",
+      "oleAut32", "windowscodecs",
     }
 
   -- small console app that loads PdfPreview.dll and saves a thumbnail as PNG

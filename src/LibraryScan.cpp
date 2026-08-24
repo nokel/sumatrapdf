@@ -1096,13 +1096,7 @@ static int CountTocItems(TocItem* item, int depth) {
     return n;
 }
 
-static void ReadDocLook(Str path, DocLook& look) {
-    logf("library scan: reading '%s'\n", path);
-    EngineBase* engine = CreateEngineFromFile(path, nullptr, false);
-    if (!engine) {
-        return;
-    }
-    look.pages = engine->PageCount();
+static void ReadDocIdentity(EngineBase* engine, DocLook& look) {
     TempStr title = engine->GetPropertyTemp(DocProp::Title);
     TempStr author = engine->GetPropertyTemp(DocProp::Author);
     if (title.len > 0) {
@@ -1111,6 +1105,16 @@ static void ReadDocLook(Str path, DocLook& look) {
     if (author.len > 0) {
         look.author = str::Dup(author);
     }
+}
+
+static void ReadDocLook(Str path, DocLook& look) {
+    logf("library scan: reading '%s'\n", path);
+    EngineBase* engine = CreateEngineFromFile(path, nullptr, false);
+    if (!engine) {
+        return;
+    }
+    look.pages = engine->PageCount();
+    ReadDocIdentity(engine, look);
     TocTree* toc = engine->GetToc();
     if (toc) {
         look.toc = CountTocItems(toc->root, 0);
@@ -1277,4 +1281,88 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
         str::Free(f.path);
     }
     return b.TakeStr();
+}
+
+static Str StemWords(Str path) {
+    TempStr stem = path::GetPathNoExtTemp(path::GetBaseNameTemp(path));
+    str::Builder b(64);
+    bool gap = false;
+    for (int i = 0; i < stem.len; i++) {
+        char c = stem.s[i];
+        if (c == '_' || c == '-' || c == '.' || c == ' ') {
+            gap = !b.IsEmpty();
+            continue;
+        }
+        if (gap) {
+            b.AppendChar(' ');
+            gap = false;
+        }
+        b.AppendChar(c);
+    }
+    return b.TakeStr();
+}
+
+static bool IsAsciiDigit(char c) {
+    return c >= '0' && c <= '9';
+}
+
+static int YearInStem(Str stem) {
+    for (int i = 0; i + 4 <= stem.len; i++) {
+        if (i > 0 && IsAsciiDigit(stem.s[i - 1])) {
+            continue;
+        }
+        if (i + 4 < stem.len && IsAsciiDigit(stem.s[i + 4])) {
+            continue;
+        }
+        const char* s = stem.s + i;
+        if (!IsAsciiDigit(s[0]) || !IsAsciiDigit(s[1]) || !IsAsciiDigit(s[2]) || !IsAsciiDigit(s[3])) {
+            continue;
+        }
+        int y = (s[0] - '0') * 1000 + (s[1] - '0') * 100 + (s[2] - '0') * 10 + (s[3] - '0');
+        if (y >= 1500 && y <= 2099) {
+            return y;
+        }
+    }
+    return 0;
+}
+
+bool LibraryReadAutoMeta(Str bookPath, LibraryAutoMeta& out) {
+    if (bookPath.len == 0) {
+        return false;
+    }
+    DocLook look;
+    EngineBase* engine = CreateEngineFromFile(bookPath, nullptr, false);
+    if (engine) {
+        ReadDocIdentity(engine, look);
+        SafeEngineRelease(&engine);
+    }
+    Str stem = StemWords(bookPath);
+    if (look.title.len > 0) {
+        out.title = str::Dup(look.title);
+        out.titleSource = str::Dup(StrL("pdf-meta"));
+    } else {
+        out.title = str::Dup(stem);
+        out.titleSource = str::Dup(StrL("filename"));
+    }
+    if (look.author.len > 0) {
+        out.author = str::Dup(look.author);
+        out.authorSource = str::Dup(StrL("pdf-meta"));
+    } else {
+        out.authorSource = str::Dup(StrL("filename"));
+    }
+    out.year = YearInStem(stem);
+    out.yearSource = str::Dup(StrL("filename"));
+    str::Free(look.title);
+    str::Free(look.author);
+    str::Free(stem);
+    return true;
+}
+
+void LibraryAutoMetaFree(LibraryAutoMeta& meta) {
+    str::Free(meta.title);
+    str::Free(meta.titleSource);
+    str::Free(meta.author);
+    str::Free(meta.authorSource);
+    str::Free(meta.yearSource);
+    meta = {};
 }

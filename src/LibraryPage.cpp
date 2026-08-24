@@ -38,10 +38,16 @@
 #include "LibraryData.h"
 #include "LibraryStore.h"
 #include "LibraryPage.h"
+#include "BookBlob.h"
+#include "LibrarySidecar.h"
+#include "CoverVision.h"
+#include "CoverEditor.h"
 #include "BookFingerprint.h"
+#include "PdfSidecar.h"
 
 constexpr int kMaxBooks = 4096;
 constexpr int kMaxSeries = 256;
+constexpr int kSeriesTreeDepth = 8;
 constexpr int kMaxPeople = 60;
 constexpr int kMaxScreen = 8;
 constexpr int kMaxFamily = 24;
@@ -57,6 +63,42 @@ constexpr const char* kLinkPerson = "<Library,Person>";
 constexpr const char* kLinkRescan = "<Library,Rescan>";
 constexpr const char* kLinkClassic = "<Library,Classic>";
 constexpr const char* kLinkAllBooks = "<Library,All>";
+constexpr const char* kLinkEditMetadata = "<Library,EditMetadata>";
+
+// Inline edit links. Each of the four fields in the detail view
+// (title, author, series, year) is clickable to enter an in-place
+// rename, like F2 in Windows Explorer. The URL encodes the field
+// name and the book id, so the click handler can dispatch to the
+// right inline-edit slot.
+constexpr const char* kLinkEditTitle = "<Library,EditTitle>";
+constexpr const char* kLinkEditAuthor = "<Library,EditAuthor>";
+constexpr const char* kLinkEditSeries = "<Library,EditSeries>";
+constexpr const char* kLinkEditYear = "<Library,EditYear>";
+
+// Forward decls so the click handler at the top of the file can call
+// helpers defined later (RunEditBookMetadata + BookById).
+struct LibBook;
+static void RunEditBookMetadata(MainWindow* win, LibBook* book);
+static LibBook* BookById(Str id);
+static TempStr BuildTitleTip();
+// Inline edit machinery is defined further down (state struct +
+// wndproc + Start/Commit/Cancel). Forward-declare the bits the
+// early click handler at LibraryOnLeftButtonDown needs to call
+// when the user clicks outside the EDITTEXT — without these,
+// committing on click-out doesn't work because the canvas never
+// takes focus on its own (so WM_KILLFOCUS never fires).
+enum class InlineField {
+    Title,
+    Author,
+    Series,
+    Year
+};
+struct InlineEdit;
+static void CommitInlineEdit(bool commit);
+static void StartInlineEdit(MainWindow* win, LibBook* book, InlineField field, Rect fieldRect);
+static void PostBookEdit(const char* path, Str body, Str bookId, int reverted = 0);
+struct LibSeries;
+static LibSeries* RowByKey(Str key);
 constexpr const char* kLinkOpen = "<Library,Open>";
 constexpr const char* kLinkPage = "<Library,Page>";
 constexpr const char* kLinkChapter = "<Library,Chapter>";
@@ -69,11 +111,13 @@ constexpr const char* kLinkDeskShow = "<Library,DeskShow>";
 constexpr const char* kLinkDeskPick = "<Library,Pick>";
 constexpr const char* kLinkDeskPickAll = "<Library,PickAll>";
 constexpr const char* kLinkDeskMove = "<Library,Move>";
+constexpr const char* kLinkChangeCover = "<Library,Cover>";
 constexpr const char* kDeskCoverKey = "desk:";
 
 constexpr int kMaxChapters = 512;
 constexpr int kMaxKnowers = 40;
 constexpr int kMaxDeskFiles = 4096;
+constexpr int kMaxRoamed = 4096;
 
 constexpr int kMenuOpenResume = 1;
 constexpr int kMenuOpenStart = 2;
@@ -88,6 +132,8 @@ constexpr int kMenuIgnoreFile = 10;
 constexpr int kMenuOpenDocument = 11;
 constexpr int kMenuSelectFiles = 12;
 constexpr int kMenuLeaveSeries = 13;
+constexpr int kMenuRenameSeries = 14;
+constexpr int kMenuEditBookMetadata = 15;
 constexpr int kMenuRejoinFirst = 60;
 constexpr int kMenuPartitionFirst = 100;
 constexpr int kMaxPartitions = 64;
@@ -120,13 +166,25 @@ struct LibBook {
     Str title;
     Str author;
     Str series;
+    Str seriesParent;
     Str seriesKey;
     Str keys;
+    Str genre;
+    Str subgenre;
+    Str tags;
     LibPulled outOf[kMaxOutOf];
     int nOutOf = 0;
     Str path;
+    Str file; // basename only — shown in the metadata dialog
     Str ext;
     Str wiki;
+    Str titleSource; // "filename" / "pdf-meta" / "cover" / "nlp" /
+                     // "wikipedia" / "imdb" / "openlibrary" /
+                     // "googlebooks" / "wikidata" / "user" / "auto"
+    Str authorSource;
+    Str yearSource;
+    Str seriesSource;
+    Str contentHash; // sha1 of the PDF content (for dup detection)
     int pages = 0;
     int year = 0;
     int volume = 0;
@@ -198,6 +256,8 @@ struct LibModel {
     int nBooks = 0;
     LibSeries series[kMaxSeries];
     int nSeries = 0;
+    LibraryRoamed roamed[kMaxRoamed];
+    int nRoamed = 0;
     Str filter;
     Str filterName;
     Str error;
@@ -313,10 +373,31 @@ struct CoverSlot {
     bool fetching = false;
     bool failed = false;
     bool decoded = false;
+    int gen = 0;
 };
 
 static LibModel gModel;
 static LibDetail gDetail;
+
+// Title rect in canvas coords, captured during DrawDetail so the
+// click handler can convert to screen coords for the inline edit.
+static Rect gDetailTitleRect{};
+
+// Inline-edit state. Defined here (instead of below with the rest of
+// the inline-edit code) so the early click handler at
+// LibraryOnLeftButtonDown can see the global when checking whether
+// there's an active edit to commit on click-out.
+struct InlineEdit {
+    HWND hwnd = nullptr;
+    WNDPROC prevWndProc = nullptr;
+    LibBook* book = nullptr;
+    MainWindow* win = nullptr;
+    InlineField field = InlineField::Title;
+    Str original{};
+    HFONT font = nullptr;
+    bool committing = false;
+};
+static InlineEdit gInlineEdit;
 static LibDesk gDesk;
 static bool gDeskOpen = false;
 static LibPartition gPartitions[kMaxPartitions];
@@ -329,6 +410,9 @@ static int gWorkers = 0;
 static HWND gNotifyHwnd = nullptr;
 static bool gDetailOpen = false;
 static int gPort = 0;
+
+static void SyncEmbeddedRecords();
+static void SaveModelToStore(const LibModel* m);
 
 static void EnterLib() {
     if (!gLockReady) {
@@ -411,7 +495,12 @@ static bool ServicePost(const char* path, Str body) {
     if (len(body) > 0) {
         b.Append(body);
     }
-    return HttpPost(StrL("127.0.0.1"), LibraryServicePort(), Str(path), &hdrs, &b);
+    int port = LibraryServicePort();
+    logf("ServicePost: host=%s port=%d path=%s bodyLen=%d body=%s\n", StrL("127.0.0.1"), port, Str(path), len(body),
+         body);
+    bool ok = HttpPost(StrL("127.0.0.1"), port, Str(path), &hdrs, &b);
+    logf("ServicePost: result=%d\n", (int)ok);
+    return ok;
 }
 
 static int IndexIn(Str path, const char* prefix) {
@@ -464,16 +553,30 @@ struct LibraryParser : JsonVisitor {
                 str::ReplaceWithCopy(&b.id, value);
             } else if (str::EndsWith(path, StrL("/title"))) {
                 str::ReplaceWithCopy(&b.title, value);
+            } else if (str::EndsWith(path, StrL("/title_source"))) {
+                str::ReplaceWithCopy(&b.titleSource, value);
             } else if (str::EndsWith(path, StrL("/author"))) {
                 str::ReplaceWithCopy(&b.author, value);
+            } else if (str::EndsWith(path, StrL("/author_source"))) {
+                str::ReplaceWithCopy(&b.authorSource, value);
+            } else if (str::EndsWith(path, StrL("/year_source"))) {
+                str::ReplaceWithCopy(&b.yearSource, value);
             } else if (str::EndsWith(path, StrL("/series"))) {
                 str::ReplaceWithCopy(&b.series, value);
+            } else if (str::EndsWith(path, StrL("/series_source"))) {
+                str::ReplaceWithCopy(&b.seriesSource, value);
             } else if (str::EndsWith(path, StrL("/series_keys"))) {
                 str::ReplaceWithCopy(&b.keys, value);
             } else if (str::EndsWith(path, StrL("/series_key"))) {
                 str::ReplaceWithCopy(&b.seriesKey, value);
+            } else if (str::EndsWith(path, StrL("/genre"))) {
+                str::ReplaceWithCopy(&b.genre, value);
+            } else if (str::EndsWith(path, StrL("/subgenre"))) {
+                str::ReplaceWithCopy(&b.subgenre, value);
             } else if (str::EndsWith(path, StrL("/path"))) {
                 str::ReplaceWithCopy(&b.path, value);
+            } else if (str::EndsWith(path, StrL("/file"))) {
+                str::ReplaceWithCopy(&b.file, value);
             } else if (str::EndsWith(path, StrL("/ext"))) {
                 str::ReplaceWithCopy(&b.ext, value);
             } else if (str::EndsWith(path, StrL("/wiki"))) {
@@ -486,6 +589,8 @@ struct LibraryParser : JsonVisitor {
                 b.booknlp = IsTrue(value);
             } else if (str::EndsWith(path, StrL("/cover"))) {
                 b.cover = IsTrue(value);
+            } else if (str::EndsWith(path, StrL("/content_hash"))) {
+                str::ReplaceWithCopy(&b.contentHash, value);
             } else if (IndexIn(path, "/books") >= 0 && str::Contains(path, "/volumes[0]")) {
                 b.volume = atoi(value.s);
             }
@@ -493,6 +598,10 @@ struct LibraryParser : JsonVisitor {
         }
         int si = IndexIn(path, "/series");
         if (si >= 0 && si < kMaxSeries) {
+            const char* field = strchr(path.s, ']');
+            if (!field || field[1] != '/' || strchr(field + 1, '[')) {
+                return true;
+            }
             if (si + 1 > m->nSeries) {
                 m->nSeries = si + 1;
             }
@@ -1008,6 +1117,21 @@ struct PersonParser : JsonVisitor {
     }
 };
 
+static void FreeSeriesRow(LibSeries& s) {
+    str::Free(s.key);
+    str::Free(s.name);
+    str::Free(s.author);
+    str::Free(s.parent);
+    str::Free(s.wiki);
+    str::Free(s.genre);
+    str::Free(s.sub);
+    str::Free(s.head);
+    str::Free(s.subhead);
+    str::Free(s.kind);
+    str::Free(s.guessed);
+    s = LibSeries{};
+}
+
 static void FreeModel(LibModel* m) {
     for (int i = 0; i < m->nBooks; i++) {
         LibBook& b = m->books[i];
@@ -1015,8 +1139,12 @@ static void FreeModel(LibModel* m) {
         str::Free(b.title);
         str::Free(b.author);
         str::Free(b.series);
+        str::Free(b.seriesParent);
         str::Free(b.seriesKey);
         str::Free(b.keys);
+        str::Free(b.genre);
+        str::Free(b.subgenre);
+        str::Free(b.tags);
         for (int j = 0; j < kMaxOutOf; j++) {
             str::Free(b.outOf[j].key);
             str::Free(b.outOf[j].name);
@@ -1028,21 +1156,310 @@ static void FreeModel(LibModel* m) {
     }
     m->nBooks = 0;
     for (int i = 0; i < m->nSeries; i++) {
-        LibSeries& s = m->series[i];
-        str::Free(s.key);
-        str::Free(s.name);
-        str::Free(s.author);
-        str::Free(s.parent);
-        str::Free(s.wiki);
-        str::Free(s.genre);
-        str::Free(s.sub);
-        str::Free(s.head);
-        str::Free(s.subhead);
-        str::Free(s.kind);
-        str::Free(s.guessed);
-        s = LibSeries{};
+        FreeSeriesRow(m->series[i]);
     }
     m->nSeries = 0;
+    for (int i = 0; i < m->nRoamed; i++) {
+        str::Free(m->roamed[i].mark);
+        m->roamed[i] = {};
+    }
+    m->nRoamed = 0;
+}
+
+static TempStr SeriesKeyForNameTemp(Str name) {
+    str::Builder key;
+    key.Append(StrL("series:"));
+    const char* s = name.s;
+    for (int i = 0; i < len(name) && s; i++) {
+        char c = s[i];
+        if (c >= 'A' && c <= 'Z') {
+            c = (char)(c - 'A' + 'a');
+        }
+        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
+            key.AppendChar(c);
+        }
+    }
+    return str::DupTemp(ToStr(key));
+}
+
+static int SplitKeys(Str keys, Str* out, int maxOut) {
+    int n = 0;
+    const char* p = keys.s;
+    const char* end = p ? p + len(keys) : nullptr;
+    while (p && p < end && n < maxOut) {
+        while (p < end && *p == '|') {
+            p++;
+        }
+        const char* start = p;
+        while (p < end && *p != '|') {
+            p++;
+        }
+        if (p > start) {
+            out[n++] = str::DupTemp(Str(start, (int)(p - start)));
+        }
+    }
+    return n;
+}
+
+static bool InChain(Str* chain, int n, Str key) {
+    for (int i = 0; i < n; i++) {
+        if (str::Eq(chain[i], key)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static int SeriesChain(Str key, Str* out, int maxOut) {
+    int n = 0;
+    Str cur = key;
+    while (len(cur) > 0 && n < maxOut) {
+        if (InChain(out, n, cur)) {
+            break;
+        }
+        out[n++] = cur;
+        LibSeries* row = RowByKey(cur);
+        if (!row || len(row->parent) == 0) {
+            break;
+        }
+        cur = row->parent;
+    }
+    for (int i = 0; i < n / 2; i++) {
+        Str swap = out[i];
+        out[i] = out[n - 1 - i];
+        out[n - 1 - i] = swap;
+    }
+    return n;
+}
+
+static TempStr KeysForChainTemp(Str* chain, int n) {
+    str::Builder keys;
+    keys.Append(StrL("|"));
+    for (int i = 0; i < n; i++) {
+        keys.Append(chain[i]);
+        keys.Append(StrL("|"));
+    }
+    return str::DupTemp(ToStr(keys));
+}
+
+struct LibRowPlace {
+    Str key;
+    Str parent;
+};
+
+static LibRowPlace gRowPlaces[kMaxSeries];
+static int gnRowPlaces = 0;
+
+static void RememberRowPlace(Str key, Str parent) {
+    for (int i = 0; i < gnRowPlaces; i++) {
+        if (str::Eq(gRowPlaces[i].key, key)) {
+            str::ReplaceWithCopy(&gRowPlaces[i].parent, parent);
+            return;
+        }
+    }
+    if (gnRowPlaces >= kMaxSeries) {
+        return;
+    }
+    gRowPlaces[gnRowPlaces].key = str::Dup(key);
+    gRowPlaces[gnRowPlaces].parent = str::Dup(parent);
+    gnRowPlaces++;
+}
+
+static LibSeries* RememberedParent(Str key) {
+    for (int i = 0; i < gnRowPlaces; i++) {
+        if (str::Eq(gRowPlaces[i].key, key)) {
+            return RowByKey(gRowPlaces[i].parent);
+        }
+    }
+    return nullptr;
+}
+
+static LibSeries* FormRowFor(const LibBook& b) {
+    if (len(b.subgenre) == 0) {
+        return nullptr;
+    }
+    for (int i = 0; i < gModel.nSeries; i++) {
+        LibSeries& s = gModel.series[i];
+        if (str::EqI(s.kind, StrL("form")) && str::EqI(s.sub, b.subgenre)) {
+            return &s;
+        }
+    }
+    return nullptr;
+}
+
+static LibSeries* RowByName(Str name) {
+    for (int i = 0; i < gModel.nSeries; i++) {
+        LibSeries& s = gModel.series[i];
+        bool shelf = str::EqI(s.kind, StrL("series")) || str::EqI(s.kind, StrL("collection")) ||
+                     str::EqI(s.kind, StrL("parent"));
+        if (shelf && str::EqI(s.name, name)) {
+            return &s;
+        }
+    }
+    return nullptr;
+}
+
+static LibSeries* AddSeriesRow(Str key, Str name, LibSeries* under, LibSeries* after) {
+    if (gModel.nSeries >= kMaxSeries) {
+        return nullptr;
+    }
+    int at = gModel.nSeries;
+    if (after) {
+        at = (int)(after - gModel.series) + 1;
+    } else if (under) {
+        at = (int)(under - gModel.series) + 1;
+    }
+    Str parent{};
+    Str genre{};
+    Str sub{};
+    int depth = 0;
+    if (under) {
+        parent = under->key;
+        genre = under->genre;
+        sub = under->sub;
+        depth = under->depth + 1;
+    }
+    for (int i = gModel.nSeries; i > at; i--) {
+        gModel.series[i] = gModel.series[i - 1];
+    }
+    gModel.nSeries++;
+    LibSeries& row = gModel.series[at];
+    row = LibSeries{};
+    row.key = str::Dup(key);
+    row.name = str::Dup(name);
+    row.parent = str::Dup(parent);
+    row.genre = str::Dup(genre);
+    row.sub = str::Dup(sub);
+    row.kind = str::Dup(StrL("series"));
+    row.depth = depth;
+    return &row;
+}
+
+static void RemoveSeriesRowAt(int at) {
+    if (at < 0 || at >= gModel.nSeries) {
+        return;
+    }
+    LibSeries& row = gModel.series[at];
+    if (at + 1 < gModel.nSeries) {
+        LibSeries& next = gModel.series[at + 1];
+        if (len(row.head) > 0 && len(next.head) == 0) {
+            next.head = row.head;
+            row.head = {};
+            if (len(next.subhead) == 0) {
+                next.subhead = row.subhead;
+                row.subhead = {};
+            }
+        }
+    }
+    FreeSeriesRow(row);
+    for (int i = at; i + 1 < gModel.nSeries; i++) {
+        gModel.series[i] = gModel.series[i + 1];
+    }
+    gModel.series[gModel.nSeries - 1] = LibSeries{};
+    gModel.nSeries--;
+}
+
+static bool RebuildSeriesTree() {
+    bool changed = false;
+    Str followKey{};
+    Str followName{};
+    for (int i = 0; i < gModel.nBooks; i++) {
+        LibBook& b = gModel.books[i];
+        if (!str::EqI(b.seriesSource, StrL("user")) || len(b.series) == 0) {
+            continue;
+        }
+        LibSeries* row = RowByKey(b.seriesKey);
+        if (!row || !str::EqI(row->name, b.series)) {
+            TempStr key = SeriesKeyForNameTemp(b.series);
+            if (len(key) <= LenL("series:")) {
+                continue;
+            }
+            LibSeries* basis = row;
+            row = RowByName(b.series);
+            if (!row) {
+                row = RowByKey(key);
+            }
+            if (!row) {
+                LibSeries* under = RememberedParent(key);
+                if (!under) {
+                    under = basis ? RowByKey(basis->parent) : FormRowFor(b);
+                }
+                row = AddSeriesRow(key, b.series, under, basis);
+                if (!row) {
+                    continue;
+                }
+                changed = true;
+            }
+        }
+        RememberRowPlace(row->key, row->parent);
+        if (!str::Eq(b.seriesKey, row->key)) {
+            if (len(gModel.filter) > 0 && str::Eq(gModel.filter, b.seriesKey)) {
+                followKey = str::DupTemp(row->key);
+                followName = str::DupTemp(row->name);
+            }
+            str::ReplaceWithCopy(&b.seriesKey, row->key);
+            changed = true;
+        }
+    }
+    int was[kMaxSeries];
+    for (int i = 0; i < gModel.nSeries; i++) {
+        LibSeries& s = gModel.series[i];
+        Str chain[kSeriesTreeDepth];
+        int n = SeriesChain(s.key, chain, dimofi(chain));
+        int depth = n > 0 ? n - 1 : 0;
+        if (s.depth != depth) {
+            s.depth = depth;
+            changed = true;
+        }
+        was[i] = s.books;
+        s.books = 0;
+    }
+    for (int i = 0; i < gModel.nBooks; i++) {
+        LibBook& b = gModel.books[i];
+        if (len(b.seriesKey) > 0 && RowByKey(b.seriesKey)) {
+            Str chain[kSeriesTreeDepth];
+            int n = SeriesChain(b.seriesKey, chain, dimofi(chain));
+            TempStr keys = KeysForChainTemp(chain, n);
+            if (!str::Eq(b.keys, keys)) {
+                str::ReplaceWithCopy(&b.keys, keys);
+                changed = true;
+            }
+        }
+        Str got[kSeriesTreeDepth * 2];
+        int n = SplitKeys(b.keys, got, dimofi(got));
+        for (int j = 0; j < n; j++) {
+            if (InChain(got, j, got[j])) {
+                continue;
+            }
+            for (int k = 0; k < gModel.nSeries; k++) {
+                if (str::Eq(gModel.series[k].key, got[j])) {
+                    gModel.series[k].books++;
+                }
+            }
+        }
+    }
+    for (int i = 0; i < gModel.nSeries; i++) {
+        if (was[i] != gModel.series[i].books) {
+            changed = true;
+        }
+    }
+    for (int i = gModel.nSeries - 1; i >= 0; i--) {
+        if (gModel.series[i].books == 0) {
+            RemoveSeriesRowAt(i);
+            changed = true;
+        }
+    }
+    if (len(gModel.filter) > 0 && !RowByKey(gModel.filter)) {
+        if (len(followKey) > 0 && RowByKey(followKey)) {
+            str::ReplaceWithCopy(&gModel.filter, followKey);
+            str::ReplaceWithCopy(&gModel.filterName, followName);
+        } else {
+            str::FreePtr(&gModel.filter);
+            str::FreePtr(&gModel.filterName);
+        }
+        changed = true;
+    }
+    return changed;
 }
 
 static void FreeDesk(LibDesk* d) {
@@ -1123,6 +1540,11 @@ static void FreeDetail(LibDetail* d) {
 struct LibJob {
     Str a;
     Str b;
+    // c is used by the metadata-edit path to carry the bookId so the
+    // targeted PersistBookMetadata() call can find the right book
+    // without re-walking the model.
+    Str c;
+    int cleared = 0;
 };
 
 static LibJob* NewJob(Str a, Str b = {}) {
@@ -1132,9 +1554,19 @@ static LibJob* NewJob(Str a, Str b = {}) {
     return j;
 }
 
+static LibJob* NewJob3(Str a, Str b, Str c, int cleared = 0) {
+    auto j = new LibJob();
+    j->a = str::Dup(a);
+    j->b = str::Dup(b);
+    j->c = str::Dup(c);
+    j->cleared = cleared;
+    return j;
+}
+
 static void FreeJob(LibJob* j) {
     str::Free(j->a);
     str::Free(j->b);
+    str::Free(j->c);
     delete j;
 }
 
@@ -1201,11 +1633,19 @@ static void CopyBookFromStore(LibBook& b, LibraryBook* src) {
     str::ReplaceWithCopy(&b.title, src->title);
     str::ReplaceWithCopy(&b.author, src->author);
     str::ReplaceWithCopy(&b.series, src->series);
+    str::ReplaceWithCopy(&b.seriesParent, src->seriesParent);
     str::ReplaceWithCopy(&b.seriesKey, src->seriesKey);
     str::ReplaceWithCopy(&b.keys, src->keys);
+    str::ReplaceWithCopy(&b.genre, src->genre);
+    str::ReplaceWithCopy(&b.subgenre, src->subgenre);
+    str::ReplaceWithCopy(&b.tags, src->tags);
     str::ReplaceWithCopy(&b.path, src->path);
     str::ReplaceWithCopy(&b.ext, src->ext);
     str::ReplaceWithCopy(&b.wiki, src->wiki);
+    str::ReplaceWithCopy(&b.titleSource, src->titleSource);
+    str::ReplaceWithCopy(&b.authorSource, src->authorSource);
+    str::ReplaceWithCopy(&b.yearSource, src->yearSource);
+    str::ReplaceWithCopy(&b.seriesSource, src->seriesSource);
     b.pages = src->pages;
     b.year = src->year;
     b.volume = src->volume;
@@ -1240,43 +1680,168 @@ static void CopySeriesFromStore(LibSeries& s, LibrarySeries* src) {
     s.depth = src->depth;
 }
 
-// caller holds the lib lock and has already freed the model
-static bool FillModelFromStore(LibModel* m) {
-    LibraryStore* store = LibraryStoreLoad(LibraryStorePathTemp());
-    if (!store) {
-        return false;
-    }
-    for (LibraryBook* src : *store->libraryBooks) {
-        if (m->nBooks >= kMaxBooks) {
-            break;
+static LibraryRoamed* FindRoamed(LibModel* model, Str mark, bool create) {
+    for (int i = 0; i < model->nRoamed; i++) {
+        if (str::Eq(model->roamed[i].mark, mark)) {
+            return &model->roamed[i];
         }
-        CopyBookFromStore(m->books[m->nBooks], src);
-        m->nBooks++;
     }
-    for (LibrarySeries* src : *store->librarySeries) {
-        if (m->nSeries >= kMaxSeries) {
-            break;
-        }
-        CopySeriesFromStore(m->series[m->nSeries], src);
-        m->nSeries++;
+    if (!create || model->nRoamed >= kMaxRoamed) {
+        return nullptr;
     }
-    m->total = store->total > 0 ? store->total : m->nBooks;
-    m->documents = store->documents;
-    bool any = m->nBooks > 0;
-    LibraryStoreFree(store);
-    return any;
+    LibraryRoamed* row = &model->roamed[model->nRoamed++];
+    row->mark = str::Dup(mark);
+    return row;
 }
+
+// In-memory mutation of a book from a sidecar record. Caller must hold the
+// lib lock. This is the cheap half of the old AdoptEmbeddedRecord: the
+// BookBlobRecord is read by the caller BEFORE taking the lock, so this
+// function only touches in-memory data.
+//
+// IMPORTANT: this runs every time AdoptEmbeddedRecords is called —
+// which can be repeatedly during a session, every time the user
+// renames a book or the catalogue re-loads. If we just blindly
+// overwrote book.title with the sidecar's title, an in-memory
+// user rename (from the inline edit) would be silently reverted
+// the next time the canvas is repainted. We must respect the
+// *Source fields: if a field's source is "user", the user has
+// spoken and the sidecar is not allowed to overwrite it.
+static bool AdoptEmbeddedRecordFields(LibModel* model, LibBook& book, const BookBlobRecord& rec) {
+    bool changed = false;
+    if (rec.hasIdentity) {
+        if (rec.identity.title && !str::Eq(book.title, Str(rec.identity.title)) &&
+            !str::EqI(book.titleSource, StrL("user"))) {
+            str::ReplaceWithCopy(&book.title, Str(rec.identity.title));
+            changed = true;
+        }
+        if (rec.identity.author && !str::Eq(book.author, Str(rec.identity.author)) &&
+            !str::EqI(book.authorSource, StrL("user"))) {
+            str::ReplaceWithCopy(&book.author, Str(rec.identity.author));
+            changed = true;
+        }
+        if (rec.identity.year > 0 && book.year != rec.identity.year && !str::EqI(book.yearSource, StrL("user"))) {
+            book.year = rec.identity.year;
+            changed = true;
+        }
+        if (rec.identity.pages > 0 && book.pages != rec.identity.pages) {
+            book.pages = rec.identity.pages;
+            changed = true;
+        }
+    }
+    if (rec.hasShelf) {
+        if (rec.shelf.series && !str::Eq(book.series, Str(rec.shelf.series)) &&
+            !str::EqI(book.seriesSource, StrL("user"))) {
+            str::ReplaceWithCopy(&book.series, Str(rec.shelf.series));
+            changed = true;
+        }
+        if (rec.shelf.seriesParent && !str::Eq(book.seriesParent, Str(rec.shelf.seriesParent))) {
+            str::ReplaceWithCopy(&book.seriesParent, Str(rec.shelf.seriesParent));
+            changed = true;
+        }
+        if (rec.shelf.genre && !str::Eq(book.genre, Str(rec.shelf.genre))) {
+            str::ReplaceWithCopy(&book.genre, Str(rec.shelf.genre));
+            changed = true;
+        }
+        if (rec.shelf.subgenre && !str::Eq(book.subgenre, Str(rec.shelf.subgenre))) {
+            str::ReplaceWithCopy(&book.subgenre, Str(rec.shelf.subgenre));
+            changed = true;
+        }
+        str::Builder tags;
+        for (const char* tag : rec.shelf.tags) {
+            if (len(tags) > 0) {
+                tags.Append(StrL(";"));
+            }
+            tags.Append(Str(tag));
+        }
+        if (len(tags) > 0 && !str::Eq(book.tags, ToStr(tags))) {
+            str::ReplaceWithCopy(&book.tags, ToStr(tags));
+            changed = true;
+        }
+        str::Builder partitions;
+        for (const char* partition : rec.shelf.partitions) {
+            if (len(partitions) > 0) {
+                partitions.Append(StrL(";"));
+            }
+            partitions.Append(Str(partition));
+        }
+        if (len(partitions) > 0 && len(book.keys) == 0) {
+            str::ReplaceWithCopy(&book.keys, ToStr(partitions));
+            changed = true;
+        }
+        if (rec.shelf.seriesIndex >= 0 && book.volume != rec.shelf.seriesIndex) {
+            book.volume = rec.shelf.seriesIndex;
+            changed = true;
+        }
+    }
+    if (rec.hasStats && rec.hasIdentity && rec.identity.fingerprint) {
+        LibraryRoamed* before = FindRoamed(model, Str(rec.identity.fingerprint), true);
+        if (!before) {
+            return changed;
+        }
+        i64 addTime = 0;
+        i64 addOpens = 0;
+        if (!LibraryRoamedMerge(before, rec.stats.lastReadAt, rec.stats.timeSpentMs, rec.stats.openCount, &addTime,
+                                &addOpens)) {
+            return changed;
+        }
+        FileState* fs = FileHistoryFindByPath(book.path);
+        if (!fs) {
+            fs = NewFileState(book.path);
+            FileHistoryAppend(fs);
+        }
+        bool newer = rec.stats.lastReadAt > fs->lastReadAt;
+        fs->lastReadAt = std::max(fs->lastReadAt, rec.stats.lastReadAt);
+        fs->timeSpentMs += std::max<i64>(0, addTime);
+        fs->openCount += (int)std::min<i64>(INT_MAX, std::max<i64>(0, addOpens));
+        int reached = (int)std::min<i64>(INT_MAX, rec.stats.pageNo);
+        if (book.pages > 0 && rec.stats.percentRead > 0) {
+            reached = std::max(reached, (int)(book.pages * rec.stats.percentRead / 100));
+        }
+        fs->maxPageReached = std::max(fs->maxPageReached, reached);
+        if (newer && rec.stats.pageNo > 0) {
+            fs->pageNo = (int)std::min<i64>(INT_MAX, rec.stats.pageNo);
+        }
+        changed = true;
+    }
+    return changed;
+}
+
+// Bulk variant of AdoptEmbeddedRecordFields. Used only by tests today;
+// the production LoadModelThread path uses the lock-free per-book loop
+// that calls AdoptEmbeddedRecordFields directly.
+static bool AdoptEmbeddedRecords(LibModel* model) {
+    bool changed = false;
+    for (int i = 0; i < model->nBooks; i++) {
+        BookBlobRecord rec;
+        if (LibrarySidecarReadRecord(model->books[i].path, rec)) {
+            changed = AdoptEmbeddedRecordFields(model, model->books[i], rec) || changed;
+        }
+    }
+    return changed;
+}
+
+// keep a reference so the compiler does not strip AdoptEmbeddedRecords
+static bool (*gAdoptEmbeddedRecordsKeepAlive)(LibModel*) = &AdoptEmbeddedRecords;
 
 static void CopyBookToStore(LibraryBook* dst, const LibBook& b) {
     dst->id = str::Dup(b.id);
     dst->title = str::Dup(b.title);
     dst->author = str::Dup(b.author);
     dst->series = str::Dup(b.series);
+    dst->seriesParent = str::Dup(b.seriesParent);
     dst->seriesKey = str::Dup(b.seriesKey);
     dst->keys = str::Dup(b.keys);
+    dst->genre = str::Dup(b.genre);
+    dst->subgenre = str::Dup(b.subgenre);
+    dst->tags = str::Dup(b.tags);
     dst->path = str::Dup(b.path);
     dst->ext = str::Dup(b.ext);
     dst->wiki = str::Dup(b.wiki);
+    dst->titleSource = str::Dup(b.titleSource);
+    dst->authorSource = str::Dup(b.authorSource);
+    dst->yearSource = str::Dup(b.yearSource);
+    dst->seriesSource = str::Dup(b.seriesSource);
     dst->pages = b.pages;
     dst->year = b.year;
     dst->volume = b.volume;
@@ -1328,6 +1893,14 @@ static void SaveModelToStore(const LibModel* m) {
         CopySeriesToStore(dst, m->series[i]);
         store->librarySeries->Append(dst);
     }
+    for (int i = 0; i < m->nRoamed; i++) {
+        auto* dst = new LibraryRoamed();
+        dst->mark = str::Dup(m->roamed[i].mark);
+        dst->lastReadAt = m->roamed[i].lastReadAt;
+        dst->timeSpentMs = m->roamed[i].timeSpentMs;
+        dst->openCount = m->roamed[i].openCount;
+        store->libraryRoamed->Append(dst);
+    }
     if (!LibraryStoreSave(store, LibraryStorePathTemp())) {
         logf("SaveModelToStore: could not write %s\n", LibraryStorePathTemp());
     }
@@ -1340,13 +1913,52 @@ static void LoadModelThread(LibJob* job) {
     FreeJob(job);
 
     // draw what the last scan found before waiting on the service, so a cold
-    // start shows the library instead of an empty page
-    EnterLib();
-    bool showStored = !gModel.loaded && gModel.nBooks == 0;
-    if (showStored) {
-        showStored = FillModelFromStore(&gModel);
+    // start shows the library instead of an empty page. We split the store
+    // load into a no-lock file-I/O phase and a brief critical section that
+    // only copies the in-memory book list into gModel. AdoptEmbeddedRecords
+    // (which opens every PDF and decodes its LZMA2 blob) is run OUTSIDE the
+    // lock; previously this whole sequence held gLock for 10+ seconds on a
+    // 128-book library, blocking the UI thread from painting.
+    bool showStored = false;
+    {
+        LibraryStore* store = LibraryStoreLoad(LibraryStorePathTemp());
+        if (store) {
+            EnterLib();
+            showStored = !gModel.loaded && gModel.nBooks == 0;
+            if (showStored) {
+                for (LibraryBook* src : *store->libraryBooks) {
+                    if (gModel.nBooks >= kMaxBooks) {
+                        break;
+                    }
+                    CopyBookFromStore(gModel.books[gModel.nBooks], src);
+                    gModel.nBooks++;
+                }
+                for (LibrarySeries* src : *store->librarySeries) {
+                    if (gModel.nSeries >= kMaxSeries) {
+                        break;
+                    }
+                    CopySeriesFromStore(gModel.series[gModel.nSeries], src);
+                    gModel.nSeries++;
+                }
+                for (LibraryRoamed* src : *store->libraryRoamed) {
+                    if (gModel.nRoamed >= kMaxRoamed || len(src->mark) == 0) {
+                        continue;
+                    }
+                    LibraryRoamed& dst = gModel.roamed[gModel.nRoamed++];
+                    dst.mark = str::Dup(src->mark);
+                    dst.lastReadAt = src->lastReadAt;
+                    dst.timeSpentMs = src->timeSpentMs;
+                    dst.openCount = src->openCount;
+                }
+                gModel.total = store->total > 0 ? store->total : gModel.nBooks;
+                gModel.documents = store->documents;
+                showStored = gModel.nBooks > 0;
+                RebuildSeriesTree();
+            }
+            LeaveLib();
+            LibraryStoreFree(store);
+        }
     }
-    LeaveLib();
     if (showStored) {
         Repaint();
     }
@@ -1357,6 +1969,7 @@ static void LoadModelThread(LibJob* job) {
     path.Append(UrlEncodeTemp(LibrarySortOrder()));
     TempStr body = ServiceGetTextTemp(ToStr(path));
     TempStr parts = ServiceGetTextTemp("/partitions");
+    bool catalogueLoaded = len(body) > 0;
     EnterLib();
     FreePartitions();
     if (len(parts) > 0) {
@@ -1370,7 +1983,7 @@ static void LoadModelThread(LibJob* job) {
         JsonParseWithVisitor(Str(body), &p);
         gModel.loaded = true;
         str::FreePtr(&gModel.error);
-        SaveModelToStore(&gModel);
+        RebuildSeriesTree();
     } else if (showStored) {
         // the service is not answering but the last index is on disk, and that
         // is what the page is already showing, so it is not an error
@@ -1387,6 +2000,66 @@ static void LoadModelThread(LibJob* job) {
     }
     LeaveLib();
     Repaint();
+
+    // Adopt embedded records OUTSIDE the lock. This opens every PDF and
+    // decodes its LZMA2 sidecar blob, which can take 5-15 seconds on a
+    // 128-book library. Doing it under the lock would freeze the UI.
+    // The cheap LibrarySidecarHas walk is used to skip books that don't
+    // have a sidecar at all — without that guard, on a 128-book library
+    // with a few hundred milliseconds of LZMA2 decode per file, this loop
+    // heats the CPU to the point of throttling for over a minute.
+    bool adopted = false;
+    {
+        int n = 0;
+        {
+            EnterLib();
+            n = gModel.nBooks;
+            LeaveLib();
+        }
+        for (int i = 0; i < n; i++) {
+            Str bookPath;
+            {
+                EnterLib();
+                if (i < gModel.nBooks) {
+                    bookPath = str::Dup(gModel.books[i].path);
+                }
+                LeaveLib();
+            }
+            if (len(bookPath) == 0) {
+                str::Free(bookPath);
+                continue;
+            }
+            if (!LibrarySidecarHas(bookPath)) {
+                str::Free(bookPath);
+                continue;
+            }
+            BookBlobRecord rec;
+            if (!LibrarySidecarReadRecord(bookPath, rec)) {
+                str::Free(bookPath);
+                continue;
+            }
+            // Apply changes under the lock; the in-memory mutation is cheap
+            EnterLib();
+            if (i < gModel.nBooks && str::Eq(gModel.books[i].path, bookPath)) {
+                if (AdoptEmbeddedRecordFields(&gModel, gModel.books[i], rec)) {
+                    adopted = true;
+                }
+            }
+            LeaveLib();
+            str::Free(bookPath);
+        }
+    }
+    if (adopted || catalogueLoaded) {
+        EnterLib();
+        bool overlaid = RebuildSeriesTree();
+        SaveModelToStore(&gModel);
+        LeaveLib();
+        if (overlaid) {
+            Repaint();
+        }
+    }
+
+    SyncEmbeddedRecords();
     if (sweepDevice) {
         RunAsync(MkFunc0<LibJob>(RescanThread, NewJob({})), "libRescan");
     }
@@ -1521,7 +2194,23 @@ static void RescanThread(LibJob* job) {
     if (busy) {
         return;
     }
-    LibraryEnsureService();
+    if (!LibraryEnsureService()) {
+        // The local library service (the Python audiobook.library process
+        // that owns the index) is not running and we can't bring it up.
+        // Without it, RunOneScan's ServicePost("/index", ...) is a no-op,
+        // but LibraryScanToJson still walks the whole device filesystem
+        // for every call. On a multi-drive Windows box that can keep a
+        // modern CPU pegged for 30+ seconds at startup — exactly the
+        // "phone heats up" symptom we're trying to fix. Skip the scan and
+        // let the user trigger a rescan manually once the service is up.
+        logf("RescanThread: library service not available, skipping auto-sweep\n");
+        EnterLib();
+        gNativeScanning = false;
+        gModel.scanning = false;
+        LeaveLib();
+        Repaint();
+        return;
+    }
     Repaint();
 
     Vec<LibraryKnownFile> known;
@@ -1561,16 +2250,192 @@ void LibraryRefresh(MainWindow* win, bool rescan) {
     Repaint();
 }
 
+static Str BookPathForId(Str id) {
+    Str path;
+    EnterLib();
+    for (int i = 0; i < gModel.nBooks; i++) {
+        if (str::Eq(gModel.books[i].id, id)) {
+            path = str::Dup(gModel.books[i].path);
+            break;
+        }
+    }
+    LeaveLib();
+    return path;
+}
+
+static bool ReadEmbeddedRecordForId(Str id, BookBlobRecord& rec) {
+    Str path = BookPathForId(id);
+    bool ok = len(path) > 0 && LibrarySidecarReadRecord(path, rec);
+    str::Free(path);
+    return ok;
+}
+
+static void SaveEmbeddedChapters(Str id) {
+    BookBlobRecord rec;
+    if (!ReadEmbeddedRecordForId(id, rec)) {
+        return;
+    }
+    bool have = false;
+    EnterLib();
+    if (str::Eq(gDetail.id, id) && gDetail.nChapters > 0) {
+        rec.chapters.Reset();
+        for (int i = 0; i < gDetail.nChapters; i++) {
+            BlobChapter dst{};
+            dst.title = rec.strings.Append(gDetail.chapters[i].title).s;
+            dst.page = gDetail.chapters[i].page;
+            dst.depth = gDetail.chapters[i].depth;
+            rec.chapters.Append(dst);
+        }
+        have = true;
+    }
+    LeaveLib();
+    if (!have) {
+        return;
+    }
+    Str path = BookPathForId(id);
+    Str error;
+    if (len(path) > 0) {
+        LibrarySidecarWriteRecord(path, rec, &error);
+    }
+    str::Free(error);
+    str::Free(path);
+}
+
+static void SaveEmbeddedScreen(Str id) {
+    BookBlobRecord rec;
+    if (!ReadEmbeddedRecordForId(id, rec)) {
+        return;
+    }
+    bool have = false;
+    EnterLib();
+    if (str::Eq(gDetail.id, id) && gDetail.nScreen > 0) {
+        rec.adaptations.Reset();
+        for (int i = 0; i < gDetail.nScreen; i++) {
+            LibScreen& src = gDetail.screen[i];
+            if (len(src.imdbId) == 0) {
+                continue;
+            }
+            BlobShow dst{};
+            dst.title = rec.strings.Append(src.title).s;
+            dst.kind = rec.strings.Append(src.kind).s;
+            dst.year = src.year;
+            dst.ref = rec.strings.Append(src.imdbId).s;
+            rec.adaptations.Append(dst);
+        }
+        have = len(rec.adaptations) > 0;
+    }
+    LeaveLib();
+    if (!have) {
+        return;
+    }
+    Str path = BookPathForId(id);
+    Str error;
+    if (len(path) > 0) {
+        LibrarySidecarWriteRecord(path, rec, &error);
+    }
+    str::Free(error);
+    str::Free(path);
+}
+
+static void ApplyEmbeddedDetail(LibDetail* detail, const BookBlobRecord& rec) {
+    if (rec.hasIdentity) {
+        // Title / Author / Year are service-authoritative: /book supplies
+        // them and any user override is layered by the service. The
+        // embedded sidecar (written before the override) is NOT allowed
+        // to overwrite them here.
+        if (rec.identity.pages > 0) {
+            detail->pages = rec.identity.pages;
+        }
+    }
+    if (rec.hasShelf) {
+        // Series is service-authoritative (same reason as Title/Author).
+        if (rec.shelf.genre) {
+            str::ReplaceWithCopy(&detail->genre, Str(rec.shelf.genre));
+        }
+        if (rec.shelf.subgenre) {
+            str::ReplaceWithCopy(&detail->sub, Str(rec.shelf.subgenre));
+        }
+        str::Builder subjects;
+        for (const char* tag : rec.shelf.tags) {
+            if (len(subjects) > 0) {
+                subjects.Append(StrL(", "));
+            }
+            subjects.Append(Str(tag));
+        }
+        if (len(subjects) > 0) {
+            str::ReplaceWithCopy(&detail->subjects, ToStr(subjects));
+        }
+    }
+}
+
+static void ApplyEmbeddedScreen(LibDetail* detail, const BookBlobRecord& rec) {
+    for (int i = 0; i < detail->nScreen; i++) {
+        str::Free(detail->screen[i].title);
+        str::Free(detail->screen[i].kind);
+        str::Free(detail->screen[i].poster);
+        str::Free(detail->screen[i].stars);
+        str::Free(detail->screen[i].via);
+        str::Free(detail->screen[i].imdbId);
+        detail->screen[i] = {};
+    }
+    detail->nScreen = 0;
+    for (const BlobShow& src : rec.adaptations) {
+        if (detail->nScreen >= kMaxScreen || !src.ref) {
+            continue;
+        }
+        LibScreen& dst = detail->screen[detail->nScreen++];
+        dst.title = str::Dup(Str(src.title ? src.title : ""));
+        dst.kind = str::Dup(Str(src.kind ? src.kind : "Title"));
+        dst.imdbId = str::Dup(Str(src.ref));
+        dst.via = str::Dup(StrL("roaming"));
+        dst.year = src.year;
+    }
+}
+
+static void ApplyEmbeddedChapters(LibDetail* detail, const BookBlobRecord& rec) {
+    for (int i = 0; i < detail->nChapters; i++) {
+        str::Free(detail->chapters[i].title);
+        detail->chapters[i] = {};
+    }
+    detail->nChapters = 0;
+    for (const BlobChapter& src : rec.chapters) {
+        if (detail->nChapters >= kMaxChapters) {
+            break;
+        }
+        int idx = detail->nChapters++;
+        LibChapter& dst = detail->chapters[idx];
+        dst.title = str::Dup(Str(src.title ? src.title : ""));
+        dst.page = src.page;
+        dst.depth = src.depth;
+        dst.parent = -1;
+        for (int i = idx - 1; i >= 0; i--) {
+            if (detail->chapters[i].depth < dst.depth) {
+                dst.parent = i;
+                detail->chapters[i].kids++;
+                break;
+            }
+        }
+        dst.open = dst.depth > 0;
+    }
+}
+
 static void LoadDetailThread(LibJob* job) {
     TempStr id = str::DupTemp(job->a);
     FreeJob(job);
-    TempStr path = fmt("/book?id=%s", id);
-    TempStr body = ServiceGetTextTemp(path);
+    BookBlobRecord rec;
+    bool embedded = ReadEmbeddedRecordForId(id, rec);
+    // Always fetch /book — it carries the current user override for
+    // Title / Author / Series / Year, which the embedded sidecar (a
+    // snapshot from before the override) would otherwise overwrite.
+    TempStr body = ServiceGetTextTemp(fmt("/book?id=%s", id));
     EnterLib();
     if (str::Eq(gDetail.id, Str(id))) {
         if (len(body) > 0) {
             DetailParser p(&gDetail);
             JsonParseWithVisitor(Str(body), &p);
+        }
+        if (embedded) {
+            ApplyEmbeddedDetail(&gDetail, rec);
         }
         gDetail.loading = false;
     }
@@ -1581,18 +2446,28 @@ static void LoadDetailThread(LibJob* job) {
 static void LoadScreenThread(LibJob* job) {
     TempStr id = str::DupTemp(job->a);
     FreeJob(job);
-    TempStr path = fmt("/screen?id=%s", id);
-    TempStr body = ServiceGetTextTemp(path);
+    BookBlobRecord rec;
+    bool embedded = ReadEmbeddedRecordForId(id, rec) && len(rec.adaptations) > 0;
+    TempStr body;
+    if (!embedded) {
+        body = ServiceGetTextTemp(fmt("/screen?id=%s", id));
+    }
     EnterLib();
     if (str::Eq(gDetail.id, Str(id))) {
         if (len(body) > 0) {
             ScreenParser p(&gDetail);
             JsonParseWithVisitor(Str(body), &p);
         }
+        if (embedded) {
+            ApplyEmbeddedScreen(&gDetail, rec);
+        }
         gDetail.screenLoading = false;
         gDetail.screenDone = true;
     }
     LeaveLib();
+    if (!embedded && len(body) > 0) {
+        SaveEmbeddedScreen(id);
+    }
     Repaint();
 }
 
@@ -1629,12 +2504,20 @@ static void LoadPersonThread(LibJob* job) {
 static void LoadChaptersThread(LibJob* job) {
     TempStr id = str::DupTemp(job->a);
     FreeJob(job);
-    TempStr body = ServiceGetTextTemp(fmt("/chapters?id=%s", id));
+    BookBlobRecord rec;
+    bool embedded = ReadEmbeddedRecordForId(id, rec) && len(rec.chapters) > 0;
+    TempStr body;
+    if (!embedded) {
+        body = ServiceGetTextTemp(fmt("/chapters?id=%s", id));
+    }
     EnterLib();
     if (str::Eq(gDetail.id, Str(id))) {
         if (len(body) > 0) {
             ChapterParser p(&gDetail);
             JsonParseWithVisitor(Str(body), &p);
+        }
+        if (embedded) {
+            ApplyEmbeddedChapters(&gDetail, rec);
         }
         for (int i = 0; i < gDetail.nChapters; i++) {
             gDetail.chapters[i].open = gDetail.chapters[i].depth > 0;
@@ -1643,6 +2526,9 @@ static void LoadChaptersThread(LibJob* job) {
         gDetail.chaptersDone = true;
     }
     LeaveLib();
+    if (!embedded && len(body) > 0) {
+        SaveEmbeddedChapters(id);
+    }
     Repaint();
 }
 
@@ -1742,6 +2628,21 @@ static void OpenDetail(Str id) {
     EnterLib();
     FreeDetail(&gDetail);
     str::ReplaceWithCopy(&gDetail.id, id);
+    for (int i = 0; i < gModel.nBooks; i++) {
+        if (!str::Eq(gModel.books[i].id, id)) {
+            continue;
+        }
+        str::ReplaceWithCopy(&gDetail.path, gModel.books[i].path);
+        str::ReplaceWithCopy(&gDetail.title, gModel.books[i].title);
+        str::ReplaceWithCopy(&gDetail.author, gModel.books[i].author);
+        str::ReplaceWithCopy(&gDetail.series, gModel.books[i].series);
+        str::ReplaceWithCopy(&gDetail.genre, gModel.books[i].genre);
+        str::ReplaceWithCopy(&gDetail.sub, gModel.books[i].subgenre);
+        str::ReplaceWithCopy(&gDetail.subjects, gModel.books[i].tags);
+        gDetail.pages = gModel.books[i].pages;
+        gDetail.year = gModel.books[i].year;
+        break;
+    }
     gDetail.loading = true;
     gDetail.tab = LibTab::Overview;
     LeaveLib();
@@ -1831,6 +2732,215 @@ static CoverSlot* SlotFor(Str key) {
     return s;
 }
 
+struct CoverBookInfo {
+    Str path;
+    Str title;
+    Str author;
+    Str series;
+    Str seriesParent;
+    Str genre;
+    Str subgenre;
+    Str tags;
+    Str partitions;
+    int year = 0;
+    int pages = 0;
+    int seriesIndex = -1;
+    // Whether the user owns each of these four. The portable record in the
+    // book file is read back by any device as "the user typed this", so a
+    // value we merely auto-detected must not be written into it: the next
+    // clean scan would hand it back marked "user" and no Revert could ever
+    // shake it off.
+    bool titleIsUser = false;
+    bool authorIsUser = false;
+    bool seriesIsUser = false;
+    bool yearIsUser = false;
+};
+
+static bool IsUserSource(Str source) {
+    return str::EqI(source, StrL("user"));
+}
+
+static CoverBookInfo CoverBookInfoById(Str id) {
+    CoverBookInfo res;
+    EnterLib();
+    for (int i = 0; i < gModel.nBooks; i++) {
+        if (str::Eq(gModel.books[i].id, id)) {
+            res.path = str::Dup(gModel.books[i].path);
+            res.title = str::Dup(gModel.books[i].title);
+            res.author = str::Dup(gModel.books[i].author);
+            res.series = str::Dup(gModel.books[i].series);
+            res.seriesParent = str::Dup(gModel.books[i].seriesParent);
+            res.genre = str::Dup(gModel.books[i].genre);
+            res.subgenre = str::Dup(gModel.books[i].subgenre);
+            res.tags = str::Dup(gModel.books[i].tags);
+            res.partitions = str::Dup(gModel.books[i].keys);
+            res.year = gModel.books[i].year;
+            res.pages = gModel.books[i].pages;
+            res.seriesIndex = gModel.books[i].volume;
+            res.titleIsUser = IsUserSource(gModel.books[i].titleSource);
+            res.authorIsUser = IsUserSource(gModel.books[i].authorSource);
+            res.seriesIsUser = IsUserSource(gModel.books[i].seriesSource);
+            res.yearIsUser = IsUserSource(gModel.books[i].yearSource);
+            break;
+        }
+    }
+    LeaveLib();
+    return res;
+}
+
+static Str PortableTitle(const CoverBookInfo& b) {
+    return b.titleIsUser ? b.title : Str();
+}
+static Str PortableAuthor(const CoverBookInfo& b) {
+    return b.authorIsUser ? b.author : Str();
+}
+static Str PortableSeries(const CoverBookInfo& b) {
+    return b.seriesIsUser ? b.series : Str();
+}
+static int PortableYear(const CoverBookInfo& b) {
+    return b.yearIsUser ? b.year : 0;
+}
+
+static void FreeCoverBookInfo(CoverBookInfo& info) {
+    str::Free(info.path);
+    str::Free(info.title);
+    str::Free(info.author);
+    str::Free(info.series);
+    str::Free(info.seriesParent);
+    str::Free(info.genre);
+    str::Free(info.subgenre);
+    str::Free(info.tags);
+    str::Free(info.partitions);
+    info = {};
+}
+
+static void SyncEmbeddedRecords() {
+    int count;
+    EnterLib();
+    count = gModel.nBooks;
+    LeaveLib();
+    int pdfSidecarCtxBefore = 0, pdfSidecarOpenedBefore = 0, blobBefore = 0, coverBefore = 0;
+    PdfSidecarPerfCounters(&pdfSidecarCtxBefore, &pdfSidecarOpenedBefore, &blobBefore, &coverBefore);
+    u64 startMs = GetTickCount64();
+    for (int i = 0; i < count; i++) {
+        Str id;
+        EnterLib();
+        if (i < gModel.nBooks) {
+            id = str::Dup(gModel.books[i].id);
+        }
+        LeaveLib();
+        if (len(id) == 0) {
+            str::Free(id);
+            continue;
+        }
+        CoverBookInfo book = CoverBookInfoById(id);
+        str::Free(id);
+        FileState* fs = FileHistoryFindByPath(book.path);
+        BlobStats stats;
+        BlobStats* statsPtr = nullptr;
+        if (fs && (fs->lastReadAt > 0 || fs->timeSpentMs > 0 || fs->openCount > 0 || fs->maxPageReached > 0)) {
+            stats.lastReadAt = fs->lastReadAt;
+            stats.timeSpentMs = fs->timeSpentMs;
+            stats.openCount = fs->openCount;
+            stats.pageNo = fs->pageNo;
+            stats.percentRead = book.pages > 0 ? fs->maxPageReached * 100LL / book.pages : 0;
+            statsPtr = &stats;
+        }
+        bool carries = len(book.series) > 0 || len(book.seriesParent) > 0 || len(book.genre) > 0 ||
+                       len(book.subgenre) > 0 || len(book.tags) > 0 || len(book.partitions) > 0 || statsPtr ||
+                       LibrarySidecarHas(book.path);
+        if (len(book.path) > 0 && carries) {
+            LibrarySidecarWriteMetadata(book.path, PortableTitle(book), PortableAuthor(book), PortableSeries(book),
+                                        book.seriesParent, book.genre, book.subgenre, book.tags, book.partitions,
+                                        book.seriesIndex, PortableYear(book), book.pages, statsPtr);
+        }
+        FreeCoverBookInfo(book);
+    }
+    u64 endMs = GetTickCount64();
+    int pdfSidecarCtxAfter = 0, pdfSidecarOpenedAfter = 0, blobAfter = 0, coverAfter = 0;
+    PdfSidecarPerfCounters(&pdfSidecarCtxAfter, &pdfSidecarOpenedAfter, &blobAfter, &coverAfter);
+    logf(
+        "SyncEmbeddedRecords: %d books in %llu ms; PdfSidecar ctx +%d, opened +%d, blob decoded +%d, cover decoded "
+        "+%d\n",
+        count, (unsigned long long)(endMs - startMs), pdfSidecarCtxAfter - pdfSidecarCtxBefore,
+        pdfSidecarOpenedAfter - pdfSidecarOpenedBefore, blobAfter - blobBefore, coverAfter - coverBefore);
+}
+
+static Str BookPathById(Str id) {
+    CoverBookInfo info = CoverBookInfoById(id);
+    Str path = info.path;
+    info.path = {};
+    FreeCoverBookInfo(info);
+    return path;
+}
+
+// Test hook: walks every book in the in-memory model the way SyncEmbeddedRecords
+// does, but does it synchronously and reports a single-line perf summary so a
+// test can parse it. Caller must be on the UI thread (uses gModel and friends).
+TempStr RunBenchSyncOnce() {
+    int count;
+    EnterLib();
+    count = gModel.nBooks;
+    LeaveLib();
+    int pdfCtxBefore = 0, openedBefore = 0, blobBefore = 0, coverBefore = 0;
+    PdfSidecarPerfCounters(&pdfCtxBefore, &openedBefore, &blobBefore, &coverBefore);
+    u64 startMs = GetTickCount64();
+    int nWithSidecar = 0;
+    int nWrote = 0;
+    for (int i = 0; i < count; i++) {
+        Str id;
+        EnterLib();
+        if (i < gModel.nBooks) {
+            id = str::Dup(gModel.books[i].id);
+        }
+        LeaveLib();
+        if (len(id) == 0) {
+            str::Free(id);
+            continue;
+        }
+        CoverBookInfo book = CoverBookInfoById(id);
+        str::Free(id);
+        FileState* fs = FileHistoryFindByPath(book.path);
+        BlobStats stats;
+        BlobStats* statsPtr = nullptr;
+        if (fs && (fs->lastReadAt > 0 || fs->timeSpentMs > 0 || fs->openCount > 0 || fs->maxPageReached > 0)) {
+            stats.lastReadAt = fs->lastReadAt;
+            stats.timeSpentMs = fs->timeSpentMs;
+            stats.openCount = fs->openCount;
+            stats.pageNo = fs->pageNo;
+            stats.percentRead = book.pages > 0 ? fs->maxPageReached * 100LL / book.pages : 0;
+            statsPtr = &stats;
+        }
+        bool hasNewMetadata = len(book.series) > 0 || len(book.seriesParent) > 0 || len(book.genre) > 0 ||
+                              len(book.subgenre) > 0 || len(book.tags) > 0 || len(book.partitions) > 0 || statsPtr;
+        // `carries` means "there is data worth embedding". We only write
+        // the sidecar when the file doesn't already have one — otherwise
+        // this loop becomes "open the PDF and incrementally save it
+        // again" for every book in the library on every load, which is
+        // why the user's machine fans up. (LibrarySidecarHas now walks
+        // the PieceInfo dict without decoding the stream, so it is
+        // cheap enough to call for every book.)
+        bool hasSidecar = len(book.path) > 0 && LibrarySidecarHas(book.path);
+        if (hasSidecar) {
+            nWithSidecar++;
+        }
+        if (len(book.path) > 0 && hasNewMetadata && !hasSidecar) {
+            LibrarySidecarWriteMetadata(book.path, PortableTitle(book), PortableAuthor(book), PortableSeries(book),
+                                        book.seriesParent, book.genre, book.subgenre, book.tags, book.partitions,
+                                        book.seriesIndex, PortableYear(book), book.pages, statsPtr);
+            nWrote++;
+        }
+        FreeCoverBookInfo(book);
+    }
+    u64 endMs = GetTickCount64();
+    int pdfCtxAfter = 0, openedAfter = 0, blobAfter = 0, coverAfter = 0;
+    PdfSidecarPerfCounters(&pdfCtxAfter, &openedAfter, &blobAfter, &coverAfter);
+    return str::FormatTemp(
+        "OK books=%d withSidecar=%d wrote=%d ms=%llu pdfCtx=%d pdfOpen=%d blobDecode=%d coverDecode=%d", count,
+        nWithSidecar, nWrote, (unsigned long long)(endMs - startMs), pdfCtxAfter - pdfCtxBefore,
+        openedAfter - openedBefore, blobAfter - blobBefore, coverAfter - coverBefore);
+}
+
 static void CoverWorker(LibJob* job) {
     FreeJob(job);
     for (;;) {
@@ -1850,15 +2960,90 @@ static void CoverWorker(LibJob* job) {
             return;
         }
         TempStr key = str::DupTemp(pick->key);
+        int gen = pick->gen;
         LeaveLib();
 
-        // a book's cover is kept in the thumb store, so it is there on the next
-        // run whether or not the service is. A poster comes from the web and a
-        // desk cover is of a file that is not in the library yet, so neither is
-        // ours to keep.
         bool isBook = !str::StartsWith(key, StrL("http")) && !str::StartsWith(key, Str(kDeskCoverKey));
-        Str png = isBook ? ThumbRead(key) : Str{};
-        if (len(png) == 0) {
+        Str img = isBook ? ThumbRead(key) : Str{};
+        // `coverAlreadyCached` means the thumb cache already has a usable
+        // cover for this book. When true, we must not re-open the PDF
+        // (LibrarySidecarReadCover + CoverBuildForBook) just to redo
+        // work that was already done on a previous launch: that was the
+        // dominant cost on a 246-book warm launch — each "cached" cover
+        // re-opened its PDF, ran the cover model, and overwrote the
+        // thumb cache with the sidecar data, repeating the work on every
+        // launch. On a warm launch the thumb cache IS the cover; only on
+        // the very first launch (img empty) do we need to build one.
+        bool coverAlreadyCached = len(img) > 0;
+        if (isBook && !coverAlreadyCached) {
+            CoverBookInfo book = CoverBookInfoById(key);
+            if (len(book.path) > 0) {
+                LibrarySidecarCover sidecar{};
+                bool inTheBook = LibrarySidecarReadCover(book.path, &sidecar);
+                bool hasLiteralCover = len(sidecar.data) > 64;
+                if (hasLiteralCover) {
+                    if (!CoverChoiceIsByHand(key)) {
+                        CoverModelLearnFromImage(sidecar.data);
+                        if (sidecar.kind == kBlobCoverPage) {
+                            CoverModelLearnFromBookCrop(book.path, sidecar.pageNo, sidecar.rect);
+                            CoverChoiceRememberPageCrop(key, sidecar.pageNo, sidecar.rect);
+                        } else {
+                            CoverChoiceRememberImage(key);
+                        }
+                    }
+                    str::Free(img);
+                    img = sidecar.data;
+                    sidecar.data = {};
+                    ThumbWrite(key, img);
+                }
+                if (!hasLiteralCover && sidecar.kind == kBlobCoverPage) {
+                    if (!CoverChoiceIsByHand(key)) {
+                        CoverModelLearnFromBookCrop(book.path, sidecar.pageNo, sidecar.rect);
+                        CoverChoiceRememberPageCrop(key, sidecar.pageNo, sidecar.rect);
+                    }
+                    CoverBuildLocation location;
+                    location.insideBook = true;
+                    location.pageNo = sidecar.pageNo;
+                    location.rect = sidecar.rect;
+                    location.rotation = sidecar.rotation;
+                    Str rebuilt = CoverBuildFromLocation(book.path, location);
+                    if (len(rebuilt) > 64) {
+                        str::Free(img);
+                        img = rebuilt;
+                        rebuilt = {};
+                    }
+                    str::Free(rebuilt);
+                    if (len(img) > 64) {
+                        ThumbWrite(key, img);
+                    }
+                }
+                str::Free(sidecar.data);
+                str::Free(sidecar.format);
+                str::Free(sidecar.fingerprint);
+                if (!inTheBook) {
+                    CoverBuildLocation location;
+                    Str built =
+                        CoverBuildForBook(book.path, key, book.title, book.author, book.series, book.year, &location);
+                    if (len(built) > 64) {
+                        str::Free(img);
+                        img = built;
+                        built = {};
+                        ThumbWrite(key, img);
+                        if (location.pageNo > 0) {
+                            LibrarySidecarWriteCoverSpot(book.path, location.pageNo, location.rect, location.rotation,
+                                                         img, PortableTitle(book), PortableAuthor(book),
+                                                         PortableSeries(book), PortableYear(book));
+                        } else {
+                            LibrarySidecarWriteCover(book.path, {}, img, PortableTitle(book), PortableAuthor(book),
+                                                     PortableSeries(book), PortableYear(book));
+                        }
+                    }
+                    str::Free(built);
+                }
+            }
+            FreeCoverBookInfo(book);
+        }
+        if (len(img) == 0 && !isBook) {
             HttpRsp rsp;
             TempStr path;
             if (str::StartsWith(key, StrL("http"))) {
@@ -1869,19 +3054,21 @@ static void CoverWorker(LibJob* job) {
                 path = fmt("/cover?id=%s", key);
             }
             if (ServiceGet(path, &rsp) && len(ToStr(rsp.data)) > 64) {
-                png = str::Dup(ToStr(rsp.data));
+                img = str::Dup(ToStr(rsp.data));
                 if (isBook) {
-                    ThumbWrite(key, png);
+                    ThumbWrite(key, img);
                 }
             }
         }
 
         EnterLib();
         pick->fetching = false;
-        if (len(png) > 64) {
-            pick->bytes = png;
+        if (pick->gen != gen) {
+            str::Free(img);
+        } else if (len(img) > 64) {
+            pick->bytes = img;
         } else {
-            str::Free(png);
+            str::Free(img);
             pick->failed = true;
         }
         LeaveLib();
@@ -1932,6 +3119,73 @@ static RenderedBitmap* CoverBitmap(Str key) {
     return out;
 }
 
+static void CoverForget(Str key) {
+    EnterLib();
+    for (int i = 0; i < gNCovers; i++) {
+        CoverSlot& s = gCovers[i];
+        if (!str::Eq(s.key, key)) {
+            continue;
+        }
+        str::FreePtr(&s.bytes);
+        delete s.bmp;
+        s.bmp = nullptr;
+        s.decoded = false;
+        s.failed = false;
+        s.wanted = false;
+        s.gen++;
+        break;
+    }
+    LeaveLib();
+}
+
+void LibraryCoverReplace(Str bookId, Str png) {
+    if (len(bookId) == 0 || len(png) == 0) {
+        return;
+    }
+    CoverBookInfo book = CoverBookInfoById(bookId);
+    if (len(book.path) > 0 && LibrarySidecarWriteCover(book.path, {}, png, PortableTitle(book), PortableAuthor(book),
+                                                       PortableSeries(book), PortableYear(book))) {
+        ThumbWrite(bookId, png);
+        CoverForget(bookId);
+        Repaint();
+    }
+    FreeCoverBookInfo(book);
+}
+
+void LibraryCoverReplacePage(Str bookId, int pageNo, RectF rect, int rotation, Str png) {
+    if (len(bookId) == 0 || len(png) == 0) {
+        return;
+    }
+    CoverBookInfo book = CoverBookInfoById(bookId);
+    if (len(book.path) > 0 &&
+        LibrarySidecarWriteCoverSpot(book.path, pageNo, rect, rotation, png, PortableTitle(book), PortableAuthor(book),
+                                     PortableSeries(book), PortableYear(book))) {
+        ThumbWrite(bookId, png);
+        CoverForget(bookId);
+        Repaint();
+    }
+    FreeCoverBookInfo(book);
+}
+
+void LibraryCoverRevert(Str bookId) {
+    if (len(bookId) == 0) {
+        return;
+    }
+    Str bookPath = BookPathById(bookId);
+    if (len(bookPath) > 0) {
+        LibrarySidecarForgetCover(bookPath);
+    }
+    EnterThumbs();
+    LibraryThumbs* thumbs = ThumbsStore();
+    if (thumbs) {
+        LibraryThumbsRemove(thumbs, bookId);
+    }
+    LeaveThumbs();
+    CoverForget(bookId);
+    str::Free(bookPath);
+    Repaint();
+}
+
 static TempStr JsonStrTemp(Str s) {
     str::Builder b;
     b.Append("\"");
@@ -1962,6 +3216,226 @@ static void PartitionThread(LibJob* job) {
 
 static void PostPartition(const char* path, Str body) {
     RunAsync(MkFunc0<LibJob>(PartitionThread, NewJob(Str(path), body)), "libPartition");
+}
+
+// Persist the current gModel state of a single book to its portable metadata
+// (PDF sidecar, ZIP-archive META-INF/sumatra.book, or .sumatra fallback for
+// unsupported containers) and verify the round-trip by reading the record
+// back. Returns true on success, false if the book has no path, the write
+// failed, or the read-back disagreed.
+//
+// This is the targeted persistence path for the /book/edit API. It writes
+// exactly one book's metadata to disk instead of running the full
+// SyncEmbeddedRecords sweep, which would re-open every PDF in the library.
+static bool PersistBookMetadata(Str bookId) {
+    if (len(bookId) == 0) {
+        return false;
+    }
+    CoverBookInfo book = CoverBookInfoById(bookId);
+    if (len(book.path) == 0) {
+        FreeCoverBookInfo(book);
+        return false;
+    }
+    FileState* fs = FileHistoryFindByPath(book.path);
+    BlobStats stats;
+    BlobStats* statsPtr = nullptr;
+    if (fs && (fs->lastReadAt > 0 || fs->timeSpentMs > 0 || fs->openCount > 0 || fs->maxPageReached > 0)) {
+        stats.lastReadAt = fs->lastReadAt;
+        stats.timeSpentMs = fs->timeSpentMs;
+        stats.openCount = fs->openCount;
+        stats.pageNo = fs->pageNo;
+        stats.percentRead = book.pages > 0 ? fs->maxPageReached * 100LL / book.pages : 0;
+        statsPtr = &stats;
+    }
+    bool ok = LibrarySidecarWriteMetadata(book.path, PortableTitle(book), PortableAuthor(book), PortableSeries(book),
+                                          book.seriesParent, book.genre, book.subgenre, book.tags, book.partitions,
+                                          book.seriesIndex, PortableYear(book), book.pages, statsPtr);
+    if (ok) {
+        BookBlobRecord verify;
+        if (LibrarySidecarReadRecord(book.path, verify)) {
+            // round-trip succeeded: the sidecar still has a parseable record
+        } else {
+            logf("PersistBookMetadata: write ok but read-back failed for %s (%s)\n", bookId, book.path);
+            ok = false;
+        }
+    } else {
+        logf("PersistBookMetadata: write failed for %s (%s)\n", bookId, book.path);
+    }
+    FreeCoverBookInfo(book);
+    return ok;
+}
+
+enum {
+    kRevertedTitle = 1,
+    kRevertedAuthor = 2,
+    kRevertedSeries = 4,
+    kRevertedYear = 8,
+};
+
+static void RefreshRevertedFields(Str bookId, int reverted) {
+    if (reverted == 0 || len(bookId) == 0) {
+        return;
+    }
+    int fileFields = reverted & (kRevertedTitle | kRevertedAuthor | kRevertedYear);
+    LibraryAutoMeta meta;
+    bool haveMeta = false;
+    if (fileFields != 0) {
+        Str path = BookPathById(bookId);
+        if (len(path) == 0) {
+            logf("RefreshRevertedFields: no path for %s\n", bookId);
+        } else {
+            haveMeta = LibraryReadAutoMeta(path, meta);
+            str::Free(path);
+            if (!haveMeta) {
+                logf("RefreshRevertedFields: no automatic metadata for %s\n", bookId);
+            }
+        }
+    }
+    if (!haveMeta && !(reverted & kRevertedSeries)) {
+        return;
+    }
+    if (haveMeta) {
+        logf("RefreshRevertedFields: bookId=%s mask=%d title=%s/%s author=%s/%s year=%d/%s\n", bookId, reverted,
+             meta.title, meta.titleSource, meta.author, meta.authorSource, meta.year, meta.yearSource);
+    }
+    EnterLib();
+    for (int i = 0; i < gModel.nBooks; i++) {
+        LibBook* b = &gModel.books[i];
+        if (!str::Eq(b->id, bookId)) {
+            continue;
+        }
+        if (haveMeta && (reverted & kRevertedTitle)) {
+            str::ReplaceWithCopy(&b->title, meta.title);
+            str::ReplaceWithCopy(&b->titleSource, meta.titleSource);
+        }
+        if (haveMeta && (reverted & kRevertedAuthor)) {
+            str::ReplaceWithCopy(&b->author, meta.author);
+            str::ReplaceWithCopy(&b->authorSource, meta.authorSource);
+        }
+        if (haveMeta && (reverted & kRevertedYear)) {
+            b->year = meta.year;
+            str::ReplaceWithCopy(&b->yearSource, meta.yearSource);
+        }
+        if (reverted & kRevertedSeries) {
+            logf("RefreshRevertedFields: dropping reverted series '%s' for %s\n", b->series, bookId);
+            str::ReplaceWithCopy(&b->series, StrL(""));
+        }
+        break;
+    }
+    if (str::Eq(gDetail.id, bookId)) {
+        if (haveMeta && (reverted & kRevertedTitle)) {
+            str::ReplaceWithCopy(&gDetail.title, meta.title);
+        }
+        if (haveMeta && (reverted & kRevertedAuthor)) {
+            str::ReplaceWithCopy(&gDetail.author, meta.author);
+        }
+        if (haveMeta && (reverted & kRevertedYear)) {
+            gDetail.year = meta.year;
+        }
+        if (reverted & kRevertedSeries) {
+            str::ReplaceWithCopy(&gDetail.series, StrL(""));
+        }
+    }
+    LeaveLib();
+    LibraryAutoMetaFree(meta);
+}
+
+// Dedicated persistence path for /book/edit. Posts the override to the
+// library service, immediately writes the resulting metadata to the book's
+// file, then schedules the catalogue refresh so the UI reflects the new
+// metadata. This is intentionally separate from PartitionThread so an edit
+// on one book doesn't need to wait for the full catalogue reload + the
+// adopt-embedded / sync-embedded passes that LoadModelThread does.
+static void MetadataEditThread(LibJob* job) {
+    Str bookId = str::Dup(job->c);
+    Str path = str::Dup(job->a);
+    Str body = str::Dup(job->b);
+    int reverted = job->cleared;
+    FreeJob(job);
+
+    logf("MetadataEditThread: bookId=%s bodyLen=%d\n", bookId, len(body));
+
+    LibraryEnsureService();
+    bool posted = ServicePost(path.s, body);
+    str::Free(path);
+    str::Free(body);
+
+    // Step 2 — never report success when POST fails. The edit transaction
+    // did not make it to the service, so we must not call PersistBookMetadata,
+    // SaveModelToStore, or Repaint (the last of which would re-paint the
+    // library view with the user's value even though the service has no
+    // record of the change — that would be "fake success"). The in-memory
+    // state set by LibBookSetField in the UI thread stays as the user typed
+    // it so the detail view still reflects the edit, but the disk and
+    // library view are not updated. The user has to retry.
+    if (!posted) {
+        logf("POST RESULT: failed for bookId=%s\n", bookId);
+        logf("MetadataEditThread: aborting — edit was not persisted because /book/edit failed\n");
+        str::Free(bookId);
+        return;
+    }
+
+    logf("POST RESULT: success for bookId=%s\n", bookId);
+
+    // Step 3 — confirm the in-memory state is in sync. After a successful
+    // edit both gModel.books[i].title and gDetail.title must hold the new
+    // value. (LibBookSetField, called by the UI thread before this thread
+    // was dispatched, is what keeps them in sync — this log just proves it.)
+    {
+        Str gModelTitle;
+        Str gDetailTitle;
+        {
+            EnterLib();
+            for (int i = 0; i < gModel.nBooks; i++) {
+                if (str::Eq(gModel.books[i].id, bookId)) {
+                    gModelTitle = gModel.books[i].title;
+                    break;
+                }
+            }
+            gDetailTitle = gDetail.title;
+            LeaveLib();
+        }
+        logf("gModel title: %s\n", gModelTitle);
+        logf("gDetail title: %s\n", gDetailTitle);
+    }
+
+    // Step 4 — keep the previous chunk's fix: do NOT call LoadModelThread()
+    // here. A reload from the service would re-fetch /library, free
+    // gModel, and overwrite the user's edit with whatever the service
+    // returns. The catalogue refresh (when it does happen) uses
+    // AdoptEmbeddedRecordFields' *Source=="user" guard to preserve the
+    // user override.
+    if (len(bookId) > 0) {
+        bool ok = PersistBookMetadata(bookId);
+        logf("MetadataEditThread: PersistBookMetadata=%d\n", (int)ok);
+    }
+
+    RefreshRevertedFields(bookId, reverted);
+
+    EnterLib();
+    SaveModelToStore(&gModel);
+    LeaveLib();
+
+    Repaint();
+
+    str::Free(bookId);
+
+    if (reverted & kRevertedSeries) {
+        EnterLib();
+        gModel.loading = true;
+        LeaveLib();
+        LoadModelThread(NewJob({}));
+    }
+}
+
+// Post the user-driven edit to /book/edit. Unlike PostPartition (which is
+// for /partition/* and /series/* operations and triggers a full sweep), this
+// dispatcher routes through MetadataEditThread so the edit gets an immediate
+// targeted sidecar write instead of waiting for the catalogue refresh to
+// find the changed book among the rest of the library.
+static void PostBookEdit(const char* path, Str body, Str bookId, int reverted) {
+    logf("PostBookEdit: path=%s bookId=%s bodyLen=%d reverted=%d\n", StrL(path), bookId, len(body), reverted);
+    RunAsync(MkFunc0<LibJob>(MetadataEditThread, NewJob3(Str(path), body, bookId, reverted)), "libBookEdit");
 }
 
 static void KindThread(LibJob* job) {
@@ -2073,6 +3547,7 @@ static void MoveOneFile(Str path, const char* kind) {
 
 void LibraryFreeCache() {
     gScanCancel = true;
+    CoverEditorShutdown();
     EnterLib();
     FreePartitions();
     for (int i = 0; i < gNCovers; i++) {
@@ -2139,14 +3614,33 @@ static void AddLink(MainWindow* win, Rect r, Str target, Str tip = {}) {
     win->staticLinks.Append(new StaticLink(r, target, tip));
 }
 
-static void DrawTextIn(HDC hdc, Rect r, Str text, UINT fmtFlags, COLORREF col) {
+static void DrawTextIn(HDC hdc, Rect r, Str text, UINT fmtFlags, COLORREF col, bool underline = false) {
     if (len(text) == 0 || r.dy <= 0) {
         return;
     }
     TempWStr ws = ToWStrTemp(text);
     RECT rc = {r.x, r.y, r.x + r.dx, r.y + r.dy};
     SetTextColor(hdc, col);
-    DrawTextW(hdc, ws.s, ws.len, &rc, fmtFlags);
+    if (underline) {
+        // LOGFONT.lfUnderline = 1 makes Win32 actually paint an
+        // underline (DrawText alone doesn't). We need a fresh
+        // underlined font — selecting the current one with underline
+        // can leak into other draws that share the HDC.
+        LOGFONT lf{};
+        HFONT cur = (HFONT)GetCurrentObject(hdc, OBJ_FONT);
+        if (cur && GetObjectW(cur, sizeof(lf), &lf) > 0) {
+            lf.lfUnderline = 1;
+            HFONT underlined = CreateFontIndirectW(&lf);
+            HFONT prev = (HFONT)SelectObject(hdc, underlined);
+            DrawTextW(hdc, ws.s, ws.len, &rc, fmtFlags);
+            SelectObject(hdc, prev);
+            DeleteObject(underlined);
+        } else {
+            DrawTextW(hdc, ws.s, ws.len, &rc, fmtFlags);
+        }
+    } else {
+        DrawTextW(hdc, ws.s, ws.len, &rc, fmtFlags);
+    }
 }
 
 static int MeasureTextDy(HDC hdc, Rect r, Str text, UINT fmtFlags) {
@@ -2249,39 +3743,56 @@ static TempStr SubtitleTemp(const LibBook& b) {
     return str::DupTemp(ToStr(s));
 }
 
+constexpr int kCoverBoxDx = 132;
+constexpr int kCoverBoxDy = 196;
+constexpr int kCoverBoxCorner = 8;
+constexpr int kTileCaptionDy = 44;
+
+static Rect CoverFitInBox(Size sz, Rect box) {
+    Rect fit = box;
+    if (sz.dx < 1 || sz.dy < 1) {
+        return fit;
+    }
+    double want = (double)box.dx / (double)box.dy;
+    double have = (double)sz.dx / (double)sz.dy;
+    if (have > want) {
+        fit.dy = (int)(box.dx / have);
+        fit.y = box.y + (box.dy - fit.dy);
+    } else {
+        fit.dx = (int)(box.dy * have);
+        fit.x = box.x + (box.dx - fit.dx) / 2;
+    }
+    return fit;
+}
+
+static Rect DrawCoverInBox(HDC hdc, Rect box, RenderedBitmap* bmp, COLORREF fill) {
+    FillRound(hdc, box, fill, kCoverBoxCorner);
+    if (!bmp || !bmp->IsValid()) {
+        return box;
+    }
+    Rect fit = CoverFitInBox(bmp->GetSize(), box);
+    int saved = SaveDC(hdc);
+    HRGN clip =
+        CreateRoundRectRgn(box.x, box.y, box.x + box.dx + 1, box.y + box.dy + 1, kCoverBoxCorner, kCoverBoxCorner);
+    ExtSelectClipRgn(hdc, clip, RGN_AND);
+    bmp->Blit(hdc, fit);
+    RestoreDC(hdc, saved);
+    DeleteObject(clip);
+    return fit;
+}
+
 static void DrawCoverTile(HDC hdc, MainWindow* win, Rect tile, const LibBook& b, HFONT fontTitle, HFONT fontSub) {
     COLORREF bg = ThemeMainWindowBackgroundColor();
     COLORREF text = ThemeWindowTextColor();
     COLORREF dim = Mix(text, bg, 45);
 
-    int coverDy = tile.dy - DpiScale(44);
+    int coverDy = tile.dy - DpiScale(kTileCaptionDy);
     Rect rcCover(tile.x, tile.y, tile.dx, coverDy);
 
     RenderedBitmap* bmp = CoverBitmap(b.id);
-    Rect fit = rcCover;
-    if (bmp && bmp->IsValid()) {
-        Size sz = bmp->GetSize();
-        if (sz.dx > 0 && sz.dy > 0) {
-            double want = (double)rcCover.dx / (double)rcCover.dy;
-            double have = (double)sz.dx / (double)sz.dy;
-            if (have > want) {
-                fit.dy = (int)(rcCover.dx / have);
-                fit.y = rcCover.y + (rcCover.dy - fit.dy);
-            } else {
-                fit.dx = (int)(rcCover.dy * have);
-                fit.x = rcCover.x + (rcCover.dx - fit.dx) / 2;
-            }
-        }
-        int saved = SaveDC(hdc);
-        HRGN clip = CreateRoundRectRgn(fit.x, fit.y, fit.x + fit.dx + 1, fit.y + fit.dy + 1, 8, 8);
-        ExtSelectClipRgn(hdc, clip, RGN_AND);
-        bmp->Blit(hdc, fit);
-        RestoreDC(hdc, saved);
-        DeleteObject(clip);
-    } else {
-        FillRound(hdc, rcCover, Mix(bg, text, 12), 8);
-        Rect inner(rcCover.x + DpiScale(8), rcCover.y + rcCover.dy / 3, rcCover.dx - DpiScale(16),
-                   rcCover.dy / 3);
+    Rect fit = DrawCoverInBox(hdc, rcCover, bmp, Mix(bg, text, 12));
+    if (!bmp || !bmp->IsValid()) {
+        Rect inner(rcCover.x + DpiScale(8), rcCover.y + rcCover.dy / 3, rcCover.dx - DpiScale(16), rcCover.dy / 3);
         SelectObject(hdc, fontSub);
         DrawTextIn(hdc, inner, b.title, DT_CENTER | DT_WORDBREAK | DT_NOPREFIX | DT_END_ELLIPSIS, dim);
     }
@@ -2487,8 +3998,8 @@ static void DrawRail(HDC hdc, MainWindow* win, Rect rail, HFONT fontRow, HFONT f
     }
 
     Rect rcClassic(rcRescan.x, rcRescan.y + footDy, rcRescan.dx, footDy);
-    DrawTextIn(hdc, Rect(rcClassic.x + DpiScale(8), rcClassic.y, rcClassic.dx, rcClassic.dy),
-               StrL("Frequently read"), DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX, ThemeWindowLinkColor());
+    DrawTextIn(hdc, Rect(rcClassic.x + DpiScale(8), rcClassic.y, rcClassic.dx, rcClassic.dy), StrL("Frequently read"),
+               DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX, ThemeWindowLinkColor());
     AddLink(win, rcClassic, Str(kLinkClassic), StrL("Show the classic home page"));
 }
 
@@ -2498,8 +4009,8 @@ static void DrawGrid(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT fon
     COLORREF dim = Mix(text, bg, 45);
 
     int pad = DpiScale(20);
-    int tileDx = DpiScale(132);
-    int tileDy = DpiScale(240);
+    int tileDx = DpiScale(kCoverBoxDx);
+    int tileDy = DpiScale(kCoverBoxDy + kTileCaptionDy);
     int gapX = DpiScale(20);
     int gapY = DpiScale(22);
 
@@ -2678,9 +4189,8 @@ static void DrawDeskTile(HDC hdc, MainWindow* win, Rect tile, LibDeskFile& f, in
     COLORREF text = ThemeWindowTextColor();
     COLORREF dim = Mix(text, bg, 45);
 
-    int coverDy = tile.dy - DpiScale(44);
+    int coverDy = tile.dy - DpiScale(kTileCaptionDy);
     Rect rcCover(tile.x, tile.y, tile.dx, coverDy);
-    FillRound(hdc, rcCover, Mix(bg, text, 12), 8);
 
     Rect art = rcCover;
     if (f.chosen) {
@@ -2690,26 +4200,9 @@ static void DrawDeskTile(HDC hdc, MainWindow* win, Rect tile, LibDeskFile& f, in
     }
 
     RenderedBitmap* bmp = CoverBitmap(fmt("%s%s", Str(kDeskCoverKey), f.id));
+    FillRound(hdc, rcCover, Mix(bg, text, 12), kCoverBoxCorner);
     if (bmp && bmp->IsValid()) {
-        Rect fit = art;
-        Size sz = bmp->GetSize();
-        if (sz.dx > 0 && sz.dy > 0) {
-            double want = (double)art.dx / (double)art.dy;
-            double have = (double)sz.dx / (double)sz.dy;
-            if (have > want) {
-                fit.dy = (int)(art.dx / have);
-                fit.y = art.y + (art.dy - fit.dy);
-            } else {
-                fit.dx = (int)(art.dy * have);
-                fit.x = art.x + (art.dx - fit.dx) / 2;
-            }
-        }
-        int saved = SaveDC(hdc);
-        HRGN clip = CreateRoundRectRgn(fit.x, fit.y, fit.x + fit.dx + 1, fit.y + fit.dy + 1, 8, 8);
-        ExtSelectClipRgn(hdc, clip, RGN_AND);
-        bmp->Blit(hdc, fit);
-        RestoreDC(hdc, saved);
-        DeleteObject(clip);
+        DrawCoverInBox(hdc, art, bmp, Mix(bg, text, 12));
     } else {
         DeskFileIcon(f);
         int icoDx = 0;
@@ -2803,8 +4296,8 @@ static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT 
         headDy = rcActions.y + actionsDy + DpiScale(14) - main.y;
     }
 
-    int tileDx = DpiScale(132);
-    int tileDy = DpiScale(240);
+    int tileDx = DpiScale(kCoverBoxDx);
+    int tileDy = DpiScale(kCoverBoxDy + kTileCaptionDy);
     int gapX = DpiScale(20);
     int gapY = DpiScale(22);
     int perRow = (avail + gapX) / (tileDx + gapX);
@@ -3031,8 +4524,7 @@ static int DrawKnows(HDC hdc, MainWindow* win, Rect body, HFONT fontTitle, HFONT
     y += lineDy + DpiScale(6);
 
     SelectObject(hdc, fontTitle);
-    DrawTextIn(hdc, Rect(body.x, y, body.dx, DpiScale(22)), gDetail.topic, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX,
-               text);
+    DrawTextIn(hdc, Rect(body.x, y, body.dx, DpiScale(22)), gDetail.topic, DT_LEFT | DT_SINGLELINE | DT_NOPREFIX, text);
     y += DpiScale(26);
 
     SelectObject(hdc, fontBody);
@@ -3333,23 +4825,16 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
     y += rcBack.dy + DpiScale(14);
 
     int coverDx = DpiScale(168);
-    int coverDy = DpiScale(250);
+    int coverDy = DpiScale(168 * kCoverBoxDy / kCoverBoxDx);
     Rect rcCover(main.x + pad, y, coverDx, coverDy);
     RenderedBitmap* bmp = CoverBitmap(gDetail.id);
-    if (bmp && bmp->IsValid()) {
-        Size sz = bmp->GetSize();
-        Rect fit = rcCover;
-        if (sz.dx > 0 && sz.dy > 0) {
-            double have = (double)sz.dx / (double)sz.dy;
-            fit.dx = (int)(coverDy * have);
-            if (fit.dx > coverDx) {
-                fit.dx = coverDx;
-                fit.dy = (int)(coverDx / have);
-            }
-        }
-        bmp->Blit(hdc, fit);
-    } else {
-        FillRound(hdc, rcCover, Mix(bg, text, 12), 8);
+    DrawCoverInBox(hdc, rcCover, bmp, Mix(bg, text, 12));
+    if (len(gDetail.id) > 0 && len(gDetail.path) > 0) {
+        Rect rcChange(main.x + pad, y + coverDy + DpiScale(4), coverDx, DpiScale(18));
+        DrawTextIn(hdc, rcChange, StrL("Change the cover"), DT_CENTER | DT_SINGLELINE | DT_NOPREFIX,
+                   ThemeWindowLinkColor());
+        AddLink(win, rcChange, Str(kLinkChangeCover), StrL("Pick a different picture for this book"));
+        AddLink(win, rcCover, Str(kLinkChangeCover), StrL("Pick a different picture for this book"));
     }
 
     int infoX = main.x + pad + coverDx + DpiScale(22);
@@ -3358,7 +4843,35 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
 
     SelectObject(hdc, fontHead);
     Rect rcTitle(infoX, iy, infoDx, DpiScale(30));
+    // The hit-test rect has to be large because the 20pt fontHead's
+    // character cell extends well above and below the 30px drawing
+    // rect. The visible text sits near the top of the cell, not at
+    // the rect's top edge. Without a generous hit rect, a user
+    // clicking on the *visible* text misses the link entirely and
+    // the inline rename "doesn't work" from their perspective.
+    // Make it cover the full cell plus padding. Keep the EDITTEXT
+    // at the drawing rect so it lines up with the original text.
+    Rect rcTitleHit(infoX, iy - DpiScale(25), infoDx, DpiScale(90));
+    // Stash the title rect for the inline-edit handler.
+    gDetailTitleRect = rcTitleHit;
+    // The title is inline-editable like a Windows file rename: click
+    // it and the text turns into an EDITTEXT in place; Enter saves,
+    // Escape or focus-loss cancels. We render it as plain text
+    // (NOT a link colour + underline) because that visual screams
+    // "I am a hyperlink to a separate page" and Windows file rename
+    // is the opposite — it looks like a label until you click it.
+    // The click handler still works; the inline-rename machinery is
+    // the only place that uses it.
     DrawTextIn(hdc, rcTitle, gDetail.title, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX, text);
+    if (len(gDetail.id) > 0) {
+        TempStr titleTip = BuildTitleTip();
+        // Use the wider hit rect (rcTitleHit) so clicks on the
+        // visible text actually register, not just clicks in the
+        // 30px drawing rect which the text overflows.
+        AddLink(win, rcTitleHit, fmt("%s%s", Str(kLinkEditTitle), gDetail.id), titleTip);
+        AddLink(win, Rect(rcTitleHit.x, rcTitleHit.y + rcTitleHit.dy, rcTitleHit.dx, 0),
+                fmt("%s%s", Str(kLinkEditTitle), gDetail.id), titleTip);
+    }
     iy += rcTitle.dy + DpiScale(2);
 
     SelectObject(hdc, fontSub);
@@ -3411,7 +4924,7 @@ static void DrawDetail(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT f
         DrawTextIn(hdc, rcDesc, blurb, flags, text);
     }
 
-    y += coverDy + DpiScale(18);
+    y += coverDy + DpiScale(38);
 
     Rect rcTabs(main.x + pad, y, main.dx - 2 * pad, DpiScale(28));
     DrawTabs(hdc, win, rcTabs, fontSub);
@@ -3526,6 +5039,11 @@ void DrawLibraryPage(MainWindow* win, HDC hdc) {
     HdcFillRect(hdc, rc, bg);
     SetBkMode(hdc, TRANSPARENT);
 
+    if (CoverEditorActive()) {
+        CoverEditorDraw(win, hdc, rc);
+        return;
+    }
+
     HFONT fontHead = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 20)->GetHFont();
     HFONT fontTitle = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 13)->GetHFont();
     HFONT fontSub = HdcCreateSimpleFont(hdc, "MS Shell Dlg", 12)->GetHFont();
@@ -3542,8 +5060,7 @@ void DrawLibraryPage(MainWindow* win, HDC hdc) {
     if (!gModel.loaded) {
         SelectObject(hdc, fontBody);
         Str msg = len(gModel.error) > 0 ? gModel.error : StrL("Opening the library...");
-        Rect r(rc.x + DpiScale(40), rc.y + rc.dy / 2 - DpiScale(20), rc.dx - DpiScale(80),
-               DpiScale(60));
+        Rect r(rc.x + DpiScale(40), rc.y + rc.dy / 2 - DpiScale(20), rc.dx - DpiScale(80), DpiScale(60));
         DrawTextIn(hdc, r, msg, DT_CENTER | DT_WORDBREAK | DT_NOPREFIX, Mix(text, bg, 40));
         LeaveLib();
         SelectObject(hdc, GetStockObject(SYSTEM_FONT));
@@ -3637,6 +5154,18 @@ static void BarScrollTo(MainWindow* win, LibScrollBar* bar, int pos) {
 }
 
 bool LibraryOnLeftButtonDown(MainWindow* win, int x, int y) {
+    if (CoverEditorActive()) {
+        return CoverEditorOnLeftButtonDown(win, x, y);
+    }
+    // An active inline edit (e.g. the user clicked the title to
+    // rename) must commit when the user clicks anywhere else. The
+    // canvas doesn't take focus on its own — and without an explicit
+    // SetFocus, the EDITTEXT never receives WM_KILLFOCUS, so the
+    // commit never fires. Force a commit here, then re-dispatch
+    // the click so the user's actual click target is still hit.
+    if (gInlineEdit.hwnd != nullptr) {
+        CommitInlineEdit(true);
+    }
     LibScrollBar* bar = BarAt(x, y);
     if (!bar) {
         return false;
@@ -3655,6 +5184,9 @@ bool LibraryOnLeftButtonDown(MainWindow* win, int x, int y) {
 }
 
 bool LibraryOnMouseMove(MainWindow* win, int x, int y) {
+    if (CoverEditorActive()) {
+        return CoverEditorOnMouseMove(win, x, y);
+    }
     if (gBarDrag) {
         BarScrollTo(win, gBarDrag, PosFromBar(*gBarDrag, y - gBarGrabDy));
         return true;
@@ -3664,10 +5196,22 @@ bool LibraryOnMouseMove(MainWindow* win, int x, int y) {
         gBarHot = hot;
         InvalidateRect(win->hwndCanvas, nullptr, FALSE);
     }
+    // Show a hand cursor when hovering over a static link (book row,
+    // back-to-library arrow, edit-metadata title, change-cover link,
+    // etc.). Win32 only delivers WM_SETCURSOR on the canvas via
+    // Canvas.cpp, but the library home page is drawn on the frame
+    // window, not the canvas — so we have to drive the cursor here.
+    TempStr linkUrl = GetStaticLinkAtTemp(win->staticLinks, x, y, nullptr);
+    if (len(linkUrl) > 0) {
+        SetCursorCached(IDC_HAND);
+    }
     return hot != nullptr;
 }
 
 bool LibraryOnLeftButtonUp(MainWindow* win) {
+    if (CoverEditorActive()) {
+        return CoverEditorOnLeftButtonUp(win);
+    }
     if (!gBarDrag) {
         return false;
     }
@@ -3678,6 +5222,10 @@ bool LibraryOnLeftButtonUp(MainWindow* win) {
 }
 
 void LibraryOnCaptureLost(MainWindow* win) {
+    if (CoverEditorActive()) {
+        CoverEditorOnCaptureLost();
+        return;
+    }
     if (!gBarDrag) {
         return;
     }
@@ -3695,6 +5243,9 @@ static bool CursorOnRail(MainWindow* win, int screenX, int screenY) {
 }
 
 void LibraryOnMouseWheel(MainWindow* win, int delta, int screenX, int screenY) {
+    if (CoverEditorActive()) {
+        return;
+    }
     int step = DpiScale(90);
     if (CursorOnRail(win, screenX, screenY)) {
         RailScrollTo(win, gRailScrollY + (delta > 0 ? -step : step));
@@ -3780,6 +5331,21 @@ bool LibraryOnLinkClicked(MainWindow* win, Str url) {
     if (!str::StartsWith(url, Str(kLinkLibraryPrefix))) {
         return false;
     }
+    if (CoverEditorOnLink(win, url)) {
+        return true;
+    }
+    if (str::Eq(url, Str(kLinkChangeCover))) {
+        EnterLib();
+        Str id = str::Dup(gDetail.id);
+        Str path = str::Dup(gDetail.path);
+        Str title = str::Dup(gDetail.title);
+        LeaveLib();
+        CoverEditorOpen(win, id, path, title);
+        str::Free(id);
+        str::Free(path);
+        str::Free(title);
+        return true;
+    }
     if (str::StartsWith(url, Str(kLinkAllBooks))) {
         EnterLib();
         str::FreePtr(&gModel.filter);
@@ -3789,6 +5355,33 @@ bool LibraryOnLinkClicked(MainWindow* win, Str url) {
         gDeskOpen = false;
         win->homePageScrollY = 0;
         InvalidateRect(win->hwndCanvas, nullptr, FALSE);
+        return true;
+    }
+    if (str::StartsWith(url, Str(kLinkEditTitle))) {
+        // Click on the title in the detail view opens an inline edit
+        // (like F2 rename in Windows Explorer) — NOT a modal dialog.
+        // The dialog is still reachable via the right-click "Edit
+        // metadata" menu for users who want the full multi-field
+        // experience.
+        LibBook* book = BookById(AfterPrefix(url, kLinkEditTitle));
+        if (book != nullptr) {
+            StartInlineEdit(win, book, InlineField::Title, gDetailTitleRect);
+        }
+        return true;
+    }
+    if (str::StartsWith(url, Str(kLinkEditMetadata))) {
+        // Right-click "Edit metadata" menu item — opens the full
+        // per-book edit dialog with current values + per-field source
+        // attribution. The dialog has a Revert button per field and
+        // a "Clear all overrides" button, which the inline edit
+        // can't show.
+        LibBook* book = BookById(AfterPrefix(url, kLinkEditMetadata));
+        if (book != nullptr) {
+            EnterLib();
+            gDetailOpen = false;
+            LeaveLib();
+            RunEditBookMetadata(win, book);
+        }
         return true;
     }
     if (str::StartsWith(url, Str(kLinkDeskpan))) {
@@ -4049,6 +5642,15 @@ static LibBook* BookByPath(Str path) {
     return nullptr;
 }
 
+static LibBook* BookById(Str id) {
+    for (int i = 0; i < gModel.nBooks; i++) {
+        if (str::Eq(gModel.books[i].id, id)) {
+            return &gModel.books[i];
+        }
+    }
+    return nullptr;
+}
+
 static LibSeries* RowByKey(Str key) {
     for (int i = 0; i < gModel.nSeries; i++) {
         if (str::Eq(gModel.series[i].key, key)) {
@@ -4151,6 +5753,394 @@ static void RunPartitionCommand(MainWindow* win, int cmd, Str rowKey) {
     PostPartition("/partition/assign", Str(body));
 }
 
+static LibSeries* FindSeriesByKey(Str key) {
+    for (int i = 0; i < gModel.nSeries; i++) {
+        if (str::Eq(gModel.series[i].key, key)) {
+            return &gModel.series[i];
+        }
+    }
+    return nullptr;
+}
+
+// ===== Inline field edit (Windows file rename) =====
+//
+// Click on the title (or author/series/year, once they're clickable) in
+// the detail view and the text turns into an EDITTEXT in place — exactly
+// like F2 rename in Windows Explorer. Enter saves, Escape cancels,
+// focus-loss commits (matching Explorer, which commits on focus loss
+// and treats Escape as cancel). One edit at a time; starting a new one
+// commits the previous one first.
+//
+// (struct InlineEdit and the gInlineEdit global are defined near
+// the top of the file so the early click handler can see them.)
+
+static Str LibBookGetField(LibBook* b, InlineField f) {
+    switch (f) {
+        case InlineField::Title:
+            return b->title;
+        case InlineField::Author:
+            return b->author;
+        case InlineField::Series:
+            return b->series;
+        case InlineField::Year:
+            return b->year > 0 ? fmt("%d", b->year) : Str();
+    }
+    return {};
+}
+
+static void LibBookSetField(LibBook* b, InlineField f, Str v) {
+    switch (f) {
+        case InlineField::Title:
+            str::ReplaceWithCopy(&b->title, v);
+            str::ReplaceWithCopy(&b->titleSource, StrL("user"));
+            str::ReplaceWithCopy(&gDetail.title, v);
+            break;
+        case InlineField::Author:
+            str::ReplaceWithCopy(&b->author, v);
+            str::ReplaceWithCopy(&b->authorSource, StrL("user"));
+            str::ReplaceWithCopy(&gDetail.author, v);
+            break;
+        case InlineField::Year:
+            b->year = atoi(v.s ? v.s : "0");
+            str::ReplaceWithCopy(&b->yearSource, StrL("user"));
+            gDetail.year = b->year;
+            break;
+        case InlineField::Series:
+            // The value the user typed is what the portable writer embeds,
+            // marked as theirs. The native model owns where the book now
+            // sits, so the tree is rebuilt around the new name before any
+            // catalogue refresh happens.
+            str::ReplaceWithCopy(&b->series, v);
+            str::ReplaceWithCopy(&b->seriesSource, StrL("user"));
+            str::ReplaceWithCopy(&gDetail.series, v);
+            EnterLib();
+            RebuildSeriesTree();
+            LeaveLib();
+            break;
+    }
+}
+
+// Revert / Clear all overrides. The value the user is looking at stays
+// put; what goes away is the "user" authority over it, so the next
+// generated or online value is free to replace it again. Without this
+// the store and the model keep saying "user" and the revert is nothing
+// but a repainted label.
+static void LibBookClearFieldSource(LibBook* b, InlineField f) {
+    switch (f) {
+        case InlineField::Title:
+            str::ReplaceWithCopy(&b->titleSource, StrL(""));
+            break;
+        case InlineField::Author:
+            str::ReplaceWithCopy(&b->authorSource, StrL(""));
+            break;
+        case InlineField::Year:
+            str::ReplaceWithCopy(&b->yearSource, StrL(""));
+            break;
+        case InlineField::Series:
+            str::ReplaceWithCopy(&b->seriesSource, StrL(""));
+            break;
+    }
+}
+
+static const char* InlineFieldName(InlineField f) {
+    switch (f) {
+        case InlineField::Title:
+            return "title";
+        case InlineField::Author:
+            return "author";
+        case InlineField::Year:
+            return "year";
+        case InlineField::Series:
+            return "series";
+    }
+    return "title";
+}
+
+static void CommitInlineEdit(bool commit) {
+    if (!gInlineEdit.hwnd) {
+        return;
+    }
+    HWND h = gInlineEdit.hwnd;
+    LibBook* book = gInlineEdit.book;
+    MainWindow* win = gInlineEdit.win;
+    InlineField field = gInlineEdit.field;
+    Str original = gInlineEdit.original;
+    gInlineEdit.committing = true;
+
+    if (commit && book != nullptr) {
+        TempStr newVal = HwndGetTextTemp(h);
+        if (!str::Eq(newVal, original)) {
+            LibBookSetField(book, field, Str(newVal));
+            Str body = fmt("{\"id\":%s,\"fields\":{\"%s\":{\"value\":%s,\"source\":\"user\"}}}", JsonStrTemp(book->id),
+                           Str(InlineFieldName(field)), JsonStrTemp(Str(newVal)));
+            PostBookEdit("/book/edit", body, book->id);
+        }
+    }
+
+    // Tear down the edit control and its state.
+    SetWindowLongPtrW(h, GWLP_WNDPROC, (LONG_PTR)gInlineEdit.prevWndProc);
+    DestroyWindow(h);
+    if (gInlineEdit.font) {
+        DeleteObject(gInlineEdit.font);
+    }
+    str::Free(gInlineEdit.original);
+    HWND hwndFrame = (win != nullptr) ? win->hwndFrame : nullptr;
+    gInlineEdit = InlineEdit{};
+
+    // Force a redraw of the whole frame so the title repaints and
+    // the EDITTEXT is gone.
+    if (hwndFrame) {
+        InvalidateRect(hwndFrame, nullptr, FALSE);
+    }
+}
+
+static LRESULT CALLBACK InlineEditWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+        case WM_GETDLGCODE:
+            return DLGC_WANTALLKEYS;
+        case WM_KEYDOWN:
+            if (wp == VK_ESCAPE) {
+                CommitInlineEdit(false);
+                return 0;
+            }
+            if (wp == VK_RETURN) {
+                CommitInlineEdit(true);
+                return 0;
+            }
+            break;
+        case WM_KILLFOCUS:
+            // Explorer commits on focus loss. If the user clicked
+            // somewhere else without pressing Enter, save the value
+            // (no-op if unchanged).
+            CommitInlineEdit(true);
+            return 0;
+    }
+    return CallWindowProcW(gInlineEdit.prevWndProc, hwnd, msg, wp, lp);
+}
+
+static void StartInlineEdit(MainWindow* win, LibBook* book, InlineField field, Rect fieldRect) {
+    if (!win || !book) {
+        return;
+    }
+    // If an edit is already running, commit it first (Explorer-style
+    // auto-save on focus loss; safer than cancelling in case the
+    // user was mid-typing).
+    if (gInlineEdit.hwnd != nullptr) {
+        CommitInlineEdit(true);
+    }
+
+    Str current = LibBookGetField(book, field);
+    gInlineEdit.book = book;
+    gInlineEdit.win = win;
+    gInlineEdit.field = field;
+    gInlineEdit.original = str::Dup(current);
+
+    HMODULE hmod = GetModuleHandleW(nullptr);
+    DWORD style = WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL;
+    // Parent the edit to the canvas (same surface that draws the
+    // static text), and use the canvas-local rect directly — no
+    // ClientToScreen round-trip needed. The field rect was captured
+    // in DrawDetail in the same coordinate space the canvas paints in.
+    HWND hEdit = CreateWindowExW(0, WC_EDITW, L"", style, fieldRect.x, fieldRect.y, fieldRect.dx, fieldRect.dy,
+                                 win->hwndCanvas, (HMENU)1, hmod, nullptr);
+    if (!hEdit) {
+        return;
+    }
+    gInlineEdit.hwnd = hEdit;
+
+    // Match the static-text font we replaced (fontHead) so the
+    // in-place edit doesn't shift the layout.
+    LOGFONT lf{};
+    lf.lfHeight = -DpiScale(18);
+    lf.lfWeight = FW_BOLD;
+    wcscpy(lf.lfFaceName, L"Segoe UI");
+    gInlineEdit.font = CreateFontIndirectW(&lf);
+    SetWindowFont(hEdit, gInlineEdit.font, TRUE);
+
+    HwndSetText(hEdit, current);
+    SendMessageW(hEdit, EM_SETMARGINS, EC_LEFTMARGIN | EC_RIGHTMARGIN, MAKELPARAM(2, 2));
+
+    gInlineEdit.prevWndProc = (WNDPROC)SetWindowLongPtrW(hEdit, GWLP_WNDPROC, (LONG_PTR)InlineEditWndProc);
+
+    SetFocus(hEdit);
+    SendMessageW(hEdit, EM_SETSEL, 0, -1);
+    logf("StartInlineEdit: hEdit=%p bookId=%s field=%d current='%s'\n", (void*)hEdit, book->id, (int)field, current);
+}
+
+// Fill a BookMetadataField from a string, plus the "user"/"auto" source
+// marker. The original is left empty; the dialog will set it.
+static void MetaFieldFromStr(BookMetadataField& f, Str value, const char* source) {
+    str::ReplaceWithCopy(&f.value, value);
+    str::ReplaceWithCopy(&f.source, Str(source ? Str(source) : StrL("")));
+    f.overridden = (source && str::EqI(Str(source), StrL("user")));
+}
+
+// Build a human-readable tooltip for the book detail title that
+// shows where each field came from. e.g.
+//   "Click to edit metadata"
+//   "Source: filename (01 The Hitchhiker's Guide...).pdf"
+//   "Source: pdf-meta"
+static TempStr BuildTitleTip() {
+    LibBook* b = BookById(gDetail.id);
+    if (b == nullptr) {
+        return str::DupTemp(StrL("Click to edit metadata"));
+    }
+    str::Builder tip;
+    tip.Append("Click to edit metadata\n");
+    if (len(b->file) > 0) {
+        tip.Append(fmt("File: %s\n", Str(b->file)));
+    }
+    if (len(b->titleSource) > 0) {
+        tip.Append(fmt("Title source: %s\n", Str(b->titleSource)));
+    }
+    if (len(b->authorSource) > 0 && len(b->author) > 0) {
+        tip.Append(fmt("Author source: %s\n", Str(b->authorSource)));
+    }
+    if (len(b->yearSource) > 0 && b->year > 0) {
+        tip.Append(fmt("Year source: %s\n", Str(b->yearSource)));
+    }
+    return tip.TakeStr();
+}
+
+static void RunEditBookMetadata(MainWindow* win, LibBook* book) {
+    BookMetadataEdit edit{};
+    edit.bookId = str::Dup(book->id);
+    edit.filePath = str::Dup(book->path);
+    // Use the per-field source attribution returned by the server so
+    // the dialog can show "filename" / "pdf-meta" / "user" / "wikipedia"
+    // / etc. next to each value. Without this, the user has no idea
+    // where the auto-detected title came from.
+    MetaFieldFromStr(edit.title, book->title, book->titleSource.s);
+    MetaFieldFromStr(edit.author, book->author, book->authorSource.s);
+    MetaFieldFromStr(edit.series, book->series, book->seriesSource.s);
+    // year comes back as an int; convert via fmt for the dialog
+    if (book->year > 0) {
+        TempStr ys = fmt("%d", book->year);
+        MetaFieldFromStr(edit.year, Str(ys), book->yearSource.s);
+    } else {
+        MetaFieldFromStr(edit.year, Str(), book->yearSource.s);
+    }
+    if (!Dialog_BookMetadata(win->hwndFrame, edit)) {
+        // user cancelled — nothing to do
+        FreeBookMetadataEdit(edit);
+        return;
+    }
+    // Build the JSON body for /book/edit
+    str::Builder body;
+    body.Append(fmt("{\"id\":%s,", JsonStrTemp(book->id)));
+    body.Append("\"fields\":{");
+    bool first = true;
+    if (edit.title.overridden) {
+        if (!first) body.Append(",");
+        first = false;
+        body.Append(fmt("\"title\":{\"value\":%s,\"source\":%s}", JsonStrTemp(edit.title.value),
+                        JsonStrTemp(edit.title.source)));
+    } else if (edit.title.cleared) {
+        if (!first) body.Append(",");
+        first = false;
+        body.Append("\"title\":{\"value\":\"\",\"source\":\"\"}");
+    }
+    if (edit.author.overridden) {
+        if (!first) body.Append(",");
+        first = false;
+        body.Append(fmt("\"author\":{\"value\":%s,\"source\":%s}", JsonStrTemp(edit.author.value),
+                        JsonStrTemp(edit.author.source)));
+    } else if (edit.author.cleared) {
+        if (!first) body.Append(",");
+        first = false;
+        body.Append("\"author\":{\"value\":\"\",\"source\":\"\"}");
+    }
+    if (edit.series.overridden) {
+        if (!first) body.Append(",");
+        first = false;
+        body.Append(fmt("\"series\":{\"value\":%s,\"source\":%s}", JsonStrTemp(edit.series.value),
+                        JsonStrTemp(edit.series.source)));
+    } else if (edit.series.cleared) {
+        if (!first) body.Append(",");
+        first = false;
+        body.Append("\"series\":{\"value\":\"\",\"source\":\"\"}");
+    }
+    if (edit.year.overridden) {
+        if (!first) body.Append(",");
+        first = false;
+        body.Append(
+            fmt("\"year\":{\"value\":%s,\"source\":%s}", JsonStrTemp(edit.year.value), JsonStrTemp(edit.year.source)));
+    } else if (edit.year.cleared) {
+        if (!first) body.Append(",");
+        first = false;
+        body.Append("\"year\":{\"value\":\"\",\"source\":\"\"}");
+    }
+    body.Append("}}");
+    Str bodyStr = body.TakeStr();
+
+    // Update the in-memory model BEFORE posting so the targeted
+    // PersistBookMetadata() call (which reads from gModel via
+    // CoverBookInfoById) writes the user's new values, not the old ones.
+    // The source is also marked "user" so AdoptEmbeddedRecordFields'
+    // *Source=="user" guard prevents the next sync from reverting it.
+    if (edit.title.overridden) {
+        LibBookSetField(book, InlineField::Title, edit.title.value);
+    } else if (edit.title.cleared) {
+        LibBookClearFieldSource(book, InlineField::Title);
+    }
+    if (edit.author.overridden) {
+        LibBookSetField(book, InlineField::Author, edit.author.value);
+    } else if (edit.author.cleared) {
+        LibBookClearFieldSource(book, InlineField::Author);
+    }
+    if (edit.year.overridden) {
+        LibBookSetField(book, InlineField::Year, edit.year.value);
+    } else if (edit.year.cleared) {
+        LibBookClearFieldSource(book, InlineField::Year);
+    }
+    if (edit.series.overridden) {
+        LibBookSetField(book, InlineField::Series, edit.series.value);
+    } else if (edit.series.cleared) {
+        LibBookClearFieldSource(book, InlineField::Series);
+    }
+
+    int reverted = 0;
+    if (edit.title.cleared) {
+        reverted |= kRevertedTitle;
+    }
+    if (edit.author.cleared) {
+        reverted |= kRevertedAuthor;
+    }
+    if (edit.series.cleared) {
+        reverted |= kRevertedSeries;
+    }
+    if (edit.year.cleared) {
+        reverted |= kRevertedYear;
+    }
+
+    PostBookEdit("/book/edit", bodyStr, book->id, reverted);
+    FreeBookMetadataEdit(edit);
+}
+
+static void RunRenameSeries(MainWindow* win, Str rowKey) {
+    LibSeries* row = FindSeriesByKey(rowKey);
+    if (!row) {
+        return;
+    }
+    Str currentName = str::Dup(row->name);
+    Str newName = str::Dup(currentName);
+    if (!Dialog_RenameSeries(win->hwndFrame, currentName, newName)) {
+        str::Free(currentName);
+        str::Free(newName);
+        return;
+    }
+    if (str::Eq(newName, currentName)) {
+        // no change
+        str::Free(currentName);
+        str::Free(newName);
+        return;
+    }
+    TempStr body = fmt("{\"row\":%s,\"name\":%s}", JsonStrTemp(rowKey), JsonStrTemp(newName));
+    PostPartition("/series/rename", body);
+    str::Free(currentName);
+    str::Free(newName);
+}
+
 static int DeskRowAt(MainWindow* win, int x, int y) {
     TempStr url = GetStaticLinkAtTemp(win->staticLinks, x, y, nullptr);
     if (len(url) == 0) {
@@ -4251,6 +6241,7 @@ bool LibraryOnRightClick(MainWindow* win, int x, int y) {
             Str back = Str(fmt("Put back into %s", book->outOf[i].name));
             AppendMenuW(popup, MF_STRING, kMenuRejoinFirst + i, ToWStrTemp(back).s);
         }
+        AppendMenuW(popup, MF_STRING, kMenuEditBookMetadata, ToWStrTemp(_TRA("Edit metadata...")).s);
         AppendMenuW(popup, MF_STRING, kMenuRemoveFromLibrary, ToWStrTemp(StrL("Remove from library")).s);
         AppendMenuW(popup, MF_STRING, kMenuIgnoreFile, ToWStrTemp(StrL("Ignore file")).s);
     }
@@ -4258,6 +6249,7 @@ bool LibraryOnRightClick(MainWindow* win, int x, int y) {
         if (len(path) > 0) {
             AppendMenuW(popup, MF_SEPARATOR, 0, nullptr);
         }
+        AppendMenuW(popup, MF_STRING, kMenuRenameSeries, ToWStrTemp(_TRA("Rename series...")).s);
         AddPartitionMenu(popup, rowKey);
     }
     POINT pt = {x, y};
@@ -4283,6 +6275,10 @@ bool LibraryOnRightClick(MainWindow* win, int x, int y) {
         Str was = book->outOf[cmd - kMenuRejoinFirst].key;
         TempStr body = fmt("{\"books\":[%s],\"row\":%s}", JsonStrTemp(book->id), JsonStrTemp(was));
         PostPartition("/series/restore", Str(body));
+    } else if (cmd == kMenuEditBookMetadata && book) {
+        RunEditBookMetadata(win, book);
+    } else if (cmd == kMenuRenameSeries && len(rowKey) > 0) {
+        RunRenameSeries(win, rowKey);
     } else if (cmd > 0 && len(rowKey) > 0) {
         RunPartitionCommand(win, cmd, rowKey);
     }

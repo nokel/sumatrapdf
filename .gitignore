@@ -57,3 +57,9 @@ android/.gradle/
 android/local.properties
 *.apk
 *.aab
+
+# agent scratch space: probes, snapshots and backups taken while working
+/scratchpad/
+# benchmark and one-off verification scripts, not part of the suite
+tests/bench-*.ts
+tests/verify-*.ts

@@ -24,3 +24,15 @@ StrVec LibraryWholeDeviceRoots();
 
 Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, bool wholeDevice, LibraryScanNotifyCb cb,
                       void* ctx, const volatile bool* cancel);
+
+struct LibraryAutoMeta {
+    Str title;
+    Str titleSource;
+    Str author;
+    Str authorSource;
+    Str yearSource;
+    int year = 0;
+};
+
+bool LibraryReadAutoMeta(Str bookPath, LibraryAutoMeta& out);
+void LibraryAutoMetaFree(LibraryAutoMeta& meta);

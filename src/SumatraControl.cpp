@@ -37,6 +37,10 @@
 #include "AIChatCommon.h"
 #include "SumatraDialogs.h"
 #include "EditAnnotations.h"
+#include "BookBlob.h"
+#include "LibrarySidecar.h"
+#include "PdfSidecar.h"
+#include "LibraryPage.h"
 
 extern bool gIsStartup;
 
@@ -283,6 +287,7 @@ enum class ControlCmd : u16 {
     TestRenderPageColors = 59,
     TestListSigningCerts = 60,
     TestSignDocument = 61,
+    TestBenchSync = 62,
 };
 
 enum class ControlArgType : u16 {
@@ -527,6 +532,14 @@ static void AppendTestResult(ControlRequest* req, int exitCode, Str result) {
     AppendArgInt(req->results, exitCode);
     AppendArgString(req->results, result);
     AppendArgEnd(req->results);
+}
+
+// Replays the SyncEmbeddedRecords() hot path on demand and reports the
+// per-PDF mupdf context count. Runs on the UI thread (uses gModel).
+static void BenchSyncUiThread(ControlRequest* req) {
+    TempStr res = RunBenchSyncOnce();
+    AppendTestResult(req, 0, res);
+    SetEvent(req->done);
 }
 
 static void ExecuteControlRequest(ControlRequest* req) {
@@ -1107,6 +1120,14 @@ static void ExecuteControlRequest(ControlRequest* req) {
             break;
         }
 
+        case ControlCmd::TestBenchSync: {
+            // run on the UI thread; the control thread waits for the event
+            ResetEvent(req->done);
+            uitask::Post(MkFunc0<ControlRequest>(BenchSyncUiThread, req), "TestBenchSync");
+            WaitForSingleObject(req->done, INFINITE);
+            break;
+        }
+
         default:
             AppendError(req, "unknown control command");
             break;
@@ -1327,6 +1348,7 @@ static void SumatraControlThread(ControlThreadArg* arg) {
 }
 
 void StartSumatraControl(Str pipeName) {
+    logf("StartSumatraControl: pipeName='%s' len=%d\n", pipeName, len(pipeName));
     if (len(pipeName) == 0) {
         return;
     }

@@ -13,6 +13,7 @@ extern void SumatraPDF_UnitTests();
 
 extern void BaseUtilTest();
 extern void ByteOrderTests();
+extern void CoverModelTest();
 extern void CryptoUtilTest();
 extern void CssParser_UnitTests();
 extern void DictTest();
@@ -27,6 +28,7 @@ extern void SquareTreeTest();
 extern void StrFormatTest();
 extern void StrTest();
 extern void VecTest();
+extern void WebpWriterTest();
 extern void StrVecTest();
 extern void PdfDarkModeOklab_UnitTests();
 extern void PdfDarkModeImageClassifier_UnitTests();
@@ -120,6 +122,7 @@ int main(int argc, char** argv) {
     RefHoverTest();
     SettingsUtilTest();
     SimpleLogTest();
+    CoverModelTest();
     LibraryStoreTest();
     SquareTreeTest();
     StrFormatTest();
@@ -129,6 +132,7 @@ int main(int argc, char** argv) {
     PdfDarkModeOklab_UnitTests();
     PdfDarkModeImageClassifier_UnitTests();
     AppendStoreTest();
+    WebpWriterTest();
 #if OS_WIN
     WinUtilTest();
     ClipboardImageTest();

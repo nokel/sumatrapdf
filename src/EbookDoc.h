@@ -31,6 +31,7 @@ struct EpubDoc {
     str::Builder htmlData;
     Vec<ImageData> images;
     Str tocPath;
+    Str coverImagePath;
     Str fileName;
     Vec<PropValue> props;
     bool isNcxToc = false;
@@ -47,6 +48,8 @@ struct EpubDoc {
     Str GetHtmlData() const;
 
     Str GetImageData(Str fileName, Str pagePath);
+    Str GetImageDataByIndex(int idx);
+    Str GetCoverImage();
     Str GetFileData(Str relPath, Str pagePath);
 
     TempStr GetPropertyTemp(DocProp prop) const;

@@ -5,6 +5,33 @@ struct MainWindow;
 struct WindowTab;
 
 bool Dialog_PartitionName(HWND hwnd, Str title, Str prompt, Str& name);
+bool Dialog_RenameSeries(HWND hwnd, Str currentName, Str& newName);
+struct BookMetadataField {
+    Str label;    // display name (e.g. "title")
+    Str value;    // current value
+    Str source;   // "user", "nlp", "wikipedia", "imdb", "openlibrary", "wikidata", etc.
+    Str original; // the value before user override (for Revert)
+    bool overridden = false;
+    // Revert / Clear all overrides set this. It is not the same as
+    // !overridden: an untouched field is also !overridden, and must be
+    // left alone. Only a cleared field tells the caller to delete the
+    // stored override and drop the "user" source.
+    bool cleared = false;
+};
+struct BookMetadataEdit {
+    Str bookId;
+    Str filePath;
+    BookMetadataField title;
+    BookMetadataField author;
+    BookMetadataField series;
+    BookMetadataField year;
+};
+// Returns true if the user clicked Save (data is filled in). On Cancel,
+// the BookMetadataEdit is left unchanged. The caller is responsible for
+// POSTing the changes to the library service.
+bool Dialog_BookMetadata(HWND hwnd, BookMetadataEdit& data);
+// releases every string in the BookMetadataEdit; call it when done reading them
+void FreeBookMetadataEdit(BookMetadataEdit& data);
 void ShowAddFavoriteDialog(MainWindow* win, Str filePath, int pageNo, Str pageLabel, Str name);
 void ShowAdvancedSettingsDialog(MainWindow* win);
 TempStr AdvSettingsRowsResultTemp(Str action, int arg, int* exitCodeOut);

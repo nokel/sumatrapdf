@@ -21,16 +21,35 @@ struct LibraryBook {
     Str author;
     // display name of the series the book belongs to
     Str series;
+    //
+    Str seriesParent;
     // key of that series, matching one in Series
     Str seriesKey;
     // keys of every collection the book is in, separated by ;
     Str keys;
+    //
+    Str genre;
+    //
+    Str subgenre;
+    //
+    Str tags;
     // full path of the document
     Str path;
     // file extension, without the dot
     Str ext;
     // key of the lore wiki entry for this book, empty if none
     Str wiki;
+    // where the title came from: filename / pdf-meta / cover / nlp /
+    // wikipedia / imdb / openlibrary / googlebooks / wikidata / user /
+    // auto; user means the user explicitly overrode it and generators must
+    // not replace it
+    Str titleSource;
+    // where the author came from, same vocabulary as TitleSource
+    Str authorSource;
+    // where the year came from, same vocabulary as TitleSource
+    Str yearSource;
+    // where the series came from, same vocabulary as TitleSource
+    Str seriesSource;
     // number of pages, 0 if not worked out yet
     int pages;
     // year of publication, 0 if unknown
@@ -79,6 +98,17 @@ struct LibrarySeries {
     int depth;
 };
 
+struct LibraryRoamed {
+    //
+    Str mark;
+    //
+    i64 lastReadAt;
+    //
+    i64 timeSpentMs;
+    //
+    i64 openCount;
+};
+
 // The library index, persisted in SumatraLibrary.txt
 struct LibraryStore {
     // format version; a lower one is discarded and rebuilt by a rescan
@@ -95,6 +125,8 @@ struct LibraryStore {
     Vec<LibraryBook*>* libraryBooks;
     // every series and collection they group into
     Vec<LibrarySeries*>* librarySeries;
+    //
+    Vec<LibraryRoamed*>* libraryRoamed;
 };
 
 #ifdef INCLUDE_LIBRARYSTORE_METADATA
@@ -116,11 +148,19 @@ static const FieldInfo gLibraryBookFields[] = {
     {offsetof(LibraryBook, title), SettingType::String, (intptr_t)""},
     {offsetof(LibraryBook, author), SettingType::String, (intptr_t)""},
     {offsetof(LibraryBook, series), SettingType::String, (intptr_t)""},
+    {offsetof(LibraryBook, seriesParent), SettingType::String, (intptr_t)""},
     {offsetof(LibraryBook, seriesKey), SettingType::String, (intptr_t)""},
     {offsetof(LibraryBook, keys), SettingType::String, (intptr_t)""},
+    {offsetof(LibraryBook, genre), SettingType::String, (intptr_t)""},
+    {offsetof(LibraryBook, subgenre), SettingType::String, (intptr_t)""},
+    {offsetof(LibraryBook, tags), SettingType::String, (intptr_t)""},
     {offsetof(LibraryBook, path), SettingType::String, (intptr_t)""},
     {offsetof(LibraryBook, ext), SettingType::String, (intptr_t)""},
     {offsetof(LibraryBook, wiki), SettingType::String, (intptr_t)""},
+    {offsetof(LibraryBook, titleSource), SettingType::String, (intptr_t)""},
+    {offsetof(LibraryBook, authorSource), SettingType::String, (intptr_t)""},
+    {offsetof(LibraryBook, yearSource), SettingType::String, (intptr_t)""},
+    {offsetof(LibraryBook, seriesSource), SettingType::String, (intptr_t)""},
     {offsetof(LibraryBook, pages), SettingType::Int, 0},
     {offsetof(LibraryBook, year), SettingType::Int, 0},
     {offsetof(LibraryBook, volume), SettingType::Int, 0},
@@ -130,15 +170,20 @@ static const FieldInfo gLibraryBookFields[] = {
 };
 static const StructInfo gLibraryBookInfo = {
     sizeof(LibraryBook),
-    15,
+    23,
     gLibraryBookFields,
-    "Id\0Title\0Author\0Series\0SeriesKey\0Keys\0Path\0Ext\0Wiki\0Pages\0Year\0Volume\0BookNlp\0Cover\0LibraryOutOf",
+    "Id\0Title\0Author\0Series\0SeriesParent\0SeriesKey\0Keys\0Genre\0Subgenre\0Tags\0Path\0Ext\0Wiki\0TitleSource\0Aut"
+    "horSource\0YearSource\0SeriesSource\0Pages\0Year\0Volume\0BookNlp\0Cover\0LibraryOutOf",
     "stable id for the book; the thumbnail store is keyed by it\0title as shown in the library\0author as shown in the "
-    "library\0display name of the series the book belongs to\0key of that series, matching one in Series\0keys of "
-    "every collection the book is in, separated by ;\0full path of the document\0file extension, without the dot\0key "
-    "of the lore wiki entry for this book, empty if none\0number of pages, 0 if not worked out yet\0year of "
-    "publication, 0 if unknown\0position in the series, 0 if not part of one\0true once BookNLP has analysed the "
-    "book\0true if the thumbnail store has a cover for this id\0series and collections this book was pulled out of",
+    "library\0display name of the series the book belongs to\0\0key of that series, matching one in Series\0keys of "
+    "every collection the book is in, separated by ;\0\0\0\0full path of the document\0file extension, without the "
+    "dot\0key of the lore wiki entry for this book, empty if none\0where the title came from: filename / pdf-meta / "
+    "cover / nlp / wikipedia / imdb / openlibrary / googlebooks / wikidata / user / auto; user means the user "
+    "explicitly overrode it and generators must not replace it\0where the author came from, same vocabulary as "
+    "TitleSource\0where the year came from, same vocabulary as TitleSource\0where the series came from, same "
+    "vocabulary as TitleSource\0number of pages, 0 if not worked out yet\0year of publication, 0 if unknown\0position "
+    "in the series, 0 if not part of one\0true once BookNLP has analysed the book\0true if the thumbnail store has a "
+    "cover for this id\0series and collections this book was pulled out of",
     false};
 
 static const FieldInfo gLibrarySeriesFields[] = {
@@ -171,6 +216,15 @@ static const StructInfo gLibrarySeriesInfo = {
     "series\0nesting depth below the top level",
     false};
 
+static const FieldInfo gLibraryRoamedFields[] = {
+    {offsetof(LibraryRoamed, mark), SettingType::String, (intptr_t)""},
+    {offsetof(LibraryRoamed, lastReadAt), SettingType::Int64, 0},
+    {offsetof(LibraryRoamed, timeSpentMs), SettingType::Int64, 0},
+    {offsetof(LibraryRoamed, openCount), SettingType::Int64, 0},
+};
+static const StructInfo gLibraryRoamedInfo = {
+    sizeof(LibraryRoamed), 4, gLibraryRoamedFields, "Mark\0LastReadAt\0TimeSpentMs\0OpenCount", "\0\0\0", false};
+
 static const FieldInfo gLibraryStoreFields[] = {
     {offsetof(LibraryStore, version), SettingType::Int, 1},
     {offsetof(LibraryStore, scannedAtMs), SettingType::Int64, 0},
@@ -178,16 +232,17 @@ static const FieldInfo gLibraryStoreFields[] = {
     {offsetof(LibraryStore, documents), SettingType::Int, 0},
     {offsetof(LibraryStore, libraryBooks), SettingType::Array, (intptr_t)&gLibraryBookInfo},
     {offsetof(LibraryStore, librarySeries), SettingType::Array, (intptr_t)&gLibrarySeriesInfo},
+    {offsetof(LibraryStore, libraryRoamed), SettingType::Array, (intptr_t)&gLibraryRoamedInfo},
 };
 static const StructInfo gLibraryStoreInfo = {
     sizeof(LibraryStore),
-    6,
+    7,
     gLibraryStoreFields,
-    "Version\0ScannedAtMs\0Total\0Documents\0LibraryBooks\0LibrarySeries",
+    "Version\0ScannedAtMs\0Total\0Documents\0LibraryBooks\0LibrarySeries\0LibraryRoamed",
     "format version; a lower one is discarded and rebuilt by a rescan\0when the scan that produced this index "
     "finished, in ms since the epoch\0how many books the library holds, which is more than are listed when a limit was "
     "applied\0how many documents were found that are not books yet\0every book found\0every series and collection they "
-    "group into",
+    "group into\0",
     false};
 
 #endif

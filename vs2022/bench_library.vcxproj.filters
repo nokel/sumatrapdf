@@ -4,34 +4,23 @@
     <Filter Include="base">
       <UniqueIdentifier>{8078947C-6CAF-950D-159C-7B1001B2110F}</UniqueIdentifier>
     </Filter>
-    <Filter Include="base\tests">
-      <UniqueIdentifier>{62C33BDB-4E7B-7D28-B782-5684A3591819}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="gui">
-      <UniqueIdentifier>{8A78880B-F681-887C-7FFD-9E7CEB05947C}</UniqueIdentifier>
-    </Filter>
     <Filter Include="tools">
       <UniqueIdentifier>{36DF7010-A2F3-98C1-6B75-3C21D74895F2}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\Commands.h" />
-    <ClInclude Include="..\src\CoverData.h" />
-    <ClInclude Include="..\src\CoverVision.h" />
-    <ClInclude Include="..\src\DisplayMode.h" />
-    <ClInclude Include="..\src\DocProperties.h" />
-    <ClInclude Include="..\src\FilterUtil.h" />
-    <ClInclude Include="..\src\Flags.h" />
+    <ClInclude Include="..\src\BookBlob.h" />
+    <ClInclude Include="..\src\BookFingerprint.h" />
+    <ClInclude Include="..\src\LibraryData.h" />
+    <ClInclude Include="..\src\LibrarySidecar.h" />
     <ClInclude Include="..\src\LibraryStore.h" />
-    <ClInclude Include="..\src\PageRenderPolicy.h" />
-    <ClInclude Include="..\src\PdfDarkMode.h" />
-    <ClInclude Include="..\src\RefHoverDetect.h" />
-    <ClInclude Include="..\src\RefHoverTextDetect.h" />
+    <ClInclude Include="..\src\PdfSidecar.h" />
     <ClInclude Include="..\src\SumatraConfig.h" />
     <ClInclude Include="..\src\SumatraLog.h" />
-    <ClInclude Include="..\src\WebpReader.h" />
-    <ClInclude Include="..\src\WebpWriter.h" />
     <ClInclude Include="..\src\base\AppendStore.h">
+      <Filter>base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\base\Archive.h">
       <Filter>base</Filter>
     </ClInclude>
     <ClInclude Include="..\src\base\Arena.h">
@@ -58,9 +47,6 @@
     <ClInclude Include="..\src\base\CssParser.h">
       <Filter>base</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\base\DbgHelpDyn.h">
-      <Filter>base</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\base\Dict.h">
       <Filter>base</Filter>
     </ClInclude>
@@ -71,9 +57,6 @@
       <Filter>base</Filter>
     </ClInclude>
     <ClInclude Include="..\src\base\FileWatcher.h">
-      <Filter>base</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\base\GdiPlusUtil.h">
       <Filter>base</Filter>
     </ClInclude>
     <ClInclude Include="..\src\base\Geom.h">
@@ -100,9 +83,6 @@
     <ClInclude Include="..\src\base\SettingsUtil.h">
       <Filter>base</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\base\SquareTreeParser.h">
-      <Filter>base</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\base\Str.h">
       <Filter>base</Filter>
     </ClInclude>
@@ -124,9 +104,6 @@
     <ClInclude Include="..\src\base\Thread.h">
       <Filter>base</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\base\UtAssert.h">
-      <Filter>base</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\base\Vec.h">
       <Filter>base</Filter>
     </ClInclude>
@@ -136,46 +113,27 @@
     <ClInclude Include="..\src\base\WinDynCalls.h">
       <Filter>base</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\gui\CommandPaletteModel.h">
-      <Filter>gui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\gui\Dpi.h">
-      <Filter>gui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\gui\Layout.h">
-      <Filter>gui</Filter>
+    <ClInclude Include="..\src\base\Zip.h">
+      <Filter>base</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\BasePch.cpp" />
-    <ClCompile Include="..\src\Commands.cpp" />
-    <ClCompile Include="..\src\CoverModel.cpp" />
+    <ClCompile Include="..\src\BookBlob.cpp" />
+    <ClCompile Include="..\src\BookFingerprint.cpp" />
     <ClCompile Include="..\src\CrashHandlerNoOp.cpp" />
-    <ClCompile Include="..\src\DisplayMode.cpp" />
-    <ClCompile Include="..\src\DocProperties.cpp" />
-    <ClCompile Include="..\src\FilterUtil.cpp" />
-    <ClCompile Include="..\src\Flags.cpp" />
+    <ClCompile Include="..\src\LibrarySidecar.cpp" />
     <ClCompile Include="..\src\LibraryStore.cpp" />
-    <ClCompile Include="..\src\PageRenderPolicy.cpp" />
-    <ClCompile Include="..\src\PdfDarkModeImageClassifier_ut.cpp" />
-    <ClCompile Include="..\src\PdfDarkModeImageRules.cpp" />
-    <ClCompile Include="..\src\PdfDarkModeOklab.cpp" />
-    <ClCompile Include="..\src\PdfDarkModeOklab_ut.cpp" />
-    <ClCompile Include="..\src\RefHoverDetect.cpp" />
-    <ClCompile Include="..\src\RefHoverTextDetect.cpp" />
-    <ClCompile Include="..\src\SimpleLog_ut.cpp" />
+    <ClCompile Include="..\src\PdfSidecar.cpp" />
     <ClCompile Include="..\src\SumatraConfig.cpp" />
     <ClCompile Include="..\src\SumatraLog.cpp" />
-    <ClCompile Include="..\src\SumatraUnitTests.cpp" />
-    <ClCompile Include="..\src\WebpReader.cpp" />
-    <ClCompile Include="..\src\WebpWriter.cpp" />
     <ClCompile Include="..\src\base\AppendStore.cpp">
       <Filter>base</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\base\Arena.cpp">
+    <ClCompile Include="..\src\base\Archive.cpp">
       <Filter>base</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\base\Arena_win.cpp">
+    <ClCompile Include="..\src\base\Arena.cpp">
       <Filter>base</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\Base.cpp">
@@ -190,19 +148,10 @@
     <ClCompile Include="..\src\base\CmdLineArgsIter.cpp">
       <Filter>base</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\base\CmdLineArgsIter_win.cpp">
-      <Filter>base</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\base\Color.cpp">
       <Filter>base</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\base\Crypto_win.cpp">
-      <Filter>base</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\base\CssParser.cpp">
-      <Filter>base</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\DbgHelpDyn_win.cpp">
       <Filter>base</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\Dict.cpp">
@@ -211,19 +160,10 @@
     <ClCompile Include="..\src\base\DirScan.cpp">
       <Filter>base</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\base\DirScan_win.cpp">
-      <Filter>base</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\base\File.cpp">
       <Filter>base</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\FileWatcher.cpp">
-      <Filter>base</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\File_win.cpp">
-      <Filter>base</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\GdiPlusUtil.cpp">
       <Filter>base</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\Geom.cpp">
@@ -241,13 +181,7 @@
     <ClCompile Include="..\src\base\Pixmap.cpp">
       <Filter>base</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\base\Pixmap_win.cpp">
-      <Filter>base</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\base\SettingsUtil.cpp">
-      <Filter>base</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\SquareTreeParser.cpp">
       <Filter>base</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\Str.cpp">
@@ -271,88 +205,13 @@
     <ClCompile Include="..\src\base\Thread.cpp">
       <Filter>base</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\base\UtAssert.cpp">
-      <Filter>base</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\base\Win.cpp">
       <Filter>base</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\base\WinDynCalls_win.cpp">
+    <ClCompile Include="..\src\base\Zip.cpp">
       <Filter>base</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\base\tests\AppendStore_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\Base_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\ByteReaderWriter_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\ClipboardImage_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\CoverModel_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\Crypto_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\CssParser_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\Dict_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\File_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\GuessFileType_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\JsonParser_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\LibraryStore_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\RefHover_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\SettingsUtil_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\SquareTreeParser_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\StrFormat_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\StrVec_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\Str_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\Vec_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\WebpWriter_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\base\tests\Win_ut.cpp">
-      <Filter>base\tests</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\gui\CommandPaletteModel.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\gui\Dpi_win.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\gui\Layout.cpp">
-      <Filter>gui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\tools\test_util.cpp">
+    <ClCompile Include="..\src\tools\bench_library.cpp">
       <Filter>tools</Filter>
     </ClCompile>
   </ItemGroup>

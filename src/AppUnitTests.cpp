@@ -5,16 +5,27 @@
 
 #if defined(DEBUG)
 
+#include "base/Archive.h"
 #include "gui/UIModels.h"
 #include "gui/Layout.h"
 #include "gui/PlatformFont.h"
 #include "gui/Gfx.h"
 #include "gui/VirtCtrl.h"
 #include "Commands.h"
+#include "base/Crypto.h"
 #include "base/File.h"
+#include "base/GuessFileType.h"
 #include "BookBlob.h"
 #include "BookFingerprint.h"
+#include "CoverOnline.h"
+#include "CoverVision.h"
+#include "LibrarySidecar.h"
+#include "EbookBase.h"
+#include "EbookDoc.h"
+#include "PalmDbReader.h"
+#include "MobiDoc.h"
 #include "PdfSidecar.h"
+#include "CoverSpotVectors.h"
 
 #if defined(DEBUG)
 void TextSelection_UnitTests();
@@ -284,6 +295,168 @@ static void BookFingerprint_UnitTests() {
     str::Free(listData);
 }
 
+static void MobiCover_UnitTests() {
+    TempStr listPath = EnvVarTemp("SUMATRA_MOBI_LIST");
+    TempStr outPath = EnvVarTemp("SUMATRA_MOBI_OUT");
+    if (!listPath || !outPath) {
+        return;
+    }
+    Str listData = file::ReadFile(listPath);
+    utassert(listData.s && listData.len > 0);
+    StrVec paths;
+    Split(&paths, listData, "\n", true);
+    str::Builder out;
+    for (Str path : paths) {
+        while (path.len > 0 && (path.s[path.len - 1] == '\r' || path.s[path.len - 1] == ' ')) {
+            path.len--;
+        }
+        if (path.len == 0) {
+            continue;
+        }
+        MobiDoc* doc = MobiDoc::CreateFromFile(path);
+        Str cover = doc ? doc->GetCoverImage() : Str{};
+        out.Append(str::FormatTemp("%d\t", cover.len));
+        if (cover.len > 0) {
+            u8 md5[16];
+            CalcMD5Digest(cover, md5);
+            AppendHex(out, md5, 16);
+        }
+        out.AppendChar('\t');
+        out.Append(path::GetBaseNameTemp(path));
+        out.AppendChar('\n');
+        delete doc;
+    }
+    utassert(file::WriteFile(outPath, Str(out.els, (int)out.len)));
+    str::Free(listData);
+}
+
+static Str NativeCoverForFile(Str filePath) {
+    FileType kind = GuessFileType(filePath, true);
+    Str cover;
+    if (EpubDoc::IsSupportedFileType(kind)) {
+        EpubDoc* doc = EpubDoc::CreateFromFile(filePath);
+        if (doc) {
+            cover = str::Dup(doc->GetCoverImage());
+            delete doc;
+        }
+    } else if (Fb2Doc::IsSupportedFileType(kind)) {
+        Fb2Doc* doc = Fb2Doc::CreateFromFile(filePath);
+        if (doc) {
+            cover = str::Dup(doc->GetCoverImage());
+            delete doc;
+        }
+    } else if (MobiDoc::IsSupportedFileType(kind)) {
+        MobiDoc* doc = MobiDoc::CreateFromFile(filePath);
+        if (doc) {
+            cover = str::Dup(doc->GetCoverImage());
+            delete doc;
+        }
+    }
+    return cover;
+}
+
+static void NativeCover_UnitTests() {
+    TempStr listPath = EnvVarTemp("SUMATRA_NATIVE_COVER_LIST");
+    TempStr outPath = EnvVarTemp("SUMATRA_NATIVE_COVER_OUT");
+    if (!listPath || !outPath) {
+        return;
+    }
+    Str listData = file::ReadFile(listPath);
+    utassert(listData.s && listData.len > 0);
+    StrVec paths;
+    Split(&paths, listData, "\n", true);
+    str::Builder out;
+    for (Str path : paths) {
+        while (path.len > 0 && (path.s[path.len - 1] == '\r' || path.s[path.len - 1] == ' ')) {
+            path.len--;
+        }
+        if (path.len == 0) {
+            continue;
+        }
+        Str cover = NativeCoverForFile(path);
+        out.Append(str::FormatTemp("%d\t", cover.len));
+        if (cover.len > 0) {
+            u8 md5[16];
+            CalcMD5Digest(cover, md5);
+            AppendHex(out, md5, 16);
+        }
+        out.AppendChar('\t');
+        out.Append(path::GetBaseNameTemp(path));
+        out.AppendChar('\n');
+        str::Free(cover);
+    }
+    utassert(file::WriteFile(outPath, Str(out.els, (int)out.len)));
+    str::Free(listData);
+}
+
+static void BuiltCover_UnitTests() {
+    TempStr listPath = EnvVarTemp("SUMATRA_BUILT_COVER_LIST");
+    TempStr outPath = EnvVarTemp("SUMATRA_BUILT_COVER_OUT");
+    if (!listPath || !outPath) {
+        return;
+    }
+    Str listData = file::ReadFile(listPath);
+    utassert(listData.s && listData.len > 0);
+    StrVec paths;
+    Split(&paths, listData, "\n", true);
+    str::Builder out;
+    for (Str path : paths) {
+        while (path.len > 0 && (path.s[path.len - 1] == '\r' || path.s[path.len - 1] == ' ')) {
+            path.len--;
+        }
+        if (path.len == 0) {
+            continue;
+        }
+        Str cover = CoverBuildForBook(path, path::GetBaseNameTemp(path), {}, {}, {}, 0, nullptr);
+        out.Append(str::FormatTemp("%d\t", cover.len));
+        if (cover.len > 0) {
+            u8 md5[16];
+            CalcMD5Digest(cover, md5);
+            AppendHex(out, md5, 16);
+        }
+        out.AppendChar('\t');
+        out.Append(path::GetBaseNameTemp(path));
+        out.AppendChar('\n');
+        str::Free(cover);
+    }
+    utassert(file::WriteFile(outPath, Str(out.els, (int)out.len)));
+    str::Free(listData);
+}
+
+static void AutomaticImage_UnitTests() {
+    TempStr listPath = EnvVarTemp("SUMATRA_AUTO_IMAGE_LIST");
+    TempStr outPath = EnvVarTemp("SUMATRA_AUTO_IMAGE_OUT");
+    if (!listPath || !outPath) {
+        return;
+    }
+    Str listData = file::ReadFile(listPath);
+    utassert(listData.s && listData.len > 0);
+    StrVec paths;
+    Split(&paths, listData, "\n", true);
+    str::Builder out;
+    for (Str path : paths) {
+        while (path.len > 0 && (path.s[path.len - 1] == '\r' || path.s[path.len - 1] == ' ')) {
+            path.len--;
+        }
+        if (path.len == 0) {
+            continue;
+        }
+        Str image = CoverImageResourceForBook(path);
+        out.Append(str::FormatTemp("%d\t", image.len));
+        if (image.len > 0) {
+            u8 md5[16];
+            CalcMD5Digest(image, md5);
+            AppendHex(out, md5, 16);
+        }
+        out.AppendChar('\t');
+        out.Append(path::GetBaseNameTemp(path));
+        out.AppendChar('\n');
+        str::Free(image);
+    }
+    utassert(file::WriteFile(outPath, Str(out.els, (int)out.len)));
+    str::Free(listData);
+}
+
 static void PdfSidecar_UnitTests() {
     TempStr srcPath = EnvVarTemp("SUMATRA_SIDECAR_SRC");
     TempStr dstPath = EnvVarTemp("SUMATRA_SIDECAR_DST");
@@ -350,6 +523,45 @@ static void PdfSidecar_UnitTests() {
     str::Free(blob);
 }
 
+static void PdfSidecarCover_UnitTests() {
+    TempStr srcPath = EnvVarTemp("SUMATRA_SIDECAR_SRC");
+    TempStr dstPath = EnvVarTemp("SUMATRA_SIDECAR_COVER_DST");
+    if (!srcPath || !dstPath) {
+        return;
+    }
+    Str original = file::ReadFile(srcPath);
+    utassert(original.s && original.len > 0);
+    utassert(file::Copy(dstPath, srcPath, false));
+
+    utassert(!PdfSidecarHasCover(dstPath));
+    const u8 kFakeWebp[] = {'R', 'I', 'F', 'F', 0x24, 0,   0,   0,   'W', 'E', 'B', 'P',
+                            'V', 'P', '8', ' ', 'c',  'o', 'v', 'e', 'r', 0,   1,   2};
+    int coverLen = (int)dimof(kFakeWebp);
+    Str coverErr;
+    utassert(PdfSidecarWriteCover(dstPath, StrL("webp"), kFakeWebp, coverLen, &coverErr));
+    str::Free(coverErr);
+    utassert(PdfSidecarHasCover(dstPath));
+
+    Str coverFormat;
+    Vec<u8> coverBack;
+    utassert(PdfSidecarReadCover(dstPath, &coverFormat, coverBack));
+    utassert(str::Eq(coverFormat, StrL("webp")));
+    utassert(coverBack.len == coverLen);
+    utassert(memcmp(coverBack.LendData(), kFakeWebp, (size_t)coverLen) == 0);
+    str::Free(coverFormat);
+
+    Str withCover = file::ReadFile(dstPath);
+    utassert(withCover.s && withCover.len > original.len + coverLen);
+    utassert(memcmp(withCover.s, original.s, (size_t)original.len) == 0);
+
+    utassert(PdfSidecarRemoveCover(dstPath, &coverErr));
+    str::Free(coverErr);
+    utassert(!PdfSidecarHasCover(dstPath));
+
+    str::Free(original);
+    str::Free(withCover);
+}
+
 static void PdfSidecarForeign_UnitTests() {
     TempStr foreignList = EnvVarTemp("SUMATRA_SIDECAR_FOREIGN");
     TempStr blobPath = EnvVarTemp("SUMATRA_SIDECAR_BLOB");
@@ -382,12 +594,553 @@ static void PdfSidecarForeign_UnitTests() {
     str::Free(blob);
 }
 
+static void CoverOnline_UnitTests() {
+    Str json = StrL(
+        "{\"docs\":[{\"cover_i\":10,\"first_publish_year\":1990,\"publish_year\":[1990,1995],\"edition_count\":40,"
+        "\"readinglog_count\":900},{\"cover_i\":20,\"first_publish_year\":1989,\"publish_year\":[1997],\"edition_"
+        "count\":8,\"readinglog_count\":30},{\"cover_i\":30,\"first_publish_year\":1997,\"edition_count\":3,"
+        "\"readinglog_count\":5},{\"first_publish_year\":1997,\"readinglog_count\":2000}]}");
+    Vec<OnlineCoverHit> hits;
+    CoverOnlineParseHits(json, 1997, hits);
+    utassert(len(hits) == 4);
+    utassert(hits[0].coverId == 10);
+    utassert(!hits[0].yearMatches);
+    utassert(hits[1].yearMatches);
+    utassert(hits[2].yearMatches);
+    utassert(CoverOnlinePickHit(hits, 1997) == 1);
+    utassert(CoverOnlinePickHit(hits, 0) == 0);
+    utassert(str::Contains(CoverOnlineSearchUrlTemp(StrL("The Exposed"), StrL("K. A. Applegate"), StrL("Animorphs")),
+                           StrL("title=The%20Exposed")));
+    utassert(str::Contains(CoverOnlineSearchUrlTemp(StrL("The Exposed"), StrL("K. A. Applegate"), StrL("Animorphs")),
+                           StrL("author=K.%20A.%20Applegate")));
+    utassert(str::Contains(CoverOnlineSearchUrlTemp(StrL("The Exposed"), {}, StrL("Animorphs")), StrL("q=Animorphs")));
+    utassert(
+        str::Eq(CoverOnlineImageUrlTemp(123), StrL("https://covers.openlibrary.org/b/id/123-L.jpg?default=false")));
+}
+
+static void CoverSpot_UnitTests() {
+    for (const CoverSpotGood& c : gCoverSpotGood) {
+        BlobCover got;
+        bool ok = BookCoverSpotDecode(Str(c.text), &got);
+        if (!ok) {
+            logf("CoverSpot: '%s' was refused\n", Str(c.text));
+        }
+        utassert(ok);
+        utassert(got.kind == kBlobCoverPage);
+        utassert(got.page == c.page);
+        utassert(got.x0 == c.x0);
+        utassert(got.x1 == c.x1);
+        utassert(got.y0 == c.y0);
+        utassert(got.y1 == c.y1);
+        utassert(got.rotation == c.rotation);
+
+        TempStr back = BookCoverSpotEncode(got);
+        if (!str::Eq(back, Str(c.text))) {
+            logf("CoverSpot: '%s' encoded back as '%s'\n", Str(c.text), back);
+        }
+        utassert(str::Eq(back, Str(c.text)));
+
+        BookBlobRecord rec;
+        rec.hasCover = true;
+        rec.cover = got;
+        Vec<u8> blob;
+        utassert(BookBlobEncode(rec, blob));
+        BookBlobRecord read;
+        utassert(BookBlobDecode(blob.LendData(), blob.len, read));
+        utassert(read.hasCover);
+        utassert(str::Eq(BookCoverSpotEncode(read.cover), Str(c.text)));
+    }
+
+    for (const char* bad : gCoverSpotBad) {
+        BlobCover got;
+        bool ok = BookCoverSpotDecode(Str(bad), &got);
+        if (ok) {
+            logf("CoverSpot: '%s' should not have decoded\n", Str(bad));
+        }
+        utassert(!ok);
+    }
+
+    BlobCover none;
+    utassert(!BookCoverSpotEncode(none).s);
+    BlobCover image;
+    image.kind = kBlobCoverImage;
+    utassert(!BookCoverSpotEncode(image).s);
+
+    BlobCover flat;
+    flat.kind = kBlobCoverPage;
+    flat.page = 3;
+    flat.x0 = 1;
+    flat.y0 = 2;
+    flat.x1 = 4;
+    flat.y1 = 5;
+    BookBlobRecord flatRec;
+    flatRec.hasCover = true;
+    flatRec.cover = flat;
+    Vec<u8> flatBlob;
+    utassert(BookBlobEncode(flatRec, flatBlob));
+    BlobCover turned = flat;
+    turned.rotation = 90;
+    BookBlobRecord turnedRec;
+    turnedRec.hasCover = true;
+    turnedRec.cover = turned;
+    Vec<u8> turnedBlob;
+    utassert(BookBlobEncode(turnedRec, turnedBlob));
+    utassert(turnedBlob.len > flatBlob.len);
+    BookBlobRecord flatBack;
+    utassert(BookBlobDecode(flatBlob.LendData(), flatBlob.len, flatBack));
+    utassert(flatBack.cover.rotation == 0);
+}
+
+static BookBlobRecord* MakeSaneRecord(BookBlobRecord& rec) {
+    rec.hasIdentity = true;
+    rec.identity.fingerprint = rec.strings.Append(StrL("fp2:0683cd1f")).s;
+    rec.identity.title = rec.strings.Append(StrL("Exploring Raspberry Pi")).s;
+    return &rec;
+}
+
+static void FakeArt(Vec<u8>& out, const char* magic, int n) {
+    if (str::Eq(Str(magic), StrL("webp"))) {
+        out.Append((const u8*)"RIFF\x00\x00\x00\x00WEBPVP8 ", 16);
+    } else if (str::Eq(Str(magic), StrL("png"))) {
+        out.Append((const u8*)"\x89PNG\r\n\x1a\n", 8);
+    } else {
+        out.Append((const u8*)"\xff\xd8\xff\xe0", 4);
+    }
+    while (out.len < n) {
+        out.Append((u8)0x20);
+    }
+}
+
+static void BookRecordCheck_UnitTests() {
+    {
+        BookBlobRecord rec;
+        utassert(BookRecordWhyInvalid(rec).s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        TempStr why = BookRecordWhyInvalid(rec);
+        if (why.s) {
+            logf("BookRecordCheck: a sane record was refused: %s\n", why);
+        }
+        utassert(!why.s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.hasCover = true;
+        rec.cover.kind = kBlobCoverPage;
+        rec.cover.page = 0;
+        rec.cover.x1 = 10;
+        rec.cover.y1 = 10;
+        utassert(BookRecordWhyInvalid(rec).s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.hasCover = true;
+        rec.cover.kind = kBlobCoverPage;
+        rec.cover.page = 1;
+        utassert(BookRecordWhyInvalid(rec).s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.hasCover = true;
+        rec.cover.kind = kBlobCoverPage;
+        rec.cover.page = 1;
+        rec.cover.x1 = 10;
+        rec.cover.y1 = 10;
+        rec.cover.rotation = 45;
+        utassert(BookRecordWhyInvalid(rec).s);
+        rec.cover.rotation = 270;
+        utassert(!BookRecordWhyInvalid(rec).s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.hasCover = true;
+        rec.cover.kind = kBlobCoverPage;
+        rec.cover.page = 1;
+        rec.cover.x1 = 10;
+        rec.cover.y1 = 20;
+        rec.cover.format = rec.strings.Append(StrL("webp")).s;
+        rec.identity.title = rec.strings.Append(StrL("The Exposed")).s;
+        rec.identity.author = rec.strings.Append(StrL("K. A. Applegate")).s;
+        rec.identity.year = 1998;
+        rec.hasShelf = true;
+        rec.shelf.series = rec.strings.Append(StrL("Animorphs")).s;
+        FakeArt(rec.cover.data, "webp", 2048);
+        utassert(!BookRecordWhyInvalid(rec).s);
+        Vec<u8> blob;
+        utassert(BookBlobEncode(rec, blob));
+        BookBlobRecord back;
+        utassert(BookBlobDecode(blob.LendData(), blob.len, back));
+        utassert(back.cover.kind == kBlobCoverPage);
+        utassert(back.cover.page == 1);
+        utassert(back.cover.data.len == 2048);
+        utassert(str::Eq(Str(back.cover.format), StrL("webp")));
+        utassert(str::Eq(Str(back.identity.title), StrL("The Exposed")));
+        utassert(str::Eq(Str(back.identity.author), StrL("K. A. Applegate")));
+        utassert(back.identity.year == 1998);
+        utassert(str::Eq(Str(back.shelf.series), StrL("Animorphs")));
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.hasCover = true;
+        rec.cover.kind = kBlobCoverImage;
+        rec.cover.format = rec.strings.Append(StrL("webp")).s;
+        FakeArt(rec.cover.data, "webp", 64);
+        utassert(BookRecordWhyInvalid(rec).s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.hasCover = true;
+        rec.cover.kind = kBlobCoverImage;
+        rec.cover.format = rec.strings.Append(StrL("png")).s;
+        FakeArt(rec.cover.data, "webp", 2048);
+        utassert(BookRecordWhyInvalid(rec).s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.hasCover = true;
+        rec.cover.kind = kBlobCoverImage;
+        rec.cover.format = rec.strings.Append(StrL("webp")).s;
+        FakeArt(rec.cover.data, "webp", 2048);
+        TempStr why = BookRecordWhyInvalid(rec);
+        if (why.s) {
+            logf("BookRecordCheck: good art was refused: %s\n", why);
+        }
+        utassert(!why.s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.hasCover = true;
+        rec.cover.kind = kBlobCoverImage;
+        rec.cover.format = rec.strings.Append(StrL("webp")).s;
+        for (int i = 0; i < 2048; i++) {
+            rec.cover.data.Append((u8)'x');
+        }
+        utassert(BookRecordWhyInvalid(rec).s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.identity.author = rec.strings.Append(Str("\x80\x41", 2)).s;
+        utassert(BookRecordWhyInvalid(rec).s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.identity.author = rec.strings.Append(Str("\xed\xa0\x80", 3)).s;
+        utassert(BookRecordWhyInvalid(rec).s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.identity.author = rec.strings.Append(Str("\xc0\xaf", 2)).s;
+        utassert(BookRecordWhyInvalid(rec).s);
+    }
+    {
+        BookBlobRecord rec;
+        MakeSaneRecord(rec);
+        rec.identity.author =
+            rec.strings
+                .Append(
+                    StrL("Derek Molloy \xe2\x80\x94 \xd0\x90\xd0\xbd\xd0\xb4\xd1\x80\xd0\xb5\xd0\xb9 \xf0\x9f\x93\x9a"))
+                .s;
+        TempStr why = BookRecordWhyInvalid(rec);
+        if (why.s) {
+            logf("BookRecordCheck: good unicode was refused: %s\n", why);
+        }
+        utassert(!why.s);
+    }
+
+    utassert(str::Eq(Str(BookCoverFormatOfBytes((const u8*)"RIFF\x00\x00\x00\x00WEBPVP8 ", 16)), StrL("webp")));
+    utassert(str::Eq(Str(BookCoverFormatOfBytes((const u8*)"\x89PNG\r\n\x1a\n", 8)), StrL("png")));
+    utassert(str::Eq(Str(BookCoverFormatOfBytes((const u8*)"\xff\xd8\xff\xe0", 4)), StrL("jpeg")));
+    utassert(!BookCoverFormatOfBytes((const u8*)"RIFF\x00\x00\x00\x00WAVE", 12));
+    utassert(!BookCoverFormatOfBytes((const u8*)"RIFF", 4));
+    utassert(!BookCoverFormatOfBytes(nullptr, 0));
+}
+
+static void LibrarySidecar_UnitTests() {
+    Str src = StrL("tests/issue-5846.epub");
+    TempStr tempBase = GetTempFilePathTemp(StrL("sumatra-record-"));
+    Str dst = str::Dup(str::FormatTemp("%s.epub", tempBase));
+    file::Delete(tempBase);
+    file::Delete(dst);
+    utassert(file::Copy(dst, src, false));
+
+    BookFingerprint fp;
+    utassert(BookFingerprintOfFile(dst, fp, 0));
+    BookBlobRecord rec;
+    rec.hasIdentity = true;
+    rec.identity.fingerprint = rec.strings.Append(fp.fingerprint).s;
+    for (int i = 0; i < 16; i++) {
+        rec.identity.textMd5.Append(fp.textMd5[i]);
+    }
+    rec.identity.textLength = fp.textLength;
+    rec.identity.pages = fp.pages;
+    rec.identity.title = rec.strings.Append(StrL("Cross-platform record")).s;
+    rec.hasShelf = true;
+    rec.shelf.series = rec.strings.Append(StrL("Old series")).s;
+    BlobChapter chapter{};
+    chapter.title = rec.strings.Append(StrL("Kept chapter")).s;
+    chapter.page = 7;
+    rec.chapters.Append(chapter);
+    BlobFact fact{};
+    fact.subject = rec.strings.Append(StrL("Kept subject")).s;
+    fact.predicate = rec.strings.Append(StrL("is")).s;
+    fact.object = rec.strings.Append(StrL("kept")).s;
+    fact.confidence = 0.75;
+    rec.lore.Append(fact);
+    BlobShow show{};
+    show.title = rec.strings.Append(StrL("Kept adaptation")).s;
+    show.kind = rec.strings.Append(StrL("Film")).s;
+    show.year = 2001;
+    rec.adaptations.Append(show);
+    BookFingerprintFree(fp);
+
+    Str err;
+    utassert(LibrarySidecarWriteRecord(dst, rec, &err));
+    str::Free(err);
+    TempStr sidecar = str::FormatTemp("%s.sumatra", dst);
+    utassert(!file::Exists(sidecar));
+    BookBlobRecord back;
+    utassert(LibrarySidecarReadRecord(dst, back));
+    utassert(back.identity.title && str::Eq(Str(back.identity.title), StrL("Cross-platform record")));
+
+    BlobStats stats{};
+    stats.lastReadAt = 123456789;
+    stats.timeSpentMs = 987654;
+    stats.openCount = 12;
+    stats.pageNo = 4;
+    stats.percentRead = 60;
+    utassert(LibrarySidecarWriteMetadata(dst, StrL("Moved title"), StrL("Moved author"), StrL("Moved series"),
+                                         StrL("Moved parent"), StrL("Fantasy"), StrL("Portal"), StrL("one;two"),
+                                         StrL("a;b"), 3, 1998, 42, &stats));
+    BookBlobRecord moved;
+    utassert(LibrarySidecarReadRecord(dst, moved));
+    utassert(str::Eq(Str(moved.identity.title), StrL("Moved title")));
+    utassert(str::Eq(Str(moved.identity.author), StrL("Moved author")));
+    utassert(moved.identity.year == 1998);
+    utassert(moved.identity.pages == 42);
+    utassert(str::Eq(Str(moved.shelf.series), StrL("Moved series")));
+    utassert(str::Eq(Str(moved.shelf.seriesParent), StrL("Moved parent")));
+    utassert(str::Eq(Str(moved.shelf.genre), StrL("Fantasy")));
+    utassert(str::Eq(Str(moved.shelf.subgenre), StrL("Portal")));
+    utassert(moved.shelf.seriesIndex == 3);
+    utassert(moved.shelf.partitions.len == 2 && str::Eq(Str(moved.shelf.partitions[0]), StrL("a")) &&
+             str::Eq(Str(moved.shelf.partitions[1]), StrL("b")));
+    utassert(moved.shelf.tags.len == 2 && str::Eq(Str(moved.shelf.tags[0]), StrL("one")) &&
+             str::Eq(Str(moved.shelf.tags[1]), StrL("two")));
+    utassert(moved.hasStats && moved.stats.timeSpentMs == stats.timeSpentMs);
+    utassert(moved.chapters.len == 1 && str::Eq(Str(moved.chapters[0].title), StrL("Kept chapter")));
+    utassert(moved.lore.len == 1 && str::Eq(Str(moved.lore[0].subject), StrL("Kept subject")));
+    utassert(moved.adaptations.len == 1 && str::Eq(Str(moved.adaptations[0].title), StrL("Kept adaptation")));
+    Str unchanged = file::ReadFile(dst);
+    utassert(LibrarySidecarWriteMetadata(dst, StrL("Moved title"), StrL("Moved author"), StrL("Moved series"),
+                                         StrL("Moved parent"), StrL("Fantasy"), StrL("Portal"), StrL("one;two"),
+                                         StrL("a;b"), 3, 1998, 42, &stats));
+    Str after = file::ReadFile(dst);
+    utassert(str::Eq(unchanged, after));
+    str::Free(unchanged);
+    str::Free(after);
+
+    file::Delete(sidecar);
+    file::Delete(dst);
+    str::Free(dst);
+}
+
+static void RoamingBook_UnitTests() {
+    TempStr path = EnvVarTemp("SUMATRA_ROAMING_BOOK");
+    if (!path) {
+        return;
+    }
+    BookBlobRecord rec;
+    utassert(LibrarySidecarReadRecord(path, rec));
+    utassert(rec.hasIdentity);
+    utassert(rec.identity.fingerprint);
+    utassert(str::Eq(Str(rec.identity.title), StrL("The Exposed")));
+    utassert(str::Eq(Str(rec.identity.author), StrL("Katherine Applegate")));
+    utassert(rec.identity.source);
+    utassert(rec.identity.pages > 0);
+    utassert(rec.identity.year == 1999);
+    utassert(rec.hasShelf);
+    utassert(str::Eq(Str(rec.shelf.series), StrL("Animorphs")));
+    utassert(rec.hasCover);
+    utassert(str::Eq(Str(rec.cover.format), StrL("webp")));
+    utassert(rec.cover.data.len >= kBookCoverMinBytes);
+    utassert(str::Eq(Str(BookCoverFormatOfBytes(rec.cover.data.LendData(), rec.cover.data.len)), StrL("webp")));
+}
+
+static void SidecarDump_UnitTests() {
+    TempStr path = EnvVarTemp("SUMATRA_SIDECAR_DUMP");
+    TempStr outPath = EnvVarTemp("SUMATRA_SIDECAR_DUMP_OUT");
+    if (!path || !outPath) {
+        return;
+    }
+    BookBlobRecord rec;
+    utassert(LibrarySidecarReadRecord(path, rec));
+    str::Builder out;
+    out.Append("title\t");
+    if (rec.hasIdentity && rec.identity.title) {
+        out.Append(Str(rec.identity.title));
+    }
+    out.Append("\nauthor\t");
+    if (rec.hasIdentity && rec.identity.author) {
+        out.Append(Str(rec.identity.author));
+    }
+    out.Append("\nseries\t");
+    if (rec.hasShelf && rec.shelf.series) {
+        out.Append(Str(rec.shelf.series));
+    }
+    out.Append(str::FormatTemp("\nyear\t%d\n", rec.hasIdentity ? rec.identity.year : 0));
+    utassert(file::WriteFile(outPath, Str(out.els, (int)out.len)));
+}
+
+static void InteropBook_UnitTests() {
+    TempStr path = EnvVarTemp("SUMATRA_INTEROP_BOOK");
+    if (!path) {
+        return;
+    }
+    BookBlobRecord rec;
+    utassert(LibrarySidecarReadRecord(path, rec));
+    utassert(rec.hasIdentity);
+    utassert(rec.identity.fingerprint);
+    utassert(str::Eq(Str(rec.identity.title), StrL("Transferred Title")));
+    utassert(str::Eq(Str(rec.identity.author), StrL("Transferred Author")));
+    utassert(rec.identity.pages == 777);
+    utassert(rec.identity.year == 1998);
+    utassert(rec.hasShelf);
+    utassert(str::Eq(Str(rec.shelf.genre), StrL("Fantasy")));
+    utassert(str::Eq(Str(rec.shelf.subgenre), StrL("Epic")));
+    utassert(str::Eq(Str(rec.shelf.series), StrL("The Roaming Cycle")));
+    utassert(str::Eq(Str(rec.shelf.seriesParent), StrL("The Roaming Library")));
+    utassert(rec.shelf.seriesIndex == 2);
+    utassert(rec.shelf.partitions.len == 2);
+    utassert(str::Eq(Str(rec.shelf.partitions[0]), StrL("partition:a")));
+    utassert(str::Eq(Str(rec.shelf.partitions[1]), StrL("partition:b")));
+    utassert(rec.shelf.tags.len == 2);
+    utassert(str::Eq(Str(rec.shelf.tags[0]), StrL("one")));
+    utassert(str::Eq(Str(rec.shelf.tags[1]), StrL("two")));
+    utassert(rec.hasCover);
+    utassert(rec.cover.kind == kBlobCoverImage);
+    utassert(rec.cover.data.len >= kBookCoverMinBytes);
+    utassert(BookCoverFormatOfBytes(rec.cover.data.LendData(), rec.cover.data.len));
+    utassert(rec.hasCast);
+    utassert(str::Eq(Str(rec.cast.narratorVoice), StrL("Narrator")));
+    utassert(rec.cast.people.len == 1);
+    utassert(str::Eq(Str(rec.cast.people[0].name), StrL("Marra Venn")));
+    utassert(rec.cast.people[0].lines == 42);
+    utassert(str::Eq(Str(rec.cast.people[0].voice), StrL("low burr")));
+    utassert(rec.cast.people[0].aliasCount == 1);
+    utassert(str::Eq(Str(rec.cast.aliases[rec.cast.people[0].aliasAt]), StrL("Marra")));
+    utassert(rec.speakers.len == 1);
+    utassert(rec.speakers[0].start == 10 && rec.speakers[0].end == 20);
+    utassert(rec.speakers[0].mentionStart == 11 && rec.speakers[0].mentionEnd == 12);
+    utassert(rec.speakers[0].character == 0);
+    utassert(rec.entities.len == 1);
+    utassert(rec.entities[0].start == 30 && rec.entities[0].end == 40 && rec.entities[0].coref == 0);
+    utassert(str::Eq(Str(rec.entities[0].prop), StrL("proper")));
+    utassert(str::Eq(Str(rec.entities[0].cat), StrL("PER")));
+    utassert(rec.lore.len == 2);
+    utassert(str::Eq(Str(rec.lore[0].subject), StrL("Marra Venn")));
+    utassert(str::Eq(Str(rec.lore[0].predicate), StrL("voice")));
+    utassert(str::Eq(Str(rec.lore[0].object), StrL("low burr")));
+    utassert(rec.lore[0].confidence == 0.82 && rec.lore[0].count == 4 && !rec.lore[0].inferred);
+    utassert(rec.lore[0].evidenceCount == 1);
+    const BlobEvidence& evidence = rec.evidence[rec.lore[0].evidenceAt];
+    utassert(evidence.offset == 1234 && evidence.page == 31 && evidence.para == 2 && !evidence.note);
+    utassert(rec.lore[1].evidenceCount == 1);
+    const BlobEvidence& derived = rec.evidence[rec.lore[1].evidenceAt];
+    utassert(derived.offset < 0 && str::Eq(Str(derived.note), StrL("Derived relationship evidence")));
+    utassert(rec.chapters.len == 3);
+    utassert(str::Eq(Str(rec.chapters[0].title), StrL("Chapter One")) && rec.chapters[0].depth == 0);
+    utassert(str::Eq(Str(rec.chapters[1].title), StrL("A Turn")) && rec.chapters[1].depth == 1);
+    utassert(str::Eq(Str(rec.chapters[2].title), StrL("Chapter Two")) && rec.chapters[2].page == 7);
+    utassert(rec.adaptations.len == 1);
+    utassert(str::Eq(Str(rec.adaptations[0].title), StrL("The Roaming Cycle")));
+    utassert(str::Eq(Str(rec.adaptations[0].kind), StrL("TV Series")));
+    utassert(rec.adaptations[0].year == 1999);
+    utassert(str::Eq(Str(rec.adaptations[0].ref), StrL("tt0000001")));
+    utassert(rec.hasStats);
+    utassert(rec.stats.lastReadAt == 1700000000000LL);
+    utassert(rec.stats.timeSpentMs == 90000 && rec.stats.openCount == 3 && rec.stats.pageNo == 12);
+    utassert(rec.stats.scrollX == 4 && rec.stats.scrollY == 5 && rec.stats.percentRead == 16 && rec.stats.unit == 1);
+
+    TempStr output = EnvVarTemp("SUMATRA_INTEROP_OUTPUT");
+    if (!output) {
+        return;
+    }
+    file::Delete(output);
+    utassert(file::Copy(output, path, false));
+    rec.identity.title = rec.strings.Append(StrL("Windows Title")).s;
+    rec.identity.author = rec.strings.Append(StrL("Windows Author")).s;
+    rec.identity.pages = 888;
+    rec.identity.year = 2005;
+    rec.shelf.genre = rec.strings.Append(StrL("Science Fiction")).s;
+    rec.shelf.subgenre = rec.strings.Append(StrL("Space Opera")).s;
+    rec.shelf.series = rec.strings.Append(StrL("Windows Cycle")).s;
+    rec.shelf.seriesParent = rec.strings.Append(StrL("Windows Library")).s;
+    rec.shelf.seriesIndex = 6;
+    rec.shelf.partitions.Clear();
+    rec.shelf.partitions.Append(rec.strings.Append(StrL("partition:w1")).s);
+    rec.shelf.partitions.Append(rec.strings.Append(StrL("partition:w2")).s);
+    rec.shelf.tags.Clear();
+    rec.shelf.tags.Append(rec.strings.Append(StrL("windows-one")).s);
+    rec.shelf.tags.Append(rec.strings.Append(StrL("windows-two")).s);
+    rec.cast.narratorVoice = rec.strings.Append(StrL("Windows Narrator")).s;
+    rec.cast.people[0].name = rec.strings.Append(StrL("Dana Holt")).s;
+    rec.cast.people[0].lines = 84;
+    rec.cast.people[0].voice = rec.strings.Append(StrL("clear tenor")).s;
+    rec.cast.aliases[rec.cast.people[0].aliasAt] = rec.strings.Append(StrL("Dana")).s;
+    rec.speakers[0] = {21, 31, 22, 23, 0};
+    rec.entities[0] = {41, 51, 0, rec.strings.Append(StrL("name")).s, rec.strings.Append(StrL("PERSON")).s};
+    rec.lore[0].subject = rec.strings.Append(StrL("Dana Holt")).s;
+    rec.lore[0].predicate = rec.strings.Append(StrL("voice")).s;
+    rec.lore[0].object = rec.strings.Append(StrL("clear tenor")).s;
+    rec.lore[0].confidence = 0.91;
+    rec.lore[0].count = 8;
+    rec.evidence[rec.lore[0].evidenceAt].offset = 2345;
+    rec.evidence[rec.lore[0].evidenceAt].page = 44;
+    rec.evidence[rec.lore[0].evidenceAt].para = 3;
+    rec.evidence[rec.lore[1].evidenceAt].note = rec.strings.Append(StrL("Windows derived evidence")).s;
+    rec.chapters[0].title = rec.strings.Append(StrL("Windows Chapter")).s;
+    rec.chapters[0].page = 2;
+    rec.adaptations[0].title = rec.strings.Append(StrL("Windows Cycle")).s;
+    rec.adaptations[0].kind = rec.strings.Append(StrL("Film")).s;
+    rec.adaptations[0].year = 2006;
+    rec.adaptations[0].ref = rec.strings.Append(StrL("tt9999999")).s;
+    rec.stats = {1800000000000LL, 180000, 7, 22, 8, 9, 25, 2};
+    Str err;
+    utassert(LibrarySidecarWriteRecord(output, rec, &err));
+    str::Free(err);
+}
+
 int RunAppUnitTests() {
     ParseTip_UnitTests();
     BookBlob_UnitTests();
+    CoverSpot_UnitTests();
+    BookRecordCheck_UnitTests();
+    LibrarySidecar_UnitTests();
+    RoamingBook_UnitTests();
+    SidecarDump_UnitTests();
+    InteropBook_UnitTests();
     BookFingerprint_UnitTests();
+    MobiCover_UnitTests();
+    NativeCover_UnitTests();
+    BuiltCover_UnitTests();
+    AutomaticImage_UnitTests();
     PdfSidecar_UnitTests();
+    PdfSidecarCover_UnitTests();
     PdfSidecarForeign_UnitTests();
+    CoverOnline_UnitTests();
 #if defined(DEBUG)
     TextSelection_UnitTests();
     Layout_UnitTests();

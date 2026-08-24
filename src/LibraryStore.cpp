@@ -66,6 +66,22 @@ void LibraryStoreFree(LibraryStore* store) {
     FreeStruct(&gLibraryStoreInfo, store);
 }
 
+bool LibraryRoamedMerge(LibraryRoamed* row, i64 lastReadAt, i64 timeSpentMs, i64 openCount, i64* addTimeMs,
+                        i64* addOpens) {
+    if (!row || !addTimeMs || !addOpens) {
+        return false;
+    }
+    *addTimeMs = timeSpentMs - row->timeSpentMs;
+    *addOpens = openCount - row->openCount;
+    if (*addTimeMs <= 0 && *addOpens <= 0 && lastReadAt <= row->lastReadAt) {
+        return false;
+    }
+    row->lastReadAt = std::max(row->lastReadAt, lastReadAt);
+    row->timeSpentMs = std::max(row->timeSpentMs, timeSpentMs);
+    row->openCount = std::max(row->openCount, openCount);
+    return true;
+}
+
 // Thumbnails live in an AppendStore next to the index: the PNGs go in the data
 // file (binary, so never the inline mode, which puts the bytes in the text
 // index) and the book's id is the record's meta. It is append-only, so a cover
@@ -82,12 +98,16 @@ struct LibraryThumbs {
 
 static void OnThumbRecord(AppendStoreRecord* rec, Str, void* userData) {
     auto* thumbs = (LibraryThumbs*)userData;
-    if (!str::Eq(rec->kind, StrL("cover"))) {
+    bool gone = str::Eq(rec->kind, StrL("coverGone"));
+    if (!gone && !str::Eq(rec->kind, StrL("cover"))) {
         return;
     }
     int idx;
     if (thumbs->byId->Get(rec->meta, &idx)) {
-        thumbs->recs[idx] = rec;
+        thumbs->recs[idx] = gone ? nullptr : rec;
+        return;
+    }
+    if (gone) {
         return;
     }
     thumbs->recs.Append(rec);
@@ -145,7 +165,7 @@ Str LibraryThumbsGet(LibraryThumbs* thumbs, Str bookId) {
         return {};
     }
     int idx;
-    if (!thumbs->byId->Get(bookId, &idx)) {
+    if (!thumbs->byId->Get(bookId, &idx) || !thumbs->recs[idx]) {
         return {};
     }
     return AppendStoreReadPayload(&thumbs->store, thumbs->recs[idx]);
@@ -156,11 +176,40 @@ bool LibraryThumbsHas(LibraryThumbs* thumbs, Str bookId) {
         return false;
     }
     int idx;
-    return thumbs->byId->Get(bookId, &idx);
+    return thumbs->byId->Get(bookId, &idx) && thumbs->recs[idx] != nullptr;
 }
 
 int LibraryThumbsCount(LibraryThumbs* thumbs) {
-    return thumbs ? thumbs->recs.len : 0;
+    if (!thumbs) {
+        return 0;
+    }
+    int n = 0;
+    for (int i = 0; i < thumbs->recs.len; i++) {
+        if (thumbs->recs[i]) {
+            n++;
+        }
+    }
+    return n;
+}
+
+bool LibraryThumbsRemove(LibraryThumbs* thumbs, Str bookId) {
+    if (!thumbs || len(bookId) == 0) {
+        return false;
+    }
+    int idx;
+    if (!thumbs->byId->Get(bookId, &idx) || !thumbs->recs[idx]) {
+        return false;
+    }
+    AppendStoreAppendOptions opts;
+    opts.mode = AppendStoreMode::Inline;
+    opts.kind = StrL("coverGone");
+    opts.meta = bookId;
+    AppendStoreRecord* rec = nullptr;
+    if (!AppendStoreAppend(&thumbs->store, opts, &rec)) {
+        return false;
+    }
+    OnThumbRecord(rec, {}, thumbs);
+    return true;
 }
 
 Str LibraryThumbsError(LibraryThumbs* thumbs) {

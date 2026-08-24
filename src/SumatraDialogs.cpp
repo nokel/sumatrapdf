@@ -365,3 +365,255 @@ bool Dialog_PartitionName(HWND hwnd, Str title, Str prompt, Str& name) {
     str::ReplaceWithCopy(&name, data.name);
     return true;
 }
+
+// ===== Rename Series =====
+struct Dialog_RenameSeries_Data {
+    Str label;
+    Str currentName;
+    Str newName;
+    ~Dialog_RenameSeries_Data() {
+        str::Free(label);
+        str::Free(currentName);
+        str::Free(newName);
+    }
+};
+
+static INT_PTR CALLBACK Dialog_RenameSeries_Proc(HWND hDlg, UINT msg, WPARAM wp, LPARAM lp) {
+    if (WM_INITDIALOG == msg) {
+        auto data = (Dialog_RenameSeries_Data*)lp;
+        SetWindowLongPtr(hDlg, GWLP_USERDATA, (LONG_PTR)data);
+        DarkModeApplyToWindow(hDlg);
+        HwndSetText(hDlg, _TRA("Rename series"));
+        HwndSetDlgItemText(hDlg, IDC_RENAME_SERIES_LABEL, data->label);
+        HwndSetDlgItemText(hDlg, IDOK, _TRA("OK"));
+        HwndSetDlgItemText(hDlg, IDCANCEL, _TRA("Cancel"));
+        HwndSetDlgItemText(hDlg, IDC_RENAME_SERIES_EDIT, data->currentName);
+        EditSelectAll(GetDlgItem(hDlg, IDC_RENAME_SERIES_EDIT));
+        HwndCenterDialog(hDlg);
+        HwndSetFocus(GetDlgItem(hDlg, IDC_RENAME_SERIES_EDIT));
+        return FALSE;
+    }
+    if (WM_COMMAND == msg) {
+        auto data = (Dialog_RenameSeries_Data*)GetWindowLongPtr(hDlg, GWLP_USERDATA);
+        WORD cmd = LOWORD(wp);
+        if (IDOK == cmd) {
+            TempStr name = HwndGetTextTemp(GetDlgItem(hDlg, IDC_RENAME_SERIES_EDIT));
+            str::TrimWSInPlace(name, str::TrimOpt::Both);
+            str::ReplaceWithCopy(&data->newName, name);
+            EndDialog(hDlg, IDOK);
+            return TRUE;
+        }
+        if (IDCANCEL == cmd) {
+            EndDialog(hDlg, IDCANCEL);
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+bool Dialog_RenameSeries(HWND hwnd, Str currentName, Str& newName) {
+    Dialog_RenameSeries_Data data;
+    data.label = str::Dup(_TRA("&New series name:"));
+    data.currentName = str::Dup(currentName);
+    data.newName = str::Dup(currentName);
+    INT_PTR res = CreateDialogBox(IDD_DIALOG_RENAME_SERIES, hwnd, Dialog_RenameSeries_Proc, (LPARAM)&data);
+    if (IDCANCEL == res) {
+        return false;
+    }
+    str::ReplaceWithCopy(&newName, data.newName);
+    return true;
+}
+
+// ===== Edit Book Metadata =====
+struct Dialog_BookMetadata_Data {
+    // the BookMetadataEdit belongs to the caller and outlives the dialog:
+    // freeing its strings here left the caller reading freed memory, which
+    // the heap had already handed to something else by the time it looked.
+    // FreeBookMetadataEdit() is what releases them, when the caller is done.
+    BookMetadataEdit* edit = nullptr;
+};
+
+static void SetFieldSourceLabel(HWND hDlg, int ctrlId, BookMetadataField& f) {
+    TempStr label = nullptr;
+    if (f.overridden && len(f.original) > 0) {
+        label = fmt("source: %s (was: %s)", Str(f.source), Str(f.original));
+    } else if (len(f.source) > 0) {
+        label = fmt("source: %s", Str(f.source));
+    } else {
+        label = str::DupTemp(StrL("source: (auto)"));
+    }
+    HwndSetDlgItemText(hDlg, ctrlId, label);
+}
+
+static void Dialog_BookMetadata_FillFields(HWND hDlg, Dialog_BookMetadata_Data* data) {
+    HwndSetDlgItemText(hDlg, IDC_BOOK_TITLE_EDIT, data->edit->title.value);
+    HwndSetDlgItemText(hDlg, IDC_BOOK_AUTHOR_EDIT, data->edit->author.value);
+    HwndSetDlgItemText(hDlg, IDC_BOOK_SERIES_EDIT, data->edit->series.value);
+    HwndSetDlgItemText(hDlg, IDC_BOOK_YEAR_EDIT, data->edit->year.value);
+    SetFieldSourceLabel(hDlg, IDC_BOOK_TITLE_SOURCE, data->edit->title);
+    SetFieldSourceLabel(hDlg, IDC_BOOK_AUTHOR_SOURCE, data->edit->author);
+    SetFieldSourceLabel(hDlg, IDC_BOOK_SERIES_SOURCE, data->edit->series);
+    SetFieldSourceLabel(hDlg, IDC_BOOK_YEAR_SOURCE, data->edit->year);
+    if (len(data->edit->filePath) > 0) {
+        TempStr label = fmt("Path: %s", Str(data->edit->filePath));
+        HwndSetDlgItemText(hDlg, IDC_BOOK_PATH_LABEL, label);
+    }
+}
+
+static void Dialog_BookMetadata_ReadFields(HWND hDlg, Dialog_BookMetadata_Data* data) {
+    str::ReplaceWithCopy(&data->edit->title.value, HwndGetTextTemp(GetDlgItem(hDlg, IDC_BOOK_TITLE_EDIT)));
+    str::ReplaceWithCopy(&data->edit->author.value, HwndGetTextTemp(GetDlgItem(hDlg, IDC_BOOK_AUTHOR_EDIT)));
+    str::ReplaceWithCopy(&data->edit->series.value, HwndGetTextTemp(GetDlgItem(hDlg, IDC_BOOK_SERIES_EDIT)));
+    str::ReplaceWithCopy(&data->edit->year.value, HwndGetTextTemp(GetDlgItem(hDlg, IDC_BOOK_YEAR_EDIT)));
+}
+
+static INT_PTR CALLBACK Dialog_BookMetadata_Proc(HWND hDlg, UINT msg, WPARAM wp, LPARAM lp) {
+    if (WM_INITDIALOG == msg) {
+        auto data = (Dialog_BookMetadata_Data*)lp;
+        SetWindowLongPtr(hDlg, GWLP_USERDATA, (LONG_PTR)data);
+        DarkModeApplyToWindow(hDlg);
+        HwndSetDlgItemText(hDlg, IDOK, _TRA("Save"));
+        HwndSetDlgItemText(hDlg, IDCANCEL, _TRA("Cancel"));
+        HwndSetDlgItemText(hDlg, IDC_BOOK_TITLE_LABEL, _TRA("&Title:"));
+        HwndSetDlgItemText(hDlg, IDC_BOOK_AUTHOR_LABEL, _TRA("&Author:"));
+        HwndSetDlgItemText(hDlg, IDC_BOOK_SERIES_LABEL, _TRA("&Series:"));
+        HwndSetDlgItemText(hDlg, IDC_BOOK_YEAR_LABEL, _TRA("&Year:"));
+        Dialog_BookMetadata_FillFields(hDlg, data);
+        HwndCenterDialog(hDlg);
+        return TRUE;
+    }
+    if (WM_COMMAND == msg) {
+        auto data = (Dialog_BookMetadata_Data*)GetWindowLongPtr(hDlg, GWLP_USERDATA);
+        WORD cmd = LOWORD(wp);
+        if (IDOK == cmd) {
+            Dialog_BookMetadata_ReadFields(hDlg, data);
+            // Mark each field as overridden only if the user changed it
+            // (compared to the value we showed at init). The Revert
+            // buttons mark it as "not overridden" by clearing source.
+            if (!str::Eq(data->edit->title.value, data->edit->title.original)) {
+                str::ReplaceWithCopy(&data->edit->title.source, StrL("user"));
+                data->edit->title.overridden = true;
+                data->edit->title.cleared = false;
+            }
+            if (!str::Eq(data->edit->author.value, data->edit->author.original)) {
+                str::ReplaceWithCopy(&data->edit->author.source, StrL("user"));
+                data->edit->author.overridden = true;
+                data->edit->author.cleared = false;
+            }
+            if (!str::Eq(data->edit->series.value, data->edit->series.original)) {
+                str::ReplaceWithCopy(&data->edit->series.source, StrL("user"));
+                data->edit->series.overridden = true;
+                data->edit->series.cleared = false;
+            }
+            if (!str::Eq(data->edit->year.value, data->edit->year.original)) {
+                str::ReplaceWithCopy(&data->edit->year.source, StrL("user"));
+                data->edit->year.overridden = true;
+                data->edit->year.cleared = false;
+            }
+            EndDialog(hDlg, IDOK);
+            return TRUE;
+        }
+        if (IDCANCEL == cmd) {
+            EndDialog(hDlg, IDCANCEL);
+            return TRUE;
+        }
+        if (IDC_BOOK_REVERT_TITLE == cmd) {
+            str::ReplaceWithCopy(&data->edit->title.value, data->edit->title.original);
+            str::ReplaceWithCopy(&data->edit->title.source, StrL(""));
+            data->edit->title.overridden = false;
+            data->edit->title.cleared = true;
+            HwndSetDlgItemText(hDlg, IDC_BOOK_TITLE_EDIT, data->edit->title.value);
+            SetFieldSourceLabel(hDlg, IDC_BOOK_TITLE_SOURCE, data->edit->title);
+            return TRUE;
+        }
+        if (IDC_BOOK_REVERT_AUTHOR == cmd) {
+            str::ReplaceWithCopy(&data->edit->author.value, data->edit->author.original);
+            str::ReplaceWithCopy(&data->edit->author.source, StrL(""));
+            data->edit->author.overridden = false;
+            data->edit->author.cleared = true;
+            HwndSetDlgItemText(hDlg, IDC_BOOK_AUTHOR_EDIT, data->edit->author.value);
+            SetFieldSourceLabel(hDlg, IDC_BOOK_AUTHOR_SOURCE, data->edit->author);
+            return TRUE;
+        }
+        if (IDC_BOOK_REVERT_SERIES == cmd) {
+            str::ReplaceWithCopy(&data->edit->series.value, data->edit->series.original);
+            str::ReplaceWithCopy(&data->edit->series.source, StrL(""));
+            data->edit->series.overridden = false;
+            data->edit->series.cleared = true;
+            HwndSetDlgItemText(hDlg, IDC_BOOK_SERIES_EDIT, data->edit->series.value);
+            SetFieldSourceLabel(hDlg, IDC_BOOK_SERIES_SOURCE, data->edit->series);
+            return TRUE;
+        }
+        if (IDC_BOOK_REVERT_YEAR == cmd) {
+            str::ReplaceWithCopy(&data->edit->year.value, data->edit->year.original);
+            str::ReplaceWithCopy(&data->edit->year.source, StrL(""));
+            data->edit->year.overridden = false;
+            data->edit->year.cleared = true;
+            HwndSetDlgItemText(hDlg, IDC_BOOK_YEAR_EDIT, data->edit->year.value);
+            SetFieldSourceLabel(hDlg, IDC_BOOK_YEAR_SOURCE, data->edit->year);
+            return TRUE;
+        }
+        if (IDC_BOOK_CLEAR_OVERRIDES == cmd) {
+            // Revert all four fields to the auto-detected values
+            str::ReplaceWithCopy(&data->edit->title.value, data->edit->title.original);
+            str::ReplaceWithCopy(&data->edit->title.source, StrL(""));
+            data->edit->title.overridden = false;
+            str::ReplaceWithCopy(&data->edit->author.value, data->edit->author.original);
+            str::ReplaceWithCopy(&data->edit->author.source, StrL(""));
+            data->edit->author.overridden = false;
+            str::ReplaceWithCopy(&data->edit->series.value, data->edit->series.original);
+            str::ReplaceWithCopy(&data->edit->series.source, StrL(""));
+            data->edit->series.overridden = false;
+            str::ReplaceWithCopy(&data->edit->year.value, data->edit->year.original);
+            str::ReplaceWithCopy(&data->edit->year.source, StrL(""));
+            data->edit->year.overridden = false;
+            data->edit->title.cleared = true;
+            data->edit->author.cleared = true;
+            data->edit->series.cleared = true;
+            data->edit->year.cleared = true;
+            Dialog_BookMetadata_FillFields(hDlg, data);
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+bool Dialog_BookMetadata(HWND hwnd, BookMetadataEdit& edit) {
+    Dialog_BookMetadata_Data data;
+    data.edit = &edit;
+    // Pre-fill "original" with the current value so the comparison
+    // works when no override is in place yet.
+    if (len(edit.title.original) == 0) {
+        str::ReplaceWithCopy(&edit.title.original, edit.title.value);
+    }
+    if (len(edit.author.original) == 0) {
+        str::ReplaceWithCopy(&edit.author.original, edit.author.value);
+    }
+    if (len(edit.series.original) == 0) {
+        str::ReplaceWithCopy(&edit.series.original, edit.series.value);
+    }
+    if (len(edit.year.original) == 0) {
+        str::ReplaceWithCopy(&edit.year.original, edit.year.value);
+    }
+    INT_PTR res = CreateDialogBox(IDD_DIALOG_BOOK_METADATA, hwnd, Dialog_BookMetadata_Proc, (LPARAM)&data);
+    return res == IDOK;
+}
+
+static void FreeBookMetadataField(BookMetadataField& f) {
+    str::Free(f.label);
+    str::Free(f.value);
+    str::Free(f.source);
+    str::Free(f.original);
+    f = BookMetadataField{};
+}
+
+void FreeBookMetadataEdit(BookMetadataEdit& edit) {
+    str::Free(edit.bookId);
+    str::Free(edit.filePath);
+    edit.bookId = {};
+    edit.filePath = {};
+    FreeBookMetadataField(edit.title);
+    FreeBookMetadataField(edit.author);
+    FreeBookMetadataField(edit.series);
+    FreeBookMetadataField(edit.year);
+}

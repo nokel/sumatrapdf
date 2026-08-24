@@ -375,6 +375,7 @@ EpubDoc::~EpubDoc() {
     delete archive;
     FreeProps(props);
     str::Free(tocPath);
+    str::Free(coverImagePath);
     str::Free(fileName);
 }
 
@@ -490,6 +491,7 @@ bool EpubDoc::Load() {
     }
 
     StrVec idList, pathList;
+    StrVec imgIdList, imgPathList;
 
     const GumboNode* manifest = node;
     const GumboVector* manifestChildren = GumboChildrenOf(manifest);
@@ -514,6 +516,15 @@ bool EpubDoc::Load() {
             data.fileName = str::Dup(imgPath);
             data.fileId = archive->GetFileId(data.fileName);
             images.Append(data);
+            TempStr imgId = GumboAttributeValueTemp(node, "id");
+            if (imgId) {
+                imgIdList.Append(imgId);
+                imgPathList.Append(imgPath);
+            }
+            TempStr imgProps = GumboAttributeValueTemp(node, "properties");
+            if (imgProps && str::Contains(imgProps, StrL("cover-image"))) {
+                str::ReplaceWithCopy(&coverImagePath, imgPath);
+            }
         } else if (isHtmlMediaType(mediaType)) {
             TempStr htmlPath = GumboAttributeValueTemp(node, "href");
             if (!htmlPath) {
@@ -537,6 +548,27 @@ bool EpubDoc::Load() {
                 idList.Append(htmlId);
                 pathList.Append(htmlPath);
             }
+        }
+    }
+
+    if (len(coverImagePath) == 0) {
+        const GumboNode* meta = GumboFindDescendantByTagNS(contentDoc.Document(), StrL("metadata"), EPUB_OPF_NS());
+        const GumboVector* metaChildren = GumboChildrenOf(meta);
+        for (unsigned int i = 0; metaChildren && i < metaChildren->length; i++) {
+            const GumboNode* one = (const GumboNode*)metaChildren->data[i];
+            if (!one || one->type != GUMBO_NODE_ELEMENT) {
+                continue;
+            }
+            TempStr metaName = GumboAttributeValueTemp(one, "name");
+            if (!metaName || !str::EqI(metaName, StrL("cover"))) {
+                continue;
+            }
+            TempStr coverId = GumboAttributeValueTemp(one, "content");
+            int idx = coverId ? imgIdList.Find(coverId) : -1;
+            if (idx >= 0) {
+                str::ReplaceWithCopy(&coverImagePath, imgPathList[idx]);
+            }
+            break;
         }
     }
 
@@ -730,6 +762,43 @@ Str EpubDoc::GetImageData(Str fileName, Str pagePath) {
     }
 
     return {};
+}
+
+Str EpubDoc::GetCoverImage() {
+    if (len(coverImagePath) == 0) {
+        return {};
+    }
+    ScopedMutex scope(&zipAccess);
+    for (ImageData& img : images) {
+        if (!str::Eq(img.fileName, coverImagePath)) {
+            continue;
+        }
+        if (len(img.base) == 0) {
+            auto* fi = archive->GetFileDataById(img.fileId);
+            if (fi && fi->data) {
+                img.base = Str((char*)((u8*)fi->data), fi->fileSizeUncompressed);
+                fi->data = nullptr;
+            }
+        }
+        return img.base;
+    }
+    return {};
+}
+
+Str EpubDoc::GetImageDataByIndex(int idx) {
+    if (idx < 0 || idx >= len(images)) {
+        return {};
+    }
+    ScopedMutex scope(&zipAccess);
+    ImageData& img = images[idx];
+    if (len(img.base) == 0) {
+        auto* fi = archive->GetFileDataById(img.fileId);
+        if (fi && fi->data) {
+            img.base = Str((char*)((u8*)fi->data), fi->fileSizeUncompressed);
+            fi->data = nullptr;
+        }
+    }
+    return img.base;
 }
 
 Str EpubDoc::GetFileData(Str relPath, Str pagePath) {

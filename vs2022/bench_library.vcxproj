@@ -99,10 +99,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{22AB719A-8E15-2611-D753-D7B643FD0366}</ProjectGuid>
+    <ProjectGuid>{3995F571-A555-71A8-6E90-BA25DA0FB684}</ProjectGuid>
     <IgnoreWarnCompileDuplicatedFilename>true</IgnoreWarnCompileDuplicatedFilename>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>test_util</RootNamespace>
+    <RootNamespace>bench_library</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -270,113 +270,113 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\dbg32\</OutDir>
-    <IntDir>$(ProjectDir)..\out\dbg32\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\dbg32\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\dbg64\</OutDir>
-    <IntDir>$(ProjectDir)..\out\dbg64\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\dbg64\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\dbgarm64\</OutDir>
-    <IntDir>$(ProjectDir)..\out\dbgarm64\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\dbgarm64\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug x64_asan|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\dbg64_asan\</OutDir>
-    <IntDir>$(ProjectDir)..\out\dbg64_asan\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\dbg64_asan\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\dbgfull32\</OutDir>
-    <IntDir>$(ProjectDir)..\out\dbgfull32\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\dbgfull32\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|x64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\dbgfull64\</OutDir>
-    <IntDir>$(ProjectDir)..\out\dbgfull64\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\dbgfull64\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|ARM64'">
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\dbgfullarm64\</OutDir>
-    <IntDir>$(ProjectDir)..\out\dbgfullarm64\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\dbgfullarm64\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull x64_asan|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\dbgfull64_asan\</OutDir>
-    <IntDir>$(ProjectDir)..\out\dbgfull64_asan\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\dbgfull64_asan\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\rel32\</OutDir>
-    <IntDir>$(ProjectDir)..\out\rel32\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\rel32\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\rel64\</OutDir>
-    <IntDir>$(ProjectDir)..\out\rel64\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\rel64\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\arm64\</OutDir>
-    <IntDir>$(ProjectDir)..\out\arm64\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\arm64\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release x64_asan|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\rel64_asan\</OutDir>
-    <IntDir>$(ProjectDir)..\out\rel64_asan\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\rel64_asan\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\rel32_prefast\</OutDir>
-    <IntDir>$(ProjectDir)..\out\rel32_prefast\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\rel32_prefast\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\rel64_prefast\</OutDir>
-    <IntDir>$(ProjectDir)..\out\rel64_prefast\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\rel64_prefast\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|ARM64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\arm64_prefast\</OutDir>
-    <IntDir>$(ProjectDir)..\out\arm64_prefast\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\arm64_prefast\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze x64_asan|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(ProjectDir)..\out\rel64_prefast_asan\</OutDir>
-    <IntDir>$(ProjectDir)..\out\rel64_prefast_asan\obj\test_util\</IntDir>
-    <TargetName>test_util</TargetName>
+    <IntDir>$(ProjectDir)..\out\rel64_prefast_asan\obj-s\bench_library\</IntDir>
+    <TargetName>bench_library</TargetName>
     <TargetExt>.exe</TargetExt>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -384,9 +384,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -403,9 +403,9 @@
       <SubSystem>Console</SubSystem>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/dbg32/obj/test_util.lib" /MAP:"../out/dbg32/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/dbg32/obj-s/bench_library.lib" /MAP:"../out/dbg32/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -418,9 +418,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -437,9 +437,9 @@
       <SubSystem>Console</SubSystem>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/dbg64/obj/test_util.lib" /MAP:"../out/dbg64/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/dbg64/obj-s/bench_library.lib" /MAP:"../out/dbg64/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -452,9 +452,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -471,9 +471,9 @@
       <SubSystem>Console</SubSystem>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/dbgarm64/obj/test_util.lib" /MAP:"../out/dbgarm64/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/dbgarm64/obj-s/bench_library.lib" /MAP:"../out/dbgarm64/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -486,9 +486,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -505,9 +505,9 @@
       <SubSystem>Console</SubSystem>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/dbg64_asan/obj/test_util.lib" /MAP:"../out/dbg64_asan/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/dbg64_asan/obj-s/bench_library.lib" /MAP:"../out/dbg64_asan/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -520,9 +520,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -539,9 +539,9 @@
       <SubSystem>Console</SubSystem>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/dbgfull32/obj/test_util.lib" /MAP:"../out/dbgfull32/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/dbgfull32/obj-s/bench_library.lib" /MAP:"../out/dbgfull32/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -554,9 +554,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -573,9 +573,9 @@
       <SubSystem>Console</SubSystem>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/dbgfull64/obj/test_util.lib" /MAP:"../out/dbgfull64/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/dbgfull64/obj-s/bench_library.lib" /MAP:"../out/dbgfull64/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -588,9 +588,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -607,9 +607,9 @@
       <SubSystem>Console</SubSystem>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/dbgfullarm64/obj/test_util.lib" /MAP:"../out/dbgfullarm64/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/dbgfullarm64/obj-s/bench_library.lib" /MAP:"../out/dbgfullarm64/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -622,9 +622,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -641,9 +641,9 @@
       <SubSystem>Console</SubSystem>
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/dbgfull64_asan/obj/test_util.lib" /MAP:"../out/dbgfull64_asan/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/dbgfull64_asan/obj-s/bench_library.lib" /MAP:"../out/dbgfull64_asan/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -656,9 +656,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -679,9 +679,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/rel32/obj/test_util.lib" /MAP:"../out/rel32/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/rel32/obj-s/bench_library.lib" /MAP:"../out/rel32/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -694,9 +694,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -717,9 +717,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/rel64/obj/test_util.lib" /MAP:"../out/rel64/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/rel64/obj-s/bench_library.lib" /MAP:"../out/rel64/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -732,9 +732,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -755,9 +755,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/arm64/obj/test_util.lib" /MAP:"../out/arm64/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/arm64/obj-s/bench_library.lib" /MAP:"../out/arm64/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -770,9 +770,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -792,9 +792,9 @@
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/rel64_asan/obj/test_util.lib" /MAP:"../out/rel64_asan/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/rel64_asan/obj-s/bench_library.lib" /MAP:"../out/rel64_asan/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -807,9 +807,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -831,9 +831,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/rel32_prefast/obj/test_util.lib" /MAP:"../out/rel32_prefast/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/rel32_prefast/obj-s/bench_library.lib" /MAP:"../out/rel32_prefast/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -846,9 +846,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -870,9 +870,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/rel64_prefast/obj/test_util.lib" /MAP:"../out/rel64_prefast/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/rel64_prefast/obj-s/bench_library.lib" /MAP:"../out/rel64_prefast/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -885,9 +885,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -909,9 +909,9 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/arm64_prefast/obj/test_util.lib" /MAP:"../out/arm64_prefast/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/arm64_prefast/obj-s/bench_library.lib" /MAP:"../out/arm64_prefast/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -924,9 +924,9 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>base/Base.h</PrecompiledHeaderFile>
       <WarningLevel>Level4</WarningLevel>
-      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;SUMATRA_TEST_UTIL=1;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\src;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4100;4838;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;LIBARCHIVE_STATIC;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\src;..\ext\mupdf\include;..\ext\lzma\C;..\ext\djvudec;..\ext\libarchive;..\ext\a-zlib;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -947,9 +947,9 @@
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalDependencies>gdiplus.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>gdiplus.lib;gdi32.lib;user32.lib;comctl32.lib;shlwapi.lib;Version.lib;wininet.lib;shcore.lib;wintrust.lib;crypt32.lib;shell32.lib;ole32.lib;oleAut32.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateMapFile>false</GenerateMapFile>
-      <AdditionalOptions>/IMPLIB:"../out/rel64_prefast_asan/obj/test_util.lib" /MAP:"../out/rel64_prefast_asan/obj/test_util.map" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/IMPLIB:"../out/rel64_prefast_asan/obj-s/bench_library.lib" /MAP:"../out/rel64_prefast_asan/obj-s/bench_library.map" %(AdditionalOptions)</AdditionalOptions>
     </Link>
     <ProjectReference>
     </ProjectReference>
@@ -958,23 +958,16 @@
     </CustomBuild>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\Commands.h" />
-    <ClInclude Include="..\src\CoverData.h" />
-    <ClInclude Include="..\src\CoverVision.h" />
-    <ClInclude Include="..\src\DisplayMode.h" />
-    <ClInclude Include="..\src\DocProperties.h" />
-    <ClInclude Include="..\src\FilterUtil.h" />
-    <ClInclude Include="..\src\Flags.h" />
+    <ClInclude Include="..\src\BookBlob.h" />
+    <ClInclude Include="..\src\BookFingerprint.h" />
+    <ClInclude Include="..\src\LibraryData.h" />
+    <ClInclude Include="..\src\LibrarySidecar.h" />
     <ClInclude Include="..\src\LibraryStore.h" />
-    <ClInclude Include="..\src\PageRenderPolicy.h" />
-    <ClInclude Include="..\src\PdfDarkMode.h" />
-    <ClInclude Include="..\src\RefHoverDetect.h" />
-    <ClInclude Include="..\src\RefHoverTextDetect.h" />
+    <ClInclude Include="..\src\PdfSidecar.h" />
     <ClInclude Include="..\src\SumatraConfig.h" />
     <ClInclude Include="..\src\SumatraLog.h" />
-    <ClInclude Include="..\src\WebpReader.h" />
-    <ClInclude Include="..\src\WebpWriter.h" />
     <ClInclude Include="..\src\base\AppendStore.h" />
+    <ClInclude Include="..\src\base\Archive.h" />
     <ClInclude Include="..\src\base\Arena.h" />
     <ClInclude Include="..\src\base\Base.h" />
     <ClInclude Include="..\src\base\BitManip.h" />
@@ -983,12 +976,10 @@
     <ClInclude Include="..\src\base\Color.h" />
     <ClInclude Include="..\src\base\Crypto.h" />
     <ClInclude Include="..\src\base\CssParser.h" />
-    <ClInclude Include="..\src\base\DbgHelpDyn.h" />
     <ClInclude Include="..\src\base\Dict.h" />
     <ClInclude Include="..\src\base\DirScan.h" />
     <ClInclude Include="..\src\base\File.h" />
     <ClInclude Include="..\src\base\FileWatcher.h" />
-    <ClInclude Include="..\src\base\GdiPlusUtil.h" />
     <ClInclude Include="..\src\base\Geom.h" />
     <ClInclude Include="..\src\base\GuessFileType.h" />
     <ClInclude Include="..\src\base\HtmlTags.h" />
@@ -997,7 +988,6 @@
     <ClInclude Include="..\src\base\Pixmap.h" />
     <ClInclude Include="..\src\base\Scoped.h" />
     <ClInclude Include="..\src\base\SettingsUtil.h" />
-    <ClInclude Include="..\src\base\SquareTreeParser.h" />
     <ClInclude Include="..\src\base\Str.h" />
     <ClInclude Include="..\src\base\StrFormatParse.h" />
     <ClInclude Include="..\src\base\StrQueue.h" />
@@ -1005,66 +995,42 @@
     <ClInclude Include="..\src\base\StrVec.h" />
     <ClInclude Include="..\src\base\Strconv.h" />
     <ClInclude Include="..\src\base\Thread.h" />
-    <ClInclude Include="..\src\base\UtAssert.h" />
     <ClInclude Include="..\src\base\Vec.h" />
     <ClInclude Include="..\src\base\Win.h" />
     <ClInclude Include="..\src\base\WinDynCalls.h" />
-    <ClInclude Include="..\src\gui\CommandPaletteModel.h" />
-    <ClInclude Include="..\src\gui\Dpi.h" />
-    <ClInclude Include="..\src\gui\Layout.h" />
+    <ClInclude Include="..\src\base\Zip.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\BasePch.cpp">
       <PrecompiledHeader>Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="..\src\Commands.cpp" />
-    <ClCompile Include="..\src\CoverModel.cpp" />
+    <ClCompile Include="..\src\BookBlob.cpp" />
+    <ClCompile Include="..\src\BookFingerprint.cpp" />
     <ClCompile Include="..\src\CrashHandlerNoOp.cpp" />
-    <ClCompile Include="..\src\DisplayMode.cpp" />
-    <ClCompile Include="..\src\DocProperties.cpp" />
-    <ClCompile Include="..\src\FilterUtil.cpp" />
-    <ClCompile Include="..\src\Flags.cpp" />
+    <ClCompile Include="..\src\LibrarySidecar.cpp" />
     <ClCompile Include="..\src\LibraryStore.cpp" />
-    <ClCompile Include="..\src\PageRenderPolicy.cpp" />
-    <ClCompile Include="..\src\PdfDarkModeImageClassifier_ut.cpp" />
-    <ClCompile Include="..\src\PdfDarkModeImageRules.cpp" />
-    <ClCompile Include="..\src\PdfDarkModeOklab.cpp" />
-    <ClCompile Include="..\src\PdfDarkModeOklab_ut.cpp" />
-    <ClCompile Include="..\src\RefHoverDetect.cpp" />
-    <ClCompile Include="..\src\RefHoverTextDetect.cpp" />
-    <ClCompile Include="..\src\SimpleLog_ut.cpp" />
+    <ClCompile Include="..\src\PdfSidecar.cpp" />
     <ClCompile Include="..\src\SumatraConfig.cpp" />
     <ClCompile Include="..\src\SumatraLog.cpp" />
-    <ClCompile Include="..\src\SumatraUnitTests.cpp" />
-    <ClCompile Include="..\src\WebpReader.cpp" />
-    <ClCompile Include="..\src\WebpWriter.cpp" />
     <ClCompile Include="..\src\base\AppendStore.cpp" />
+    <ClCompile Include="..\src\base\Archive.cpp" />
     <ClCompile Include="..\src\base\Arena.cpp" />
-    <ClCompile Include="..\src\base\Arena_win.cpp" />
     <ClCompile Include="..\src\base\Base.cpp" />
     <ClCompile Include="..\src\base\Base_win.cpp" />
     <ClCompile Include="..\src\base\ByteReaderWriter.cpp" />
     <ClCompile Include="..\src\base\CmdLineArgsIter.cpp" />
-    <ClCompile Include="..\src\base\CmdLineArgsIter_win.cpp" />
     <ClCompile Include="..\src\base\Color.cpp" />
-    <ClCompile Include="..\src\base\Crypto_win.cpp" />
     <ClCompile Include="..\src\base\CssParser.cpp" />
-    <ClCompile Include="..\src\base\DbgHelpDyn_win.cpp" />
     <ClCompile Include="..\src\base\Dict.cpp" />
     <ClCompile Include="..\src\base\DirScan.cpp" />
-    <ClCompile Include="..\src\base\DirScan_win.cpp" />
     <ClCompile Include="..\src\base\File.cpp" />
     <ClCompile Include="..\src\base\FileWatcher.cpp" />
-    <ClCompile Include="..\src\base\File_win.cpp" />
-    <ClCompile Include="..\src\base\GdiPlusUtil.cpp" />
     <ClCompile Include="..\src\base\Geom.cpp" />
     <ClCompile Include="..\src\base\GuessFileType.cpp" />
     <ClCompile Include="..\src\base\HtmlTags.cpp" />
     <ClCompile Include="..\src\base\JsonParser.cpp" />
     <ClCompile Include="..\src\base\Pixmap.cpp" />
-    <ClCompile Include="..\src\base\Pixmap_win.cpp" />
     <ClCompile Include="..\src\base\SettingsUtil.cpp" />
-    <ClCompile Include="..\src\base\SquareTreeParser.cpp" />
     <ClCompile Include="..\src\base\Str.cpp" />
     <ClCompile Include="..\src\base\StrFormatParse.cpp" />
     <ClCompile Include="..\src\base\StrQueue.cpp" />
@@ -1072,38 +1038,31 @@
     <ClCompile Include="..\src\base\StrVec.cpp" />
     <ClCompile Include="..\src\base\Strconv.cpp" />
     <ClCompile Include="..\src\base\Thread.cpp" />
-    <ClCompile Include="..\src\base\UtAssert.cpp" />
     <ClCompile Include="..\src\base\Win.cpp" />
-    <ClCompile Include="..\src\base\WinDynCalls_win.cpp" />
-    <ClCompile Include="..\src\base\tests\AppendStore_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\Base_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\ByteReaderWriter_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\ClipboardImage_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\CoverModel_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\Crypto_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\CssParser_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\Dict_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\File_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\GuessFileType_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\JsonParser_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\LibraryStore_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\RefHover_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\SettingsUtil_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\SquareTreeParser_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\StrFormat_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\StrVec_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\Str_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\Vec_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\WebpWriter_ut.cpp" />
-    <ClCompile Include="..\src\base\tests\Win_ut.cpp" />
-    <ClCompile Include="..\src\gui\CommandPaletteModel.cpp" />
-    <ClCompile Include="..\src\gui\Dpi_win.cpp" />
-    <ClCompile Include="..\src\gui\Layout.cpp" />
-    <ClCompile Include="..\src\tools\test_util.cpp" />
+    <ClCompile Include="..\src\base\Zip.cpp" />
+    <ClCompile Include="..\src\tools\bench_library.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="base.vcxproj">
+      <Project>{8078947C-6CAF-950D-159C-7B1001B2110F}</Project>
+    </ProjectReference>
+    <ProjectReference Include="mupdf.vcxproj">
+      <Project>{2181F50F-8D95-1DC1-5617-C120C2EA19F2}</Project>
+    </ProjectReference>
+    <ProjectReference Include="libarchive.vcxproj">
+      <Project>{1E5D585E-0A15-9AAB-731C-73075FF3349C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="unrar.vcxproj">
+      <Project>{AD768210-198B-AAC1-E20C-4E214EE0A6F2}</Project>
+    </ProjectReference>
     <ProjectReference Include="libwebp.vcxproj">
       <Project>{0A466F79-7625-EE14-7F3D-79EBEB9B5476}</Project>
+    </ProjectReference>
+    <ProjectReference Include="a-zlib.vcxproj">
+      <Project>{047896ED-F019-C1C3-D9D4-D417C5154814}</Project>
+    </ProjectReference>
+    <ProjectReference Include="brotli.vcxproj">
+      <Project>{B155C6F4-9DF7-F0CA-86B2-041F72F3771B}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -11,6 +11,70 @@ extern "C" {
 #include "BookBlob.h"
 #include "PdfSidecar.h"
 
+// Performance counter: tracks fz_new_context calls so we can see in the log
+// how many mupdf contexts PdfSidecar creates (a heavy op). Kept as plain
+// statics so we don't have to plumb anything through SumatraLog.
+static int gPdfSidecarCtxCount = 0;
+static int gPdfSidecarOpenCount = 0;
+static int gPdfSidecarDecodeBlobCount = 0;
+static int gPdfSidecarDecodeCoverCount = 0;
+
+extern "C" int PdfSidecarPerfCounters(int* ctx, int* opened, int* blobDecoded, int* coverDecoded) {
+    if (ctx) {
+        *ctx = gPdfSidecarCtxCount;
+    }
+    if (opened) {
+        *opened = gPdfSidecarOpenCount;
+    }
+    if (blobDecoded) {
+        *blobDecoded = gPdfSidecarDecodeBlobCount;
+    }
+    if (coverDecoded) {
+        *coverDecoded = gPdfSidecarDecodeCoverCount;
+    }
+    return gPdfSidecarCtxCount;
+}
+
+// One mupdf context per thread, reused across every PdfSidecar call. The
+// previous code called fz_new_context + fz_register_document_handlers for
+// every read/write (SyncEmbeddedRecords alone made ~3*N of them for a
+// library of N PDFs), which was the single biggest cost in the library
+// open path. fz_new_context is an expensive op (allocator + fonts +
+// handlers + glyph cache) and we were throwing it away after one or two
+// pdf_open_document calls.
+static thread_local fz_context* gTlsCtx = nullptr;
+
+static fz_context* GetTlsContext() {
+    if (gTlsCtx) {
+        return gTlsCtx;
+    }
+    fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_UNLIMITED);
+    if (!ctx) {
+        return nullptr;
+    }
+    fz_register_document_handlers(ctx);
+    gTlsCtx = ctx;
+    gPdfSidecarCtxCount++;
+    return ctx;
+}
+
+// Explicitly drop a context after a write that has a long idle tail
+// (pdf_save_document's incremental save allocates a lot of page state
+// in the store). Freeing it once per write keeps the per-thread context
+// from growing without bound; the next call just allocates again.
+static void ResetTlsContext() {
+    if (!gTlsCtx) {
+        return;
+    }
+    fz_drop_context(gTlsCtx);
+    gTlsCtx = nullptr;
+}
+
+// (NewContext was removed: every public PdfSidecar call now goes through
+// GetTlsContext / ResetTlsContext, which reuse a per-thread mupdf
+// context. HasCover / HasBlob are still work-in-progress and currently
+// call the full read paths, which is the next thing to fix.)
+
 static pdf_obj* SidecarCatalog(fz_context* ctx, pdf_document* pdf) {
     pdf_obj* root = nullptr;
     fz_var(root);
@@ -124,14 +188,13 @@ bool PdfSidecarReadBlob(Str path, Vec<u8>& out) {
     if (!file::Exists(path)) {
         return false;
     }
-    fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_UNLIMITED);
+    fz_context* ctx = GetTlsContext();
     if (!ctx) {
         return false;
     }
-    fz_register_document_handlers(ctx);
+    gPdfSidecarOpenCount++;
     pdf_document* pdf = OpenPdf(ctx, path);
     if (!pdf) {
-        fz_drop_context(ctx);
         return false;
     }
     bool ok = false;
@@ -141,6 +204,7 @@ bool PdfSidecarReadBlob(Str path, Vec<u8>& out) {
         fz_var(buf);
         fz_try(ctx) {
             if (pdf_is_stream(ctx, blob)) {
+                gPdfSidecarDecodeBlobCount++;
                 buf = pdf_load_raw_stream(ctx, blob);
             }
         }
@@ -158,7 +222,6 @@ bool PdfSidecarReadBlob(Str path, Vec<u8>& out) {
         }
     }
     pdf_drop_document(ctx, pdf);
-    fz_drop_context(ctx);
     return ok;
 }
 
@@ -174,14 +237,12 @@ TempStr PdfSidecarReadFingerprint(Str path) {
     if (!file::Exists(path)) {
         return {};
     }
-    fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_UNLIMITED);
+    fz_context* ctx = GetTlsContext();
     if (!ctx) {
         return {};
     }
-    fz_register_document_handlers(ctx);
     pdf_document* pdf = OpenPdf(ctx, path);
     if (!pdf) {
-        fz_drop_context(ctx);
         return {};
     }
     TempStr res = {};
@@ -225,13 +286,54 @@ TempStr PdfSidecarReadFingerprint(Str path) {
         }
     }
     pdf_drop_document(ctx, pdf);
-    fz_drop_context(ctx);
     return res;
 }
 
+// Cheap presence checks: walk the dict chain (Root -> PieceInfo -> SumatraPDF
+// -> Private -> {Blob,Cover}) and return whether the named entry is a
+// stream. The previous versions called PdfSidecarReadBlob / PdfSidecarReadCover,
+// which decoded the LZMA2 blob (or the full cover image) just to learn
+// whether it existed. With 128 books SyncEmbeddedRecords was running
+// 2 fz_new_context + 2 full PDF opens + 2 stream decodes per book, and
+// most of those decodes were thrown away.
+static bool SidecarHasStream(Str path, const char* key) {
+    if (!file::Exists(path)) {
+        return false;
+    }
+    fz_context* ctx = GetTlsContext();
+    if (!ctx) {
+        return false;
+    }
+    gPdfSidecarOpenCount++;
+    pdf_document* pdf = nullptr;
+    fz_var(pdf);
+    bool found = false;
+    fz_try(ctx) {
+        pdf = pdf_open_document(ctx, CStrTemp(path));
+        if (pdf) {
+            pdf_obj* hidden = SidecarPrivate(ctx, pdf);
+            if (hidden) {
+                pdf_obj* blob = pdf_dict_gets(ctx, hidden, key);
+                if (pdf_is_stream(ctx, blob)) {
+                    found = true;
+                }
+            }
+        }
+    }
+    fz_always(ctx) {
+        if (pdf) {
+            pdf_drop_document(ctx, pdf);
+        }
+    }
+    fz_catch(ctx) {
+        fz_ignore_error(ctx);
+        found = false;
+    }
+    return found;
+}
+
 bool PdfSidecarHasBlob(Str path) {
-    Vec<u8> blob;
-    return PdfSidecarReadBlob(path, blob);
+    return SidecarHasStream(path, "Blob");
 }
 
 static pdf_obj* SidecarChild(fz_context* ctx, pdf_document* pdf, pdf_obj* parent, const char* name) {
@@ -272,27 +374,24 @@ bool PdfSidecarWriteBlob(Str path, const u8* blob, int size, Str fingerprint, co
         SetError(errOut, str::FormatTemp("%s is not a file", path));
         return false;
     }
-    fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_UNLIMITED);
+    fz_context* ctx = GetTlsContext();
     if (!ctx) {
         SetError(errOut, "no mupdf context");
         return false;
     }
-    fz_register_document_handlers(ctx);
+    gPdfSidecarOpenCount++;
     pdf_document* pdf = OpenPdf(ctx, path);
     if (!pdf) {
-        fz_drop_context(ctx);
         SetError(errOut, str::FormatTemp("%s is not a PDF", path));
         return false;
     }
     if (pdf_needs_password(ctx, pdf)) {
         pdf_drop_document(ctx, pdf);
-        fz_drop_context(ctx);
         SetError(errOut, str::FormatTemp("%s is password protected", path));
         return false;
     }
     if (!pdf_can_be_saved_incrementally(ctx, pdf)) {
         pdf_drop_document(ctx, pdf);
-        fz_drop_context(ctx);
         SetError(errOut, str::FormatTemp("%s cannot be saved incrementally", path));
         return false;
     }
@@ -322,6 +421,8 @@ bool PdfSidecarWriteBlob(Str path, const u8* blob, int size, Str fingerprint, co
         pdf_obj* hidden = SidecarChild(ctx, pdf, app, "Private");
         pdf_dict_puts_drop(ctx, hidden, "Version", pdf_new_int(ctx, kSidecarVersion));
         pdf_dict_puts_drop(ctx, hidden, "Blob", stream);
+        pdf_dict_dels(ctx, hidden, "Cover");
+        pdf_dict_dels(ctx, hidden, "CoverFormat");
         if (fingerprint.len > 0) {
             pdf_dict_puts_drop(ctx, hidden, "Fingerprint", pdf_new_text_string(ctx, CStrTemp(fingerprint)));
         }
@@ -358,6 +459,211 @@ bool PdfSidecarWriteBlob(Str path, const u8* blob, int size, Str fingerprint, co
     }
 
     pdf_drop_document(ctx, pdf);
-    fz_drop_context(ctx);
+    // pdf_save_document is the heavy op; the TLS context now holds
+    // a large store of saved page objects. Drop it so the next call
+    // starts from a clean slate.
+    ResetTlsContext();
+    return ok;
+}
+
+static bool OpenForWrite(fz_context** ctxOut, pdf_document** pdfOut, Str path, Str* errOut) {
+    *ctxOut = nullptr;
+    *pdfOut = nullptr;
+    if (!file::Exists(path)) {
+        SetError(errOut, str::FormatTemp("%s is not a file", path));
+        return false;
+    }
+    fz_context* ctx = GetTlsContext();
+    if (!ctx) {
+        SetError(errOut, "no mupdf context");
+        return false;
+    }
+    gPdfSidecarOpenCount++;
+    pdf_document* pdf = OpenPdf(ctx, path);
+    if (!pdf) {
+        SetError(errOut, str::FormatTemp("%s is not a PDF", path));
+        return false;
+    }
+    if (pdf_needs_password(ctx, pdf)) {
+        pdf_drop_document(ctx, pdf);
+        SetError(errOut, str::FormatTemp("%s is password protected", path));
+        return false;
+    }
+    if (!pdf_can_be_saved_incrementally(ctx, pdf)) {
+        pdf_drop_document(ctx, pdf);
+        SetError(errOut, str::FormatTemp("%s cannot be saved incrementally", path));
+        return false;
+    }
+    *ctxOut = ctx;
+    *pdfOut = pdf;
+    return true;
+}
+
+static const char* CoverFormatName(Str format) {
+    if (str::EqI(format, StrL("png"))) {
+        return "png";
+    }
+    if (str::EqI(format, StrL("jpg")) || str::EqI(format, StrL("jpeg"))) {
+        return "jpeg";
+    }
+    return "webp";
+}
+
+bool PdfSidecarReadCover(Str path, Str* formatOut, Vec<u8>& out) {
+    if (formatOut) {
+        str::ReplaceWithCopy(formatOut, {});
+    }
+    out.Reset();
+    if (!file::Exists(path)) {
+        return false;
+    }
+    fz_context* ctx = GetTlsContext();
+    if (!ctx) {
+        return false;
+    }
+    gPdfSidecarOpenCount++;
+    pdf_document* pdf = OpenPdf(ctx, path);
+    if (!pdf) {
+        return false;
+    }
+    fz_buffer* buf = nullptr;
+    const char* fmt = nullptr;
+    fz_var(buf);
+    fz_var(fmt);
+    fz_try(ctx) {
+        pdf_obj* hidden = SidecarPrivate(ctx, pdf);
+        pdf_obj* cover = pdf_dict_gets(ctx, hidden, "Cover");
+        if (pdf_is_stream(ctx, cover)) {
+            gPdfSidecarDecodeCoverCount++;
+            buf = pdf_load_raw_stream(ctx, cover);
+            pdf_obj* name = pdf_dict_gets(ctx, hidden, "CoverFormat");
+            if (pdf_is_name(ctx, name)) {
+                fmt = pdf_to_name(ctx, name);
+            }
+        }
+    }
+    fz_catch(ctx) {
+        fz_ignore_error(ctx);
+        buf = nullptr;
+        fmt = nullptr;
+    }
+    bool ok = false;
+    if (buf) {
+        u8* data = nullptr;
+        size_t n = fz_buffer_storage(ctx, buf, &data);
+        if (n > 0) {
+            out.Append(data, (int)n);
+            ok = true;
+        }
+        fz_drop_buffer(ctx, buf);
+    }
+    if (ok && formatOut && fmt && *fmt) {
+        str::ReplaceWithCopy(formatOut, Str(fmt));
+    }
+    pdf_drop_document(ctx, pdf);
+    return ok;
+}
+
+bool PdfSidecarHasCover(Str path) {
+    return SidecarHasStream(path, "Cover");
+}
+
+bool PdfSidecarWriteCover(Str path, Str format, const u8* data, int size, Str* errOut) {
+    if (!data || size <= 0) {
+        SetError(errOut, "refusing to embed an empty cover");
+        return false;
+    }
+    if (size > kSidecarMaxCoverBytes) {
+        SetError(errOut, str::FormatTemp("cover of %d bytes is over the %d byte limit", size, kSidecarMaxCoverBytes));
+        return false;
+    }
+    fz_context* ctx = nullptr;
+    pdf_document* pdf = nullptr;
+    if (!OpenForWrite(&ctx, &pdf, path, errOut)) {
+        return false;
+    }
+
+    bool ok = false;
+    fz_var(ok);
+    fz_try(ctx) {
+        fz_buffer* buf = fz_new_buffer_from_copied_data(ctx, data, (size_t)size);
+        pdf_obj* stream = nullptr;
+        fz_try(ctx) {
+            stream = pdf_add_stream(ctx, pdf, buf, nullptr, 0);
+        }
+        fz_always(ctx) {
+            fz_drop_buffer(ctx, buf);
+        }
+        fz_catch(ctx) {
+            fz_rethrow(ctx);
+        }
+
+        pdf_obj* root = SidecarCatalog(ctx, pdf);
+        if (!root) {
+            pdf_drop_obj(ctx, stream);
+            fz_throw(ctx, FZ_ERROR_GENERIC, "document has no catalog");
+        }
+        pdf_obj* app = SidecarChild(ctx, pdf, SidecarChild(ctx, pdf, root, "PieceInfo"), kSidecarApp);
+        pdf_dict_puts_drop(ctx, app, "LastModified", pdf_new_text_string(ctx, PdfSidecarDate().s));
+        pdf_obj* hidden = SidecarChild(ctx, pdf, app, "Private");
+        pdf_dict_puts_drop(ctx, hidden, "Version", pdf_new_int(ctx, kSidecarVersion));
+        pdf_dict_puts_drop(ctx, hidden, "CoverFormat", pdf_new_name(ctx, CoverFormatName(format)));
+        pdf_dict_puts_drop(ctx, hidden, "Cover", stream);
+
+        pdf_write_options opts{};
+        opts.permissions = ~0;
+        opts.do_incremental = 1;
+        pdf_save_document(ctx, pdf, CStrTemp(path), &opts);
+        ok = true;
+    }
+    fz_catch(ctx) {
+        SetError(errOut, Str(fz_caught_message(ctx)));
+        fz_ignore_error(ctx);
+        ok = false;
+    }
+
+    pdf_drop_document(ctx, pdf);
+    // pdf_save_document is the heavy op; the TLS context now holds
+    // a large store of saved page objects. Drop it so the next call
+    // starts from a clean slate.
+    ResetTlsContext();
+    return ok;
+}
+
+bool PdfSidecarRemoveCover(Str path, Str* errOut) {
+    if (!PdfSidecarHasCover(path)) {
+        return true;
+    }
+    fz_context* ctx = nullptr;
+    pdf_document* pdf = nullptr;
+    if (!OpenForWrite(&ctx, &pdf, path, errOut)) {
+        return false;
+    }
+
+    bool ok = false;
+    fz_var(ok);
+    fz_try(ctx) {
+        pdf_obj* hidden = SidecarPrivate(ctx, pdf);
+        if (hidden) {
+            pdf_dict_dels(ctx, hidden, "Cover");
+            pdf_dict_dels(ctx, hidden, "CoverFormat");
+            pdf_write_options opts{};
+            opts.permissions = ~0;
+            opts.do_incremental = 1;
+            pdf_save_document(ctx, pdf, CStrTemp(path), &opts);
+        }
+        ok = true;
+    }
+    fz_catch(ctx) {
+        SetError(errOut, Str(fz_caught_message(ctx)));
+        fz_ignore_error(ctx);
+        ok = false;
+    }
+
+    pdf_drop_document(ctx, pdf);
+    // pdf_save_document is the heavy op; the TLS context now holds
+    // a large store of saved page objects. Drop it so the next call
+    // starts from a clean slate.
+    ResetTlsContext();
     return ok;
 }

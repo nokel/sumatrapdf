@@ -481,6 +481,27 @@ static HGLOBAL PixmapToPngGlobal(const Pixmap* p) {
     return status == Gdiplus::Ok ? hMem : nullptr;
 }
 
+Str PixmapEncodePng(const Pixmap* p) {
+    if (!p || p->width <= 0 || p->height <= 0) {
+        return {};
+    }
+    HGLOBAL hMem = PixmapToPngGlobal(p);
+    if (!hMem) {
+        return {};
+    }
+    Str res;
+    SIZE_T n = GlobalSize(hMem);
+    void* data = GlobalLock(hMem);
+    if (data && n > 0) {
+        res = str::Dup(Str((const char*)data, (int)n));
+    }
+    if (data) {
+        GlobalUnlock(hMem);
+    }
+    GlobalFree(hMem);
+    return res;
+}
+
 // Put an image on the clipboard so that a paste into an image editor keeps its
 // transparency. CF_BITMAP cannot carry alpha, so an image with transparent
 // pixels is published in three formats, richest first:

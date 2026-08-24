@@ -32,6 +32,7 @@ struct BlobIdentity {
     const char* author = nullptr;
     const char* source = nullptr;
     int pages = 0;
+    int year = 0;
 };
 
 struct BlobShelf {
@@ -54,6 +55,7 @@ struct BlobCover {
     double y0 = 0;
     double x1 = 0;
     double y1 = 0;
+    int rotation = 0;
 };
 
 struct BlobPerson {
@@ -164,3 +166,14 @@ bool BookBlobDecode(const u8* data, int size, BookBlobRecord& out);
 
 void BookBlobTextGuard(Str text, u8 digest[16]);
 bool BookBlobGuardMatches(const BookBlobRecord& rec, Str text);
+
+constexpr int kBookFieldMaxBytes = 4096;
+constexpr int kBookCoverMinBytes = 1200;
+constexpr int kBookCoverMaxBytes = 4 << 20;
+
+const char* BookCoverFormatOfBytes(const u8* data, int size);
+
+TempStr BookRecordWhyInvalid(const BookBlobRecord& rec);
+
+TempStr BookCoverSpotEncode(const BlobCover& cover);
+bool BookCoverSpotDecode(Str s, BlobCover* out);

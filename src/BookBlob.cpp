@@ -252,6 +252,9 @@ static void WriteIdentity(BlobWriter& w, BlobStrings& s, const BlobIdentity& it)
     w.UInt(s.Put(it.author));
     w.UInt(s.Put(it.source));
     w.UInt(it.pages);
+    if (it.year > 0) {
+        w.UInt(it.year);
+    }
 }
 
 static void ReadIdentity(BlobReader& r, const Vec<const char*>& t, BlobIdentity& it) {
@@ -267,6 +270,9 @@ static void ReadIdentity(BlobReader& r, const Vec<const char*>& t, BlobIdentity&
     it.author = StrAt(t, r.Int(), r);
     it.source = StrAt(t, r.Int(), r);
     it.pages = r.Int();
+    if (r.at < r.size) {
+        it.year = r.Int();
+    }
 }
 
 static void WriteShelf(BlobWriter& w, BlobStrings& s, const BlobShelf& it) {
@@ -308,6 +314,13 @@ static void WriteCover(BlobWriter& w, BlobStrings& s, const BlobCover& it) {
         w.Real(it.y0);
         w.Real(it.x1);
         w.Real(it.y1);
+        if (it.data.len > 0) {
+            w.UInt(it.rotation);
+            w.UInt(s.Put(it.format));
+            w.BlobOf(it.data.LendData(), it.data.len);
+        } else if (it.rotation != 0) {
+            w.UInt(it.rotation);
+        }
     }
 }
 
@@ -326,6 +339,15 @@ static void ReadCover(BlobReader& r, const Vec<const char*>& t, BlobCover& it) {
         it.y0 = r.Real();
         it.x1 = r.Real();
         it.y1 = r.Real();
+        it.rotation = (!r.bad && r.at < r.size) ? r.Int() : 0;
+        if (!r.bad && r.at < r.size) {
+            it.format = StrAt(t, r.Int(), r);
+            int n = r.Count();
+            const u8* d = r.Raw(n);
+            if (d) {
+                it.data.Append(d, n);
+            }
+        }
     }
 }
 
@@ -1097,4 +1119,368 @@ bool BookBlobGuardMatches(const BookBlobRecord& rec, Str text) {
     u8 digest[16];
     BookBlobTextGuard(text, digest);
     return memcmp(digest, rec.identity.textMd5.LendData(), 16) == 0;
+}
+
+static int SpotNum(char* buf, int cap, double v) {
+    int n = _snprintf_s(buf, (size_t)cap, _TRUNCATE, "%.4f", v);
+    if (n < 0) {
+        return 0;
+    }
+    bool hasDot = false;
+    for (int i = 0; i < n; i++) {
+        if (buf[i] == '.') {
+            hasDot = true;
+            break;
+        }
+    }
+    if (hasDot) {
+        while (n > 1 && buf[n - 1] == '0') {
+            n--;
+        }
+        if (n > 1 && buf[n - 1] == '.') {
+            n--;
+        }
+    }
+    buf[n] = 0;
+    return n;
+}
+
+TempStr BookCoverSpotEncode(const BlobCover& cover) {
+    if (cover.kind != kBlobCoverPage) {
+        return {};
+    }
+    char x0[32], x1[32], y0[32], y1[32];
+    SpotNum(x0, dimof(x0), cover.x0);
+    SpotNum(x1, dimof(x1), cover.x1);
+    SpotNum(y0, dimof(y0), cover.y0);
+    SpotNum(y1, dimof(y1), cover.y1);
+    char out[192];
+    int n = _snprintf_s(out, dimof(out), _TRUNCATE, "%d,%s:%s,%s:%s,%d", cover.page, x0, x1, y0, y1, cover.rotation);
+    if (n <= 0) {
+        return {};
+    }
+    return str::DupTemp(Str(out, n));
+}
+
+static bool SpotSplit(Str s, char sep, Str parts[], int want) {
+    int at = 0;
+    int start = 0;
+    for (int i = 0; i <= s.len; i++) {
+        if (i != s.len && s.s[i] != sep) {
+            continue;
+        }
+        if (at >= want) {
+            return false;
+        }
+        parts[at++] = Str(s.s + start, i - start);
+        start = i + 1;
+    }
+    return at == want;
+}
+
+static bool SpotShaped(Str s) {
+    if (s.len <= 0 || s.len > 30) {
+        return false;
+    }
+    int i = 0;
+    if (s.s[0] == '-') {
+        i = 1;
+    }
+    int firstDigit = i;
+    int intDigits = 0;
+    while (i < s.len && s.s[i] >= '0' && s.s[i] <= '9') {
+        i++;
+        intDigits++;
+    }
+    if (intDigits == 0) {
+        return false;
+    }
+    if (intDigits > 1 && s.s[firstDigit] == '0') {
+        return false;
+    }
+    if (i == s.len) {
+        return true;
+    }
+    if (s.s[i] != '.') {
+        return false;
+    }
+    i++;
+    int fracDigits = 0;
+    while (i < s.len && s.s[i] >= '0' && s.s[i] <= '9') {
+        i++;
+        fracDigits++;
+    }
+    return fracDigits > 0 && i == s.len;
+}
+
+static bool SpotReal(Str s, double* out) {
+    if (!SpotShaped(s)) {
+        return false;
+    }
+    char tmp[32];
+    memcpy(tmp, s.s, (size_t)s.len);
+    tmp[s.len] = 0;
+    char* end = nullptr;
+    double v = strtod(tmp, &end);
+    if (!end || *end != 0) {
+        return false;
+    }
+    if (!(v >= -1e9 && v <= 1e9)) {
+        return false;
+    }
+    *out = v;
+    return true;
+}
+
+static bool SpotInt(Str s, int* out) {
+    double v;
+    if (!SpotReal(s, &v)) {
+        return false;
+    }
+    if (v < -2147483000.0 || v > 2147483000.0 || v != (double)(int)v) {
+        return false;
+    }
+    *out = (int)v;
+    return true;
+}
+
+bool BookCoverSpotDecode(Str s, BlobCover* out) {
+    if (!out || s.len <= 0) {
+        return false;
+    }
+    Str fields[4];
+    if (!SpotSplit(s, ',', fields, 4)) {
+        return false;
+    }
+    Str xs[2];
+    Str ys[2];
+    if (!SpotSplit(fields[1], ':', xs, 2) || !SpotSplit(fields[2], ':', ys, 2)) {
+        return false;
+    }
+    BlobCover c;
+    c.kind = kBlobCoverPage;
+    if (!SpotInt(fields[0], &c.page) || c.page < 1) {
+        return false;
+    }
+    if (!SpotReal(xs[0], &c.x0) || !SpotReal(xs[1], &c.x1)) {
+        return false;
+    }
+    if (!SpotReal(ys[0], &c.y0) || !SpotReal(ys[1], &c.y1)) {
+        return false;
+    }
+    if (!SpotInt(fields[3], &c.rotation)) {
+        return false;
+    }
+    if (c.rotation != 0 && c.rotation != 90 && c.rotation != 180 && c.rotation != 270) {
+        return false;
+    }
+    if (c.x1 <= c.x0 || c.y1 <= c.y0) {
+        return false;
+    }
+    out->kind = c.kind;
+    out->page = c.page;
+    out->x0 = c.x0;
+    out->y0 = c.y0;
+    out->x1 = c.x1;
+    out->y1 = c.y1;
+    out->rotation = c.rotation;
+    return true;
+}
+
+const char* BookCoverFormatOfBytes(const u8* data, int size) {
+    if (!data) {
+        return nullptr;
+    }
+    if (size >= 12 && memcmp(data, "RIFF", 4) == 0 && memcmp(data + 8, "WEBP", 4) == 0) {
+        return "webp";
+    }
+    if (size >= 8 && data[0] == 0x89 && memcmp(data + 1, "PNG", 3) == 0) {
+        return "png";
+    }
+    if (size >= 3 && data[0] == 0xff && data[1] == 0xd8 && data[2] == 0xff) {
+        return "jpeg";
+    }
+    return nullptr;
+}
+
+static bool BookTextIsClean(const char* s) {
+    if (!s) {
+        return true;
+    }
+    const u8* p = (const u8*)s;
+    int n = 0;
+    while (*p) {
+        if (++n > kBookFieldMaxBytes) {
+            return false;
+        }
+        u8 c = *p;
+        int extra;
+        u32 cp;
+        if (c < 0x80) {
+            p++;
+            continue;
+        } else if ((c & 0xe0) == 0xc0) {
+            extra = 1;
+            cp = c & 0x1f;
+        } else if ((c & 0xf0) == 0xe0) {
+            extra = 2;
+            cp = c & 0x0f;
+        } else if ((c & 0xf8) == 0xf0) {
+            extra = 3;
+            cp = c & 0x07;
+        } else {
+            return false;
+        }
+        p++;
+        for (int i = 0; i < extra; i++) {
+            if ((*p & 0xc0) != 0x80) {
+                return false;
+            }
+            cp = (cp << 6) | (u32)(*p & 0x3f);
+            p++;
+            if (++n > kBookFieldMaxBytes) {
+                return false;
+            }
+        }
+        if (extra == 1 && cp < 0x80) {
+            return false;
+        }
+        if (extra == 2 && cp < 0x800) {
+            return false;
+        }
+        if (extra == 3 && cp < 0x10000) {
+            return false;
+        }
+        if (cp > 0x10ffff || (cp >= 0xd800 && cp <= 0xdfff)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static const char* BookRecordBadText(const BookBlobRecord& rec) {
+    const char* fields[] = {
+        rec.identity.fingerprint, rec.identity.title, rec.identity.author,    rec.identity.source,
+        rec.shelf.genre,          rec.shelf.subgenre, rec.shelf.series,       rec.shelf.seriesParent,
+        rec.shelf.collection,     rec.cover.format,   rec.cast.narratorVoice,
+    };
+    for (const char* s : fields) {
+        if (!BookTextIsClean(s)) {
+            return s ? s : "";
+        }
+    }
+    for (int i = 0; i < rec.shelf.partitions.len; i++) {
+        if (!BookTextIsClean(rec.shelf.partitions[i])) {
+            return rec.shelf.partitions[i];
+        }
+    }
+    for (int i = 0; i < rec.shelf.tags.len; i++) {
+        if (!BookTextIsClean(rec.shelf.tags[i])) {
+            return rec.shelf.tags[i];
+        }
+    }
+    for (int i = 0; i < rec.cast.people.len; i++) {
+        if (!BookTextIsClean(rec.cast.people[i].name) || !BookTextIsClean(rec.cast.people[i].voice)) {
+            return rec.cast.people[i].name ? rec.cast.people[i].name : "";
+        }
+    }
+    for (int i = 0; i < rec.cast.aliases.len; i++) {
+        if (!BookTextIsClean(rec.cast.aliases[i])) {
+            return rec.cast.aliases[i];
+        }
+    }
+    for (int i = 0; i < rec.entities.len; i++) {
+        if (!BookTextIsClean(rec.entities[i].prop) || !BookTextIsClean(rec.entities[i].cat)) {
+            return "";
+        }
+    }
+    for (int i = 0; i < rec.lore.len; i++) {
+        const BlobFact& f = rec.lore[i];
+        if (!BookTextIsClean(f.subject) || !BookTextIsClean(f.predicate) || !BookTextIsClean(f.object)) {
+            return f.subject ? f.subject : "";
+        }
+    }
+    for (int i = 0; i < rec.evidence.len; i++) {
+        if (!BookTextIsClean(rec.evidence[i].note)) {
+            return rec.evidence[i].note;
+        }
+    }
+    for (int i = 0; i < rec.chapters.len; i++) {
+        if (!BookTextIsClean(rec.chapters[i].title)) {
+            return rec.chapters[i].title;
+        }
+    }
+    for (int i = 0; i < rec.adaptations.len; i++) {
+        const BlobShow& a = rec.adaptations[i];
+        if (!BookTextIsClean(a.title) || !BookTextIsClean(a.kind) || !BookTextIsClean(a.ref)) {
+            return a.title ? a.title : "";
+        }
+    }
+    return nullptr;
+}
+
+TempStr BookRecordWhyInvalid(const BookBlobRecord& rec) {
+    if (!rec.hasIdentity || !rec.identity.fingerprint || !*rec.identity.fingerprint) {
+        return str::DupTemp(StrL("the record has no fingerprint to match it to a book"));
+    }
+    if (rec.hasCover) {
+        const BlobCover& c = rec.cover;
+        if (c.kind == kBlobCoverPage) {
+            if (c.page < 1) {
+                return fmt("the cover names page %d", c.page);
+            }
+            if (rec.identity.pages > 0 && c.page > rec.identity.pages) {
+                return fmt("the cover names page %d of a %d page book", c.page, rec.identity.pages);
+            }
+            if (!(c.x1 > c.x0) || !(c.y1 > c.y0)) {
+                return str::DupTemp(StrL("the cover names an empty rectangle"));
+            }
+            if (!(c.x0 >= -1e9 && c.x1 <= 1e9 && c.y0 >= -1e9 && c.y1 <= 1e9)) {
+                return str::DupTemp(StrL("the cover rectangle is off the page"));
+            }
+            if (c.rotation != 0 && c.rotation != 90 && c.rotation != 180 && c.rotation != 270) {
+                return fmt("the cover is turned %d degrees", c.rotation);
+            }
+        }
+        if (c.kind == kBlobCoverImage || c.data.len > 0) {
+            if (c.data.len < kBookCoverMinBytes) {
+                return fmt("the cover art is only %d bytes", c.data.len);
+            }
+            if (c.data.len > kBookCoverMaxBytes) {
+                return fmt("the cover art is %d bytes, over the %d limit", c.data.len, kBookCoverMaxBytes);
+            }
+            const char* real = BookCoverFormatOfBytes(c.data.LendData(), c.data.len);
+            if (!real) {
+                return str::DupTemp(StrL("the cover art is not webp, png or jpeg"));
+            }
+            if (!c.format || !str::EqI(Str(c.format), Str(real))) {
+                return fmt("the cover art says it is %s but it is %s", Str(c.format ? c.format : ""), Str(real));
+            }
+        }
+    }
+
+    if (BookRecordBadText(rec)) {
+        return str::DupTemp(StrL("a field is not text we can carry across platforms"));
+    }
+
+    Vec<u8> wanted;
+    if (!BookBlobPayload(rec, wanted)) {
+        return str::DupTemp(StrL("the record could not be encoded"));
+    }
+    Vec<u8> blob;
+    if (!BookBlobEncode(rec, blob)) {
+        return str::DupTemp(StrL("the record could not be packed"));
+    }
+    BookBlobRecord back;
+    if (!BookBlobDecode(blob.LendData(), blob.len, back)) {
+        return str::DupTemp(StrL("the packed record did not read back"));
+    }
+    Vec<u8> got;
+    if (!BookBlobPayload(back, got)) {
+        return str::DupTemp(StrL("the record that read back could not be encoded"));
+    }
+    if (got.len != wanted.len || memcmp(got.LendData(), wanted.LendData(), (size_t)got.len) != 0) {
+        return str::DupTemp(StrL("the record changed when it was written and read back"));
+    }
+    return nullptr;
 }

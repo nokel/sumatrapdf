@@ -240,15 +240,21 @@ bool HttpPost(Str serverA, int port, Str urlA, str::Builder* headers, str::Build
     WCHAR* server = CWStrTemp(serverA);
     WCHAR* url = CWStrTemp(urlA);
     DWORD infoLevel;
+    int dbgStep = 0;
+
+    logf("HttpPost: step=%d host=%s port=%d url=%s hdrLen=%d bodyLen=%d\n", ++dbgStep, serverA, port, urlA,
+         headers ? len(*headers) : 0, data ? len(*data) : 0);
 
     DWORD accessType = INTERNET_OPEN_TYPE_PRECONFIG;
     HINTERNET hInet = InternetOpenW(kUserAgent, accessType, nullptr, nullptr, 0);
     if (!hInet) {
+        logf("HttpPost: InternetOpenW failed, gle=%lu\n", GetLastError());
         goto Exit;
     }
     dwService = INTERNET_SERVICE_HTTP;
     hConn = InternetConnectW(hInet, server, (INTERNET_PORT)port, nullptr, nullptr, dwService, 0, 1);
     if (!hConn) {
+        logf("HttpPost: InternetConnectW failed, gle=%lu\n", GetLastError());
         goto Exit;
     }
 
@@ -258,6 +264,7 @@ bool HttpPost(Str serverA, int port, Str urlA, str::Builder* headers, str::Build
     }
     hReq = HttpOpenRequestW(hConn, L"POST", url, nullptr, nullptr, nullptr, flags, 0);
     if (!hReq) {
+        logf("HttpPost: HttpOpenRequestW failed, gle=%lu\n", GetLastError());
         goto Exit;
     }
 
@@ -274,15 +281,20 @@ bool HttpPost(Str serverA, int port, Str urlA, str::Builder* headers, str::Build
     InternetSetOptionW(hReq, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeoutMs, sizeof(timeoutMs));
 
     if (!HttpSendRequestA(hReq, hdr, hdrLen, d, dLen)) {
+        logf("HttpPost: HttpSendRequestA failed, gle=%lu\n", GetLastError());
         goto Exit;
     }
 
     infoLevel = HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER;
-    HttpQueryInfoW(hReq, infoLevel, &respHttpCode, &respHttpCodeSize, nullptr);
+    if (!HttpQueryInfoW(hReq, infoLevel, &respHttpCode, &respHttpCodeSize, nullptr)) {
+        logf("HttpPost: HttpQueryInfoW failed, gle=%lu\n", GetLastError());
+    }
+    logf("HttpPost: status=%lu\n", respHttpCode);
 
     do {
         char buf[1024];
         if (!InternetReadFile(hReq, buf, sizeof(buf), &dwRead)) {
+            logf("HttpPost: InternetReadFile failed, gle=%lu\n", GetLastError());
             goto Exit;
         }
         ok = resp.Append(Str(buf, (int)dwRead));
@@ -300,6 +312,7 @@ bool HttpPost(Str serverA, int port, Str urlA, str::Builder* headers, str::Build
     }
 #endif
     ok = (200 == respHttpCode);
+    logf("HttpPost: result=%d body=%s\n", (int)ok, ToStr(resp));
 Exit:
     if (hReq) {
         InternetCloseHandle(hReq);

@@ -90,7 +90,7 @@ static u32 FileTimeToDosDateTime(FILETIME ft) {
 #endif
 }
 
-bool ZipCreator::AddFileData(Str name, Str data, u32 dosdate) {
+bool ZipCreator::AddFileData(Str name, Str data, u32 dosdate, bool compressData) {
     int size = data.len;
     ReportIf(size >= UINT32_MAX);
     ReportIf(len(name) >= UINT16_MAX);
@@ -106,13 +106,13 @@ bool ZipCreator::AddFileData(Str name, Str data, u32 dosdate) {
         return false;
     }
 
-    u16 method = Z_DEFLATED;
+    u16 method = compressData ? Z_DEFLATED : 0;
     char* compressed = AllocArrayTemp<char>(size);
     if (!compressed) {
         return false;
     }
-    uLongf compressedSize = zip_compress(compressed, (u32)size, data.s, (u32)size);
-    if (!compressedSize) {
+    uLongf compressedSize = compressData ? zip_compress(compressed, (u32)size, data.s, (u32)size) : 0;
+    if (!compressData || !compressedSize) {
         method = 0; // Store
         memcpy(compressed, data.s, size);
         compressedSize = (u32)size;

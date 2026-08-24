@@ -147,6 +147,21 @@
     <ClInclude Include="..\src\Commands.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\CoverData.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CoverEditor.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CoverOnline.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CoverSpotVectors.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\CoverVision.h">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\CrashHandler.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -265,6 +280,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\LibraryScan.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\LibrarySidecar.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\LibraryStore.h">
@@ -472,6 +490,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\WebpReader.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\WebpWriter.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\WindowTab.h">
@@ -701,6 +722,18 @@
     <ClCompile Include="..\src\Commands.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\CoverEditor.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CoverModel.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CoverOnline.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\CoverVision.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\CrashHandler.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -852,6 +885,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\LibraryScan.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\LibrarySidecar.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\LibraryStore.cpp">
@@ -1139,6 +1175,9 @@
     <ClCompile Include="..\src\WebpReader.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\WebpWriter.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\WindowTab.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -1158,6 +1197,9 @@
       <Filter>src\base\tests</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\tests\ClipboardImage_ut.cpp">
+      <Filter>src\base\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\base\tests\CoverModel_ut.cpp">
       <Filter>src\base\tests</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\tests\Crypto_ut.cpp">
@@ -1200,6 +1242,9 @@
       <Filter>src\base\tests</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\tests\Vec_ut.cpp">
+      <Filter>src\base\tests</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\base\tests\WebpWriter_ut.cpp">
       <Filter>src\base\tests</Filter>
     </ClCompile>
     <ClCompile Include="..\src\base\tests\Win_ut.cpp">
