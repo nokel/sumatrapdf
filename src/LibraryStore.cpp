@@ -14,10 +14,16 @@
 
 LibraryStore* LibraryStoreNew() {
     auto* store = (LibraryStore*)DeserializeStruct(&gLibraryStoreInfo, {});
+    if (store) {
+        store->version = kLibraryStoreVersion;
+    }
     return store;
 }
 
 LibraryStore* LibraryStoreParse(Str data) {
+    if (len(data) == 0) {
+        return LibraryStoreNew();
+    }
     auto* store = (LibraryStore*)DeserializeStruct(&gLibraryStoreInfo, data);
     if (!store) {
         return nullptr;
