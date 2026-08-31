@@ -94,6 +94,7 @@
 #include "StressTesting.h"
 #include "HomePage.h"
 #include "LibraryPage.h"
+#include "LibraryRootsWindow.h"
 #include "SumatraDialogs.h"
 #include "SumatraProperties.h"
 #include "TabGroupsManage.h"
@@ -4804,6 +4805,8 @@ static void OnMenuExit() {
         return;
     }
 
+    LibraryRequestScanCancelAndWait();
+
     for (MainWindow* win : gWindows) {
         if (!CanCloseWindow(win)) {
             return;
@@ -6272,6 +6275,45 @@ static void BuildOpenFileFilters(OpenFileFilterList& out) {
         }
     }
     out.Add(_TRA("All files"), StrL("*.*"));
+}
+
+TempStr PickOneDocumentFileTemp(HWND parent) {
+    if (!CanAccessDisk() || gPluginMode) {
+        return {};
+    }
+    ScopedComPtr<IFileOpenDialog> dlg;
+    HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dlg));
+    if (FAILED(hr) || !dlg) {
+        logf("PickOneDocumentFileTemp: CoCreateInstance(CLSID_FileOpenDialog) failed: 0x%x\n", (uint)hr);
+        return {};
+    }
+    DWORD opts = 0;
+    dlg->GetOptions(&opts);
+    dlg->SetOptions(opts | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST | FOS_FILEMUSTEXIST);
+    OpenFileFilterList filters;
+    BuildOpenFileFilters(filters);
+    if (len(filters.specs) > 0) {
+        dlg->SetFileTypes((UINT)len(filters.specs), filters.specs.LendData());
+        dlg->SetFileTypeIndex(1);
+    }
+    dlg->SetTitle(ToWStrTemp(StrL("Manually add book to library")).s);
+    hr = dlg->Show(parent);
+    if (FAILED(hr)) {
+        return {};
+    }
+    ScopedComPtr<IShellItem> item;
+    hr = dlg->GetResult(&item);
+    if (FAILED(hr) || !item) {
+        return {};
+    }
+    PWSTR pathW = nullptr;
+    hr = item->GetDisplayName(SIGDN_FILESYSPATH, &pathW);
+    if (FAILED(hr) || !pathW) {
+        return {};
+    }
+    TempStr path = ToUtf8Temp(WStr(pathW));
+    CoTaskMemFree(pathW);
+    return path;
 }
 
 // Standard Windows IFileOpenDialog multi-select open.
@@ -10448,14 +10490,14 @@ bool LibraryEnsureService() {
     if (!file::Exists(python) || !file::Exists(module)) {
         return false;
     }
-    TempStr cmdLine = fmt("\"%s\" -m audiobook.library --port %d --parent-pid %d", python, LibraryServicePort(),
-                          (int)GetCurrentProcessId());
-    Str roots = gGlobalPrefs->audiobook.libraryRoots;
-    if (len(roots) > 0) {
-        StrVec parts;
-        Split(&parts, roots, StrL(";"), true);
-        for (int i = 0; i < parts.size; i++) {
-            cmdLine = fmt("%s --root \"%s\"", cmdLine, parts.At(i));
+    TempStr cmdLine = fmt("\"%s\" -m audiobook.library --port %d --parent-pid %d --ignore-days %d", python,
+                          LibraryServicePort(), (int)GetCurrentProcessId(), LibraryIgnoreDays());
+    Vec<LibraryRoot*>* rootRows = gGlobalPrefs->audiobook.libraryRoots;
+    if (rootRows) {
+        for (LibraryRoot* row : *rootRows) {
+            if (row && row->enabled && row->path.len > 0) {
+                cmdLine = fmt("%s --root \"%s\"", cmdLine, row->path);
+            }
         }
     }
     gLibraryProc = LaunchProcessInDir(cmdLine, dir, CREATE_NO_WINDOW);
@@ -11613,6 +11655,10 @@ static LRESULT FrameOnCommand(MainWindow* win, HWND hwnd, UINT msg, WPARAM wp, L
         case CmdAdvancedOptions:
         case CmdAdvancedSettings:
             ShowAdvancedSettingsDialog(win);
+            break;
+
+        case CmdLibraryIndexing:
+            ShowLibraryIndexingWindow(win);
             break;
 
         case CmdChangeTheme:

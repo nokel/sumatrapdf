@@ -425,6 +425,8 @@ bool PdfSidecarWriteBlob(Str path, const u8* blob, int size, Str fingerprint, co
         pdf_dict_dels(ctx, hidden, "CoverFormat");
         if (fingerprint.len > 0) {
             pdf_dict_puts_drop(ctx, hidden, "Fingerprint", pdf_new_text_string(ctx, CStrTemp(fingerprint)));
+        } else {
+            pdf_dict_dels(ctx, hidden, "Fingerprint");
         }
 
         bool anyInfo = fingerprint.len > 0;
@@ -443,7 +445,11 @@ bool PdfSidecarWriteBlob(Str path, const u8* blob, int size, Str fingerprint, co
             }
             if (fingerprint.len > 0) {
                 pdf_dict_puts_drop(ctx, dict, kInfoFingerprint, pdf_new_text_string(ctx, CStrTemp(fingerprint)));
+            } else {
+                pdf_dict_dels(ctx, dict, kInfoFingerprint);
             }
+        } else if (fingerprint.len == 0) {
+            pdf_dict_dels(ctx, SidecarInfo(ctx, pdf), kInfoFingerprint);
         }
 
         pdf_write_options opts{};

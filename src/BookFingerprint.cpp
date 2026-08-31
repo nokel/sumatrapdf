@@ -11,8 +11,10 @@ extern "C" {
 }
 
 #include "BookBlob.h"
+#include "BookOcr.h"
 #include "PdfSidecar.h"
 #include "BookFingerprint.h"
+#include "LibraryStore.h"
 
 static const int kDigitRanges[] = {
     0x0030,  0x0039,  0x0660,  0x0669,  0x06F0,  0x06F9,  0x07C0,  0x07C9,  0x0966,  0x096F,  0x09E6,  0x09EF,  0x0A66,
@@ -198,15 +200,6 @@ static void SqueezePySpace(Str s, str::Builder& out) {
     }
 }
 
-static void DropPySpaceWide(WStr s, wstr::Builder& out) {
-    for (int i = 0; i < s.len; i++) {
-        if (IsPySpace((int)s.s[i])) {
-            continue;
-        }
-        out.AppendChar(s.s[i]);
-    }
-}
-
 static void SubDigitRuns(Str s, str::Builder& out) {
     int at = 0;
     while (at < s.len) {
@@ -345,8 +338,11 @@ Str BookReadingText(const StrVec& pages) {
     return res.TakeStr();
 }
 
-Str BookIdentityText(const StrVec& pages) {
+Str BookIdentityText(const StrVec& pages, int* runningLines, int* identityTokens) {
     StrVec drop = BookRunningLines(pages);
+    if (runningLines) {
+        *runningLines = drop.size;
+    }
     dict::MapStrToInt dropped(1024);
     for (int i = 0; i < drop.size; i++) {
         dropped.Insert(drop.At(i), 1, nullptr, nullptr);
@@ -364,12 +360,15 @@ Str BookIdentityText(const StrVec& pages) {
             continue;
         }
         for (int at = 0; at < lines.len; at++) {
+            LineKey(lines[at], scratch, key);
+            Str k(key.els, (int)key.len);
+            if (KeyIsAllHashes(k)) {
+                continue;
+            }
             bool edge = at == 0 || at == lines.len - 1;
             if (edge) {
-                LineKey(lines[at], scratch, key);
-                Str k(key.els, (int)key.len);
                 int found = 0;
-                if (KeyIsAllHashes(k) || dropped.Get(k, &found)) {
+                if (dropped.Get(k, &found)) {
                     continue;
                 }
             }
@@ -403,8 +402,44 @@ Str BookIdentityText(const StrVec& pages) {
         }
     }
 
+    struct WordSpan {
+        int start;
+        int len;
+    };
+    Vec<WORD> types;
+    Vec<WordSpan> words;
+    if (formed.len > 0) {
+        WORD* values = types.AppendBlanks(formed.len);
+        if (GetStringTypeW(CT_CTYPE1, formed.s, formed.len, values)) {
+            int start = -1;
+            for (int i = 0; i <= formed.len; i++) {
+                bool word = i < formed.len && (values[i] & (C1_ALPHA | C1_DIGIT)) != 0;
+                if (word && start < 0) {
+                    start = i;
+                } else if (!word && start >= 0) {
+                    words.Append({start, i - start});
+                    start = -1;
+                }
+            }
+        }
+    }
+    int firstWord = 0;
+    for (int i = 0; i + 1 < words.len; i++) {
+        WStr word(formed.s + words[i].start, words[i].len);
+        WStr next(formed.s + words[i + 1].start, words[i + 1].len);
+        if (wstr::EqI(word, WStrL(L"chapter")) && wstr::Eq(next, WStrL(L"1"))) {
+            firstWord = i;
+            break;
+        }
+    }
     wstr::Builder tight;
-    DropPySpaceWide(formed, tight);
+    int endWord = std::min(words.len, firstWord + kBookIdentityTokenLimit);
+    if (identityTokens) {
+        *identityTokens = endWord - firstWord;
+    }
+    for (int i = firstWord; i < endWord; i++) {
+        tight.Append(WStr(formed.s + words[i].start, words[i].len));
+    }
     Str res = ToUtf8(WStr(tight.els, (int)tight.len));
     free(owned);
     wstr::Free(wide);
@@ -489,7 +524,8 @@ static Str PageTextOf(fz_context* ctx, fz_page* page) {
     return b.TakeStr();
 }
 
-static void PageTexts(fz_context* ctx, fz_document* doc, int nPages, StrVec& out) {
+static void PageTexts(fz_context* ctx, fz_document* doc, int nPages, StrVec& out, BookFingerprintProgressCb progressCb,
+                      void* progressCtx) {
     for (int i = 0; i < nPages; i++) {
         fz_page* page = nullptr;
         fz_var(page);
@@ -502,12 +538,18 @@ static void PageTexts(fz_context* ctx, fz_document* doc, int nPages, StrVec& out
         }
         if (!page) {
             out.Append("");
+            if (progressCb) {
+                progressCb(i + 1, nPages, progressCtx);
+            }
             continue;
         }
         Str text = PageTextOf(ctx, page);
         out.Append(text);
         str::Free(text);
         fz_drop_page(ctx, page);
+        if (progressCb) {
+            progressCb(i + 1, nPages, progressCtx);
+        }
     }
 }
 
@@ -692,12 +734,63 @@ static void PageHashes(fz_context* ctx, fz_document* doc, int nPages, Vec<u64>& 
 void BookFingerprintFree(BookFingerprint& fp) {
     str::Free(fp.fingerprint);
     str::Free(fp.readingText);
+    str::Free(fp.identityText);
     fp.fingerprint = {};
     fp.readingText = {};
     fp.pageHashes.Reset();
 }
 
-bool BookFingerprintOfFile(Str path, BookFingerprint& out, int wantPageHashes) {
+static LONG gFullCalls = 0;
+static LONG gShapeCalls = 0;
+static LONG gConfirmHits = 0;
+static LONG gConfirmSeeded = 0;
+static LONG gOcrAttempts = 0;
+static LONG gOcrPages = 0;
+static LONG gOcrSuccesses = 0;
+static LONG gOcrNoText = 0;
+
+void BookFingerprintPerfCounters(int* fullCalls, int* shapeCalls, int* cacheHits, int* seeded,
+                                  int* ocrAttempts, int* ocrPages, int* ocrSuccesses, int* ocrNoText) {
+    if (fullCalls) {
+        *fullCalls = (int)gFullCalls;
+    }
+    if (shapeCalls) {
+        *shapeCalls = (int)gShapeCalls;
+    }
+    if (cacheHits) {
+        *cacheHits = (int)gConfirmHits;
+    }
+    if (seeded) {
+        *seeded = (int)gConfirmSeeded;
+    }
+    if (ocrAttempts) {
+        *ocrAttempts = (int)gOcrAttempts;
+    }
+    if (ocrPages) {
+        *ocrPages = (int)gOcrPages;
+    }
+    if (ocrSuccesses) {
+        *ocrSuccesses = (int)gOcrSuccesses;
+    }
+    if (ocrNoText) {
+        *ocrNoText = (int)gOcrNoText;
+    }
+}
+
+void BookFingerprintResetCounters() {
+    InterlockedExchange(&gFullCalls, 0);
+    InterlockedExchange(&gShapeCalls, 0);
+    InterlockedExchange(&gConfirmHits, 0);
+    InterlockedExchange(&gConfirmSeeded, 0);
+    InterlockedExchange(&gOcrAttempts, 0);
+    InterlockedExchange(&gOcrPages, 0);
+    InterlockedExchange(&gOcrSuccesses, 0);
+    InterlockedExchange(&gOcrNoText, 0);
+}
+
+bool BookFingerprintOfFile(Str path, BookFingerprint& out, int wantPageHashes, bool keepIdentityText,
+                            bool runOcr, BookFingerprintProgressCb progressCb, void* progressCtx) {
+    InterlockedIncrement(&gFullCalls);
     if (!file::Exists(path)) {
         return false;
     }
@@ -735,29 +828,87 @@ bool BookFingerprintOfFile(Str path, BookFingerprint& out, int wantPageHashes) {
     }
 
     StrVec pages;
-    PageTexts(ctx, doc, nPages, pages);
+    PageTexts(ctx, doc, nPages, pages, progressCb, progressCtx);
 
-    Str reading = BookReadingText(pages);
-    Str identity = BookIdentityText(pages);
+    bool imageOnly = BookIsImageOnly(pages);
+    Str identity = BookIdentityText(pages, &out.runningLines);
+
+    bool needOcr = runOcr && imageOnly;
+    StrVec ocrPages;
+    if (needOcr) {
+        InterlockedIncrement(&gOcrAttempts);
+        TempStr tessdata = BookOcrTessdataPath();
+        if (tessdata) {
+            OcrResult ocr = BookOcrRun(ctx, doc, tessdata.s);
+            if (ocr.cancelled) {
+                out.ocrState = kBookOcrNotAttempted;
+                out.ocrPages = ocr.pagesOcred;
+                out.ocrPagesSkipped = ocr.pagesSkipped;
+            } else if (ocr.ocrAttempted) {
+                if (ocr.ocrSucceeded) {
+                    InterlockedIncrement(&gOcrSuccesses);
+                    InterlockedExchangeAdd(&gOcrPages, ocr.pagesOcred);
+                    out.ocrState = kBookOcrSuccess;
+                    out.ocrPages = ocr.pagesOcred;
+                    out.ocrPagesSkipped = ocr.pagesSkipped;
+                    out.ocrTokens = ocr.recognizedTokens;
+                    for (int i = 0; i < ocr.pageTexts.size; i++) {
+                        ocrPages.Append(ocr.pageTexts.At(i));
+                    }
+                } else {
+                    InterlockedIncrement(&gOcrNoText);
+                    out.ocrState = kBookOcrNoText;
+                    out.ocrPages = ocr.pagesOcred;
+                    out.ocrPagesSkipped = ocr.pagesSkipped;
+                    out.ocrTokens = ocr.recognizedTokens;
+                }
+            } else {
+                out.ocrState = kBookOcrEngineUnavailable;
+            }
+        } else {
+            out.ocrState = kBookOcrEngineUnavailable;
+        }
+    } else if (imageOnly) {
+        out.ocrState = kBookOcrNotAttempted;
+    }
+
+    const StrVec* identityPages = &pages;
+    if (ocrPages.size > 0) {
+        identityPages = &ocrPages;
+    }
+    int runningLines = 0;
+    str::Free(identity);
+    identity = BookIdentityText(*identityPages, &runningLines);
+    if (ocrPages.size > 0) {
+        out.runningLines = runningLines;
+    }
+    Str reading = BookReadingText(*identityPages);
 
     char shape[33];
     int imageCount = 0;
     ShapeDigest(ctx, doc, nPages, shape, imageCount);
 
-    u8 identityDigest[16];
-    CalcMD5Digest(identity, identityDigest);
-    char identityHex[33];
-    HexDigest(identityDigest, identityHex);
-
-    out.fingerprint = str::Dup(str::FormatTemp("%s:%s:%s", Str(kBookFingerprintVersion), Str(identityHex), Str(shape)));
+    bool usableIdentity = identity.len > 0 && (!needOcr || out.ocrState == kBookOcrSuccess);
+    if (usableIdentity) {
+        u8 identityDigest[16];
+        CalcMD5Digest(identity, identityDigest);
+        char identityHex[33];
+        HexDigest(identityDigest, identityHex);
+        out.fingerprint =
+            str::Dup(str::FormatTemp("%s:%s:%s", Str(kBookFingerprintVersion), Str(identityHex), Str(shape)));
+    }
     CalcMD5Digest(reading, out.textMd5);
     out.textLength = reading.len;
+    out.identityLength = identity.len;
     out.readingText = reading;
+    if (keepIdentityText) {
+        out.identityText = str::Dup(identity);
+    }
     out.pages = nPages;
     out.images = imageCount;
-    out.imageOnly = BookIsImageOnly(pages);
+    out.imageOnly = imageOnly;
     out.pageHashes.Reset();
-    bool wanted = wantPageHashes < 0 ? out.imageOnly : wantPageHashes != 0;
+    bool wanted = wantPageHashes < 0 ? imageOnly : wantPageHashes != 0;
     if (wanted) {
         PageHashes(ctx, doc, nPages, out.pageHashes);
     }
@@ -768,12 +919,175 @@ bool BookFingerprintOfFile(Str path, BookFingerprint& out, int wantPageHashes) {
     return true;
 }
 
+bool BookShapeOfFile(Str path, char shapeOut[33], int* pagesOut) {
+    InterlockedIncrement(&gShapeCalls);
+    shapeOut[0] = 0;
+    if (pagesOut) {
+        *pagesOut = 0;
+    }
+    if (!file::Exists(path)) {
+        return false;
+    }
+    fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_UNLIMITED);
+    if (!ctx) {
+        return false;
+    }
+    fz_register_document_handlers(ctx);
+    fz_document* doc = nullptr;
+    fz_var(doc);
+    fz_try(ctx) {
+        doc = fz_open_document(ctx, CStrTemp(path));
+    }
+    fz_catch(ctx) {
+        fz_report_error(ctx);
+        doc = nullptr;
+    }
+    if (!doc) {
+        fz_drop_context(ctx);
+        return false;
+    }
+    if (fz_needs_password(ctx, doc)) {
+        fz_drop_document(ctx, doc);
+        fz_drop_context(ctx);
+        return false;
+    }
+    if (!pdf_specifics(ctx, doc)) {
+        fz_drop_document(ctx, doc);
+        fz_drop_context(ctx);
+        return false;
+    }
+    int nPages = 0;
+    fz_try(ctx) {
+        nPages = fz_count_pages(ctx, doc);
+    }
+    fz_catch(ctx) {
+        fz_report_error(ctx);
+        nPages = 0;
+    }
+    int imageCount = 0;
+    ShapeDigest(ctx, doc, nPages, shapeOut, imageCount);
+    if (pagesOut) {
+        *pagesOut = nPages;
+    }
+    fz_drop_document(ctx, doc);
+    fz_drop_context(ctx);
+    return true;
+}
+
+// The fingerprint is a pure function of the file's bytes and costs a full
+// document parse to produce, so an unchanged file is answered from the store
+// instead of being parsed again. The key is the file's size and modification
+// time; a book that is edited on disk gets a new key and is re-read.
+
+static Mutex gFingerprintCacheMutex;
+static LibraryFingerprints* gFingerprintCache = nullptr;
+
+void BookFingerprintCacheOpen(Str dataDir) {
+    if (len(dataDir) == 0) {
+        return;
+    }
+    gFingerprintCacheMutex.Lock();
+    if (!gFingerprintCache) {
+        gFingerprintCache = LibraryFingerprintsOpen(dataDir);
+    }
+    gFingerprintCacheMutex.Unlock();
+}
+
+void BookFingerprintCacheClose() {
+    gFingerprintCacheMutex.Lock();
+    LibraryFingerprintsClose(gFingerprintCache);
+    gFingerprintCache = nullptr;
+    gFingerprintCacheMutex.Unlock();
+}
+
+static i64 FileModifiedTicks(Str path) {
+    FILETIME ft = file::GetModificationTime(path);
+    return ((i64)ft.dwHighDateTime << 32) | (i64)ft.dwLowDateTime;
+}
+
 TempStr BookFingerprintOfPath(Str path) {
+    i64 fileSize = file::GetSize(path);
+    i64 modifiedTicks = FileModifiedTicks(path);
+
+    gFingerprintCacheMutex.Lock();
+    Str known = LibraryFingerprintsGet(gFingerprintCache, path, fileSize, modifiedTicks);
+    gFingerprintCacheMutex.Unlock();
+    if (len(known) > 0) {
+        TempStr hit = str::DupTemp(known);
+        str::Free(known);
+        return hit;
+    }
+    str::Free(known);
+    logf("BookFingerprintOfPath: MISS path=%s\n", path);
+
     BookFingerprint fp;
     if (!BookFingerprintOfFile(path, fp, 0)) {
         return {};
     }
     TempStr res = str::DupTemp(fp.fingerprint);
     BookFingerprintFree(fp);
+
+    gFingerprintCacheMutex.Lock();
+    LibraryFingerprintsPut(gFingerprintCache, path, fileSize, modifiedTicks, res);
+    gFingerprintCacheMutex.Unlock();
     return res;
+}
+
+static Str ShapePartOf(Str fingerprint) {
+    TempStr prefix = str::FormatTemp("%s:", Str(kBookFingerprintVersion));
+    if (!str::StartsWith(fingerprint, prefix)) {
+        return {};
+    }
+    int at = -1;
+    for (int i = 0; i < fingerprint.len; i++) {
+        if (fingerprint.s[i] == ':') {
+            at = i;
+        }
+    }
+    if (at < 0 || at + 1 >= fingerprint.len) {
+        return {};
+    }
+    return Str(fingerprint.s + at + 1, fingerprint.len - at - 1);
+}
+
+bool BookFingerprintConfirms(Str path, Str claimed, int claimedPages) {
+    if (len(claimed) == 0) {
+        return false;
+    }
+    i64 fileSize = file::GetSize(path);
+    i64 modifiedTicks = FileModifiedTicks(path);
+
+    gFingerprintCacheMutex.Lock();
+    Str known = LibraryFingerprintsGet(gFingerprintCache, path, fileSize, modifiedTicks);
+    gFingerprintCacheMutex.Unlock();
+    if (len(known) > 0) {
+        InterlockedIncrement(&gConfirmHits);
+        bool same = str::Eq(known, claimed);
+        str::Free(known);
+        return same;
+    }
+    str::Free(known);
+
+    Str wantShape = ShapePartOf(claimed);
+    if (len(wantShape) == 0) {
+        return false;
+    }
+    char shape[33];
+    int pages = 0;
+    if (!BookShapeOfFile(path, shape, &pages)) {
+        TempStr actual = BookFingerprintOfPath(path);
+        return len(actual) > 0 && str::Eq(actual, claimed);
+    }
+    if (!str::Eq(Str(shape), wantShape)) {
+        return false;
+    }
+    if (claimedPages > 0 && pages > 0 && pages != claimedPages) {
+        return false;
+    }
+
+    InterlockedIncrement(&gConfirmSeeded);
+    gFingerprintCacheMutex.Lock();
+    LibraryFingerprintsPut(gFingerprintCache, path, fileSize, modifiedTicks, claimed);
+    gFingerprintCacheMutex.Unlock();
+    return true;
 }

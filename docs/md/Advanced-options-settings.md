@@ -624,10 +624,19 @@ Audiobook [
     ; adaptations. If false, the classic Frequently Read page is shown instead
     LibraryHome = true
 
-    ; folders to look for books in, separated by ; . Empty means work them out:
-    ; the folders already analysed, then Documents/Downloads/Desktop, then a
+    ; folders the Library looks for books in, edited in Settings -> Library
+    ; Indexing. Empty means work them out on first use: the folders that already
+    ; hold books in the Library, then Documents/Downloads/Desktop, then a
     ; bounded scan of every fixed drive
-    LibraryRoots = 
+    LibraryRoots [
+      [
+        ; full path of the folder
+        Path = 
+
+        ; if true, the Library scans this folder
+        Enabled = true
+      ]
+    ]
 
     ; port of the Chatterbox library service (audiobook\library)
     LibraryPort = 7863
@@ -636,6 +645,15 @@ Audiobook [
     ; "genre" (grouped under genre headings), "most" (most books first) or
     ; "fewest" (fewest books first). Chosen on the page
     LibrarySort = alpha
+
+    ; if true, show completed books while the Library scan continues
+    ProgressiveLibraryScan = true
+
+    ; how many days a book taken out of the Library with Remove from library
+    ; stays in Deskpan > Ignored. When the time is up the file becomes a
+    ; permanent Library exclusion that automatic scans skip, and only a manual
+    ; import brings it back. Edited in Settings -> SumatraPDF Options
+    LibraryIgnoreDays = 30
 ]
 
 ; settings for the Grok Build chat sidebar (introduced in version 3.7)

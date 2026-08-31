@@ -203,6 +203,7 @@ async function buildWindows(config: Config, win32: boolean, clean: boolean): Pro
     `/p:Configuration=${configName};Platform=${platform}`,
     "/m",
   ]);
+  await runLogged("bun", ["ext/publish-tessdata.ts"], process.cwd());
   console.log(`build took ${((performance.now() - timeStart) / 1000).toFixed(1)}s`);
 }
 

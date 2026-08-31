@@ -940,6 +940,7 @@ workspace "SumatraPDF"
     -- so we can't double-define it
     defines { "USE_JPIP", "OPJ_EXPORTS", "HAVE_LCMS2MT=1", "HAVE_WEBP=1" }
     defines { "OPJ_STATIC", "SHARE_JPEG" }
+    defines { "HAVE_TESSERACT", "HAVE_LEPTONICA" }
     -- this defines which fonts are to be excluded from being included directly
     -- we exclude the very big cjk fonts
     defines { "TOFU_NOTO", "TOFU_CJK_LANG", "TOFU_NOTO_SUMATRA" }
@@ -964,6 +965,9 @@ workspace "SumatraPDF"
       "ext/a-jbig2dec",
       "ext/libjpeg-turbo/src",
       "ext/a-openjpeg",
+      "ext/build/ocr-install/include",
+      "ext/build/ocr-install/include/leptonica",
+      "ext/a-leptonica/src",
       "ext/mupdf/scripts/freetype",
       "ext/freetype/include",
       "ext/a-mujs",
@@ -981,12 +985,29 @@ workspace "SumatraPDF"
     fonts()
 
     mupdf_files()
+    -- tessocr.cpp and leptonica-wrap.c are C++ and need exception handling + RTTI
+    filter { "files:ext/mupdf/source/fitz/tessocr.cpp" }
+      language "C++"
+      exceptionhandling "On"
+      rtti "On"
+    filter {}
+    filter { "files:ext/mupdf/source/fitz/leptonica-wrap.c" }
+      language "C++"
+      exceptionhandling "On"
+      rtti "On"
+    filter {}
     -- Third-party code lives in its own static libs; link them so libsumatrapdf.dll
     -- / SumatraPDF-static pick them up via project references.
     links {
       "cmark-gfm", "a-mujs", "a-extract", "harfbuzz", "freetype", "brotli",
       "lcms2", "a-openjpeg", "a-jbig2dec", "libjpeg-turbo", "libarchive", "a-gumbo",
     }
+    -- Tesseract and Leptonica are built externally via CMake and linked as static libs.
+    -- mupdf uses Release runtime in all configs, so always link the Release libs.
+    filter { "platforms:x64 or x64_asan" }
+      libdirs { "ext/build/ocr-install/lib" }
+      links { "tesseract53", "leptonica-1.84.0" }
+    filter {}
 
     -- mupdf
     -- this fixes "NAN" is not a constant in some version of msvc
@@ -994,7 +1015,8 @@ workspace "SumatraPDF"
     -- CMARK_GFM_STATIC_DEFINE: md.c includes cmark-gfm headers; we link the
     -- cmark-gfm static lib into this project so libsumatrapdf.dll contains cmark
     -- (and re-exports MarkdownToc's symbols via libsumatrapdf.def).
-    defines { "_UCRT_NOISY_NAN", "CMARK_GFM_STATIC_DEFINE" }
+    -- HAVE_TESSERACT / HAVE_LEPTONICA: gate the OCR device in fitz/config.h.
+    defines { "_UCRT_NOISY_NAN", "CMARK_GFM_STATIC_DEFINE", "HAVE_TESSERACT", "HAVE_LEPTONICA" }
 
   project "libsumatrapdf"
     dll_shared_lib_dirs()

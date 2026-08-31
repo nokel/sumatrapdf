@@ -74,6 +74,8 @@ struct LibrarySeries {
     Str author;
     // key of the enclosing series, empty at the top level
     Str parent;
+    //
+    Str parentSource;
     // key of the lore wiki entry for the series, empty if none
     Str wiki;
     // genre worked out for the series
@@ -191,6 +193,7 @@ static const FieldInfo gLibrarySeriesFields[] = {
     {offsetof(LibrarySeries, name), SettingType::String, (intptr_t)""},
     {offsetof(LibrarySeries, author), SettingType::String, (intptr_t)""},
     {offsetof(LibrarySeries, parent), SettingType::String, (intptr_t)""},
+    {offsetof(LibrarySeries, parentSource), SettingType::String, (intptr_t)""},
     {offsetof(LibrarySeries, wiki), SettingType::String, (intptr_t)""},
     {offsetof(LibrarySeries, genre), SettingType::String, (intptr_t)""},
     {offsetof(LibrarySeries, sub), SettingType::String, (intptr_t)""},
@@ -205,14 +208,15 @@ static const FieldInfo gLibrarySeriesFields[] = {
 };
 static const StructInfo gLibrarySeriesInfo = {
     sizeof(LibrarySeries),
-    15,
+    16,
     gLibrarySeriesFields,
-    "Key\0Name\0Author\0Parent\0Wiki\0Genre\0Sub\0Head\0Subhead\0Kind\0Guessed\0Books\0BookNlp\0Facts\0Depth",
+    "Key\0Name\0Author\0Parent\0ParentSource\0Wiki\0Genre\0Sub\0Head\0Subhead\0Kind\0Guessed\0Books\0BookNlp\0Facts\0De"
+    "pth",
     "stable key, referenced by a book's SeriesKey\0display name of the series\0author of the series\0key of the "
-    "enclosing series, empty at the top level\0key of the lore wiki entry for the series, empty if none\0genre worked "
-    "out for the series\0sub-genre\0heading the series is grouped under\0sub-heading within that group\0what the "
-    "grouping is: a series, an author, a collection\0which parts were guessed rather than read from the book\0number "
-    "of books in the series\0how many of them BookNLP has analysed\0number of lore facts known about the "
+    "enclosing series, empty at the top level\0\0key of the lore wiki entry for the series, empty if none\0genre "
+    "worked out for the series\0sub-genre\0heading the series is grouped under\0sub-heading within that group\0what "
+    "the grouping is: a series, an author, a collection\0which parts were guessed rather than read from the "
+    "book\0number of books in the series\0how many of them BookNLP has analysed\0number of lore facts known about the "
     "series\0nesting depth below the top level",
     false};
 

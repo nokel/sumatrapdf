@@ -34,3 +34,12 @@ bool LibraryThumbsHas(LibraryThumbs* thumbs, Str bookId);
 bool LibraryThumbsRemove(LibraryThumbs* thumbs, Str bookId);
 int LibraryThumbsCount(LibraryThumbs* thumbs);
 Str LibraryThumbsError(LibraryThumbs* thumbs);
+
+struct LibraryFingerprints;
+
+LibraryFingerprints* LibraryFingerprintsOpen(Str dataDir);
+void LibraryFingerprintsClose(LibraryFingerprints* prints);
+Str LibraryFingerprintsGet(LibraryFingerprints* prints, Str bookPath, i64 fileSize, i64 modifiedTicks);
+bool LibraryFingerprintsPut(LibraryFingerprints* prints, Str bookPath, i64 fileSize, i64 modifiedTicks,
+                            Str fingerprint);
+int LibraryFingerprintsCount(LibraryFingerprints* prints);

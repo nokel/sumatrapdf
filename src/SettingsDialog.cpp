@@ -43,6 +43,11 @@ struct SettingsWnd : WindowBase {
     VirtText* labelAdvanced = nullptr;
     VirtText* labelInverse = nullptr;
     VirtText* labelCmdLine = nullptr;
+    VirtText* labelLibrary = nullptr;
+    VirtText* labelIgnoreDays = nullptr;
+    VirtText* labelIgnoreUnit = nullptr;
+
+    Edit* editIgnoreDays = nullptr;
 
     DropDown* dropLayout = nullptr;
     DropDown* dropZoom = nullptr;
@@ -62,11 +67,16 @@ struct SettingsWnd : WindowBase {
     void FillZoom();
     void FillInverse();
     float SelectedZoom();
+    int SelectedIgnoreDays();
     void OnRememberOpenedChanged();
 
     void OnCancel(VirtMouseEvent* ev = nullptr);
     void OnOk(VirtMouseEvent* ev = nullptr);
 };
+
+constexpr int kLibraryIgnoreDaysMin = 1;
+constexpr int kLibraryIgnoreDaysMax = 3650;
+constexpr int kLibraryIgnoreDaysDefault = 30;
 
 static SettingsWnd* gSettingsWnd = nullptr;
 
@@ -165,6 +175,25 @@ float SettingsWnd::SelectedZoom() {
     return limitValue(zoom, kZoomMin, kZoomMax);
 }
 
+int SettingsWnd::SelectedIgnoreDays() {
+    int was = gGlobalPrefs ? gGlobalPrefs->audiobook.libraryIgnoreDays : kLibraryIgnoreDaysDefault;
+    if (was < kLibraryIgnoreDaysMin || was > kLibraryIgnoreDaysMax) {
+        was = kLibraryIgnoreDaysDefault;
+    }
+    if (!editIgnoreDays) {
+        return was;
+    }
+    TempStr text = editIgnoreDays->GetTextTemp();
+    if (len(text) == 0) {
+        return was;
+    }
+    int days = atoi(CStrTemp(text));
+    if (days == 0) {
+        return was;
+    }
+    return limitValue(days, kLibraryIgnoreDaysMin, kLibraryIgnoreDaysMax);
+}
+
 void SettingsWnd::OnRememberOpenedChanged() {
     if (!chkRememberState) {
         return;
@@ -212,6 +241,7 @@ void SettingsWnd::OnOk(VirtMouseEvent*) {
         TempStr tmp = dropInverse->GetTextTemp();
         str::ReplaceWithCopy(&gGlobalPrefs->inverseSearchCmdLine, tmp);
     }
+    gGlobalPrefs->audiobook.libraryIgnoreDays = SelectedIgnoreDays();
 
     if (!SettingsRememberOpenedFiles()) {
         FileHistoryClear(true);
@@ -375,6 +405,57 @@ bool SettingsWnd::Create(MainWindow* mainWin) {
         MakeCheckbox(hwnd, _TRA("Remember &opened files"), isRtl, gGlobalPrefs && gGlobalPrefs->rememberOpenedFiles, 4);
     chkRememberOpened->onStateChanged = MkMethod0<SettingsWnd, &SettingsWnd::OnRememberOpenedChanged>(this);
     vbox->AddChild(chkRememberOpened);
+
+    {
+        auto* hdr = NewVirtText({
+            .s = StrL("Library"),
+            .font = font,
+            .isRtl = isRtl,
+            .padding = DpiScaledInsets(12, 0, 4, 0),
+        });
+        labelLibrary = hdr;
+        vbox->AddChild(hdr);
+
+        auto* lab = NewVirtText({
+            .s = StrL("Keep removed Library items in Ignored for:"),
+            .font = font,
+            .isRtl = isRtl,
+        });
+        labelIgnoreDays = lab;
+
+        int days = gGlobalPrefs ? gGlobalPrefs->audiobook.libraryIgnoreDays : kLibraryIgnoreDaysDefault;
+        if (days < kLibraryIgnoreDaysMin || days > kLibraryIgnoreDaysMax) {
+            days = kLibraryIgnoreDaysDefault;
+        }
+        Edit::CreateArgs eargs;
+        eargs.parent = hwnd;
+        eargs.font = GetFont();
+        eargs.withBorder = true;
+        eargs.numbersOnly = true;
+        eargs.selectAllOnFocus = true;
+        eargs.isRtl = isRtl;
+        eargs.idealWidthChars = 6;
+        eargs.maxWidthChars = 6;
+        eargs.text = Str(fmt("%d", days));
+        editIgnoreDays = new Edit();
+        editIgnoreDays->Create(eargs);
+
+        auto* unit = NewVirtText({
+            .s = StrL("days"),
+            .font = font,
+            .isRtl = isRtl,
+        });
+        labelIgnoreUnit = unit;
+
+        auto* row = new HBox();
+        row->alignMain = MainAxisAlign::MainStart;
+        row->alignCross = CrossAxisAlign::CrossCenter;
+        row->gap = font->averageCharWidth;
+        row->AddChild(lab);
+        row->AddChild(editIgnoreDays);
+        row->AddChild(unit);
+        vbox->AddChild(row);
+    }
 
     if (showInverseSearch) {
         auto* hdr = NewVirtText({

@@ -71,6 +71,7 @@
 #include "DarkMode_win.h"
 #include "CommandPalette.h"
 #include "SelectTextKeyboard.h"
+#include "LibraryPage.h"
 #include "SumatraControl.h"
 #include "SumatraLog.h"
 
@@ -2821,6 +2822,8 @@ ContinueOpenWindow:
         auto fn = MkFunc0Void(DeleteStaleFilesAsync);
         RunAsync(fn, "DeleteStaleFilesAsync");
     }
+
+    LibraryResumeInterruptedScan();
 
     // needed if RememberOpenedFiles = false
     // https://github.com/sumatrapdfreader/sumatrapdf/issues/5456

@@ -39,6 +39,19 @@ export enum ControlCommand {
   TestAIChatReplay = 42,
   TestMarkdownFollowLink = 43,
   TestHomeListRows = 44,
+  TestLibScrollY = 75,
+  TestLibScrollTo = 76,
+  TestLibOpenBook = 77,
+  TestLibBack = 78,
+  TestLibForceScrollY = 79,
+  TestLibAllBooks = 80,
+  TestLibSeries = 81,
+  TestLibRescan = 82,
+  TestLibScanStatus = 83,
+  TestLibToggleProgressive = 84,
+  TestLibraryIndexing = 85,
+  TestLibImportBook = 86,
+  TestLibImportState = 87,
   TestPageComments = 45,
   TestAdvSettingsRows = 46,
   TestDestZoomNav = 47,
@@ -48,6 +61,28 @@ export enum ControlCommand {
   TestCadEnhanceColors = 51,
   TestFindPageRange = 52,
   TestDocumentFontList = 53,
+  // chunk 31R: minimal observation hooks for the CatalogueOnly mode
+  // regression test. The synthetic test wrappers that drove a
+  // different service operation from the real UI path were removed
+  // in the chunk 31R correction.
+  TestLastLoadPerf = 63,
+  TestLoadCount = 64,
+  // chunk 31R: drive the real production paths and read the
+  // in-memory model state. Pass-throughs to PostPartition and
+  // PostBookEdit (not alternate synthetic wrappers).
+  TestBookState = 65,
+  TestTriggerPartition = 66,
+  TestTriggerBookEdit = 67,
+  // chunk 34: dumps the callstack of every thread of this process.
+  // Used by the regression test to identify the hot thread in a
+  // first-run 100% CPU scenario.
+  TestDumpAllStacks = 68,
+  // chunk 34 regression: number of LoadModelThread invocations that
+  // have fully completed. The test harness polls this to know when
+  // a triggered load is done.
+  TestLoadCompleteCount = 69,
+  TestTriggerUserFieldEdit = 70,
+  TestLibraryRoots = 71,
   WaitRenderIdle = 54,
   SetNotificationsEnabled = 55,
   TestHomeSelection = 56,
@@ -416,6 +451,10 @@ export async function withControlledSumatra<T>(
     // let the app place its window, for a test about the window's own size or
     // state (fullscreen, maximized, a remembered position)
     defaultWindowPos?: boolean;
+    // drop -for-testing, which makes SaveSettings a no-op. Only for a test
+    // about a setting that has to survive a restart; it writes the real
+    // settings file of whoever runs it
+    saveSettings?: boolean;
   } = {},
 ): Promise<T> {
   const pipeName = uniquePipeName();
@@ -428,7 +467,8 @@ export async function withControlledSumatra<T>(
   }
   // stderr is piped: on a debug report the app writes the report text there
   // before terminating, and we surface it in the failure below
-  const proc = Bun.spawn([exe, "-for-testing", ...posArgs, "-dbg-control", pipeName, ...extraArgs], {
+  const testingArgs = options.saveSettings ? [] : ["-for-testing"];
+  const proc = Bun.spawn([exe, ...testingArgs, ...posArgs, "-dbg-control", pipeName, ...extraArgs], {
     stdout: "ignore",
     stderr: "pipe",
     cwd: options.cwd,

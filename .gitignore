@@ -63,3 +63,22 @@ android/local.properties
 # benchmark and one-off verification scripts, not part of the suite
 tests/bench-*.ts
 tests/verify-*.ts
+
+# OCR deps: upstream checkouts (leptonica 1.84, tesseract 5.3.4) cloned into ext/,
+# plus the cmake build tree and install prefix they produce
+ext/a-leptonica/
+ext/a-tesseract/
+ext/build/
+# OCR smoke-test binaries and the generated test pdf
+ext/*.exe
+ext/*.obj
+ext/ocr-test.pdf
+# scratch build/run logs
+tmp*.log
+# python bytecode from the test scripts
+__pycache__/
+# editor/scratch leftovers
+*.bak
+*.removed
+# per-book sidecars written by the app while testing
+tests/*.sumatra

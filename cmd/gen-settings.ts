@@ -589,6 +589,11 @@ const claudeCode: Field[] = [
   field("BgColor", Color, "#ffffff", "background color of the Claude Code chat panel"),
 ];
 
+const libraryRoot: Field[] = [
+  field("Path", Str, "", "full path of the folder"),
+  field("Enabled", Bool, true, "if true, the Library scans this folder"),
+];
+
 const audiobook: Field[] = [
   field(
     "UseChatterbox",
@@ -663,13 +668,13 @@ const audiobook: Field[] = [
       "found in it, and its film and TV adaptations. If false, the classic Frequently " +
       "Read page is shown instead",
   ),
-  field(
+  array(
     "LibraryRoots",
-    Str,
-    "",
-    "folders to look for books in, separated by ; . Empty means work them out: the " +
-      "folders already analysed, then Documents/Downloads/Desktop, then a bounded scan " +
-      "of every fixed drive",
+    libraryRoot,
+    "folders the Library looks for books in, edited in Settings -> Library Indexing. " +
+      "Empty means work them out on first use: the folders that already hold books in " +
+      "the Library, then Documents/Downloads/Desktop, then a bounded scan of every " +
+      "fixed drive",
   ),
   field("LibraryPort", Int, 7863, "port of the Chatterbox library service (audiobook\\library)"),
   field(
@@ -679,6 +684,16 @@ const audiobook: Field[] = [
     'how the library start page orders the series list: "alpha" (A to Z), "genre" ' +
       '(grouped under genre headings), "most" (most books first) or "fewest" (fewest ' +
       "books first). Chosen on the page",
+  ),
+  field("ProgressiveLibraryScan", Bool, true, "").doc("if true, show completed books while the Library scan continues"),
+  field(
+    "LibraryIgnoreDays",
+    Int,
+    30,
+    "how many days a book taken out of the Library with Remove from library stays " +
+      "in Deskpan > Ignored. When the time is up the file becomes a permanent " +
+      "Library exclusion that automatic scans skip, and only a manual import " +
+      "brings it back. Edited in Settings -> SumatraPDF Options",
   ),
 ];
 
@@ -1759,6 +1774,7 @@ const librarySeries: Field[] = [
   field("Name", Str, "", "display name of the series"),
   field("Author", Str, "", "author of the series"),
   field("Parent", Str, "", "key of the enclosing series, empty at the top level"),
+  field("ParentSource", Str, "", ""),
   field("Wiki", Str, "", "key of the lore wiki entry for the series, empty if none"),
   field("Genre", Str, "", "genre worked out for the series"),
   field("Sub", Str, "", "sub-genre"),

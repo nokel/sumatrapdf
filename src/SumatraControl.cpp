@@ -41,6 +41,10 @@
 #include "LibrarySidecar.h"
 #include "PdfSidecar.h"
 #include "LibraryPage.h"
+#include "LibraryRootsWindow.h"
+#include "LibraryImportWindow.h"
+#include "LibraryScan.h"
+#include "HangDetector.h"
 
 extern bool gIsStartup;
 
@@ -288,6 +292,49 @@ enum class ControlCmd : u16 {
     TestListSigningCerts = 60,
     TestSignDocument = 61,
     TestBenchSync = 62,
+    // chunk 31R: minimal observation hooks. TestLastLoadPerf and
+    // TestLoadCount return the most recent LoadModelThread's perf
+    // summary and the total number of LoadModelThread invocations
+    // since process start, so a regression test can verify the
+    // CatalogueOnly mode is actually skipping the adopt + sync
+    // passes (reads == 0, skippedEmbedded == 1) without growing
+    // the permanent control surface any further than that.
+    TestLastLoadPerf = 63,
+    TestLoadCount = 64,
+    // chunk 31R: the regression test needs to drive the real
+    // production paths and read back the in-memory model state. These
+    // three commands are thin pass-throughs to the same handlers the
+    // UI uses (PostPartition, PostBookEdit) plus a getter for one
+    // book; they do NOT construct alternate service operations.
+    TestBookState = 65,
+    TestTriggerPartition = 66,
+    TestTriggerBookEdit = 67,
+    // chunk 34: dumps the callstack of every thread of this process.
+    // Used by the regression test to identify a hot thread that pins
+    // one core without involving the UI thread (so the existing UI
+    // hang detector never fires).
+    TestDumpAllStacks = 68,
+    // chunk 34 regression: returns the number of LoadModelThread
+    // invocations that have fully completed. The test harness waits
+    // for this to catch up to the start count before reading perf,
+    // so a slow adopt loop from a previous load cannot overwrite
+    // the snapshot of the load the test is measuring.
+    TestLoadCompleteCount = 69,
+    TestTriggerUserFieldEdit = 70,
+    TestLibraryRoots = 71,
+    TestLibScrollY = 75,
+    TestLibScrollTo = 76,
+    TestLibOpenBook = 77,
+    TestLibBack = 78,
+    TestLibForceScrollY = 79,
+    TestLibAllBooks = 80,
+    TestLibSeries = 81,
+    TestLibRescan = 82,
+    TestLibScanStatus = 83,
+    TestLibToggleProgressive = 84,
+    TestLibraryIndexing = 85,
+    TestLibImportBook = 86,
+    TestLibImportState = 87,
 };
 
 enum class ControlArgType : u16 {
@@ -1044,6 +1091,95 @@ static void ExecuteControlRequest(ControlRequest* req) {
             break;
         }
 
+        case ControlCmd::TestLibScrollY: {
+            int scrollY = CurrentLibScrollY();
+            TempStr res = str::FormatTemp("OK scrollY=%d\n", scrollY);
+            AppendTestResult(req, 0, res);
+            break;
+        }
+
+        case ControlCmd::TestLibScrollTo: {
+            int y = 0;
+            if (!IntArg(req, 0, y)) {
+                AppendTestResult(req, 1, StrL("ERR int-arg\n"));
+                break;
+            }
+            TestLibScrollToY(y);
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestLibOpenBook: {
+            Str bookId = StringArg(req, 0);
+            TestLibOpenBookById(bookId);
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestLibBack: {
+            TestLibClickBack();
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestLibForceScrollY: {
+            int y = 0;
+            if (!IntArg(req, 0, y)) {
+                AppendTestResult(req, 1, StrL("ERR int-arg\n"));
+                break;
+            }
+            TestLibForceScrollY(y);
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestLibAllBooks: {
+            TestLibClickAllBooks();
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestLibSeries: {
+            Str seriesKey = StringArg(req, 0);
+            TestLibClickSeries(seriesKey);
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestLibRescan: {
+            TestLibRescan();
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestLibScanStatus: {
+            TempStr status = TestLibScanStatus();
+            AppendTestResult(req, 0, status);
+            break;
+        }
+
+        case ControlCmd::TestLibToggleProgressive: {
+            TestLibToggleProgressive();
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestLibraryIndexing: {
+            AppendTestResult(req, 0, TestLibraryIndexingStatusTemp());
+            break;
+        }
+
+        case ControlCmd::TestLibImportBook: {
+            LibraryOnLinkClicked(gWindows[0], StrL("<Library,ImportBook>"));
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestLibImportState: {
+            AppendTestResult(req, 0, TestLibraryImportStateTemp());
+            break;
+        }
+
         case ControlCmd::TestAdvSettingsRows: {
             Str action = StringArg(req, 0);
             i32 arg = 0;
@@ -1125,6 +1261,113 @@ static void ExecuteControlRequest(ControlRequest* req) {
             ResetEvent(req->done);
             uitask::Post(MkFunc0<ControlRequest>(BenchSyncUiThread, req), "TestBenchSync");
             WaitForSingleObject(req->done, INFINITE);
+            break;
+        }
+
+        case ControlCmd::TestLastLoadPerf: {
+            // Returns the most recent LoadModelThread's perf summary.
+            // No UI-thread dispatch needed: the perf snapshot is just
+            // a read of static globals. Used by the regression test
+            // to verify the CatalogueOnly mode is actually skipping
+            // the adopt + sync passes (reads == 0, skippedEmbedded == 1).
+            TempStr res = LastLoadPerfOnce();
+            AppendTestResult(req, 0, res);
+            break;
+        }
+
+        case ControlCmd::TestLoadCount: {
+            // Returns the total number of LoadModelThread invocations
+            // since process start. Used to confirm a user action did
+            // or did not trigger a full model load.
+            TempStr res = str::FormatTemp("OK count=%d\n", LoadModelThreadStartCount());
+            AppendTestResult(req, 0, res);
+            break;
+        }
+
+        case ControlCmd::TestBookState: {
+            // chunk 31R: returns the in-memory model state for a book
+            // by id, as a single "OK id=... series=... keys=... ..."
+            // line. The test uses this to confirm the in-memory model
+            // agrees with what /library returns from the service after
+            // each user action.
+            Str bookId = StringArg(req, 0);
+            TempStr res = TestBookStateTemp(bookId);
+            AppendTestResult(req, 0, res);
+            break;
+        }
+
+        case ControlCmd::TestTriggerPartition: {
+            // chunk 31R: drive the real PostPartition path. url is the
+            // service endpoint (e.g. "/series/parent" or
+            // "/partition/assign"), body is the JSON payload. Same call
+            // the UI makes from kMenuRowParentFirst, kMenuTakeOutOfPartition,
+            // etc. The handler runs async on a worker thread; the
+            // caller polls TestLoadCount + LastLoadPerf to observe the
+            // resulting LoadModelThread (which is CatalogueOnly for
+            // hierarchy changes).
+            Str url = StringArg(req, 0);
+            Str body = StringArg(req, 1);
+            TestTriggerPartition(url, body);
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestTriggerBookEdit: {
+            // chunk 31R: drive the real PostBookEdit path with the
+            // production URL /book/edit. body is the JSON payload
+            // ({"id":...,"fields":{...}}), bookId identifies the
+            // targeted book. MetadataEditThread persists that one book
+            // and does NOT fall into LoadModelThread on the happy path,
+            // so the regression test asserts the load count does not
+            // move.
+            Str body = StringArg(req, 0);
+            Str bookId = StringArg(req, 1);
+            TestTriggerBookEdit(body, bookId);
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestTriggerUserFieldEdit: {
+            Str bookId = StringArg(req, 0);
+            Str field = StringArg(req, 1);
+            Str value = StringArg(req, 2);
+            Str exactKey = StringArg(req, 3);
+            TestTriggerUserFieldEdit(bookId, field, value, exactKey);
+            AppendTestResult(req, 0, StrL("OK\n"));
+            break;
+        }
+
+        case ControlCmd::TestDumpAllStacks: {
+            // chunk 34: dump the callstack of every thread of this
+            // process. Used by the regression test to identify the hot
+            // thread in a first-run 100% CPU scenario. The dump is a
+            // single "OK stacks\n..." line, so the test can read it
+            // back over the control pipe.
+            TempStr res = DumpAllThreadStacksTemp();
+            AppendTestResult(req, 0, res);
+            break;
+        }
+
+        case ControlCmd::TestLoadCompleteCount: {
+            // chunk 34 regression: returns the number of LoadModelThread
+            // invocations that have fully completed. The test harness
+            // polls this to know when a triggered load is done (so a
+            // slow adopt loop from a previous load cannot overwrite
+            // the snapshot of the load the test is measuring).
+            TempStr res = str::FormatTemp("OK count=%d\n", LoadModelThreadCompleteCount());
+            AppendTestResult(req, 0, res);
+            break;
+        }
+
+        case ControlCmd::TestLibraryRoots: {
+            StrVec roots = LibraryStartingRoots();
+            str::Builder out;
+            out.Append(fmt("OK explicit=%d roots=%d\n", LibraryHasExplicitRoots() ? 1 : 0, roots.size));
+            for (Str root : roots) {
+                out.Append(root);
+                out.AppendChar('\n');
+            }
+            AppendTestResult(req, 0, ToStrTemp(out));
             break;
         }
 

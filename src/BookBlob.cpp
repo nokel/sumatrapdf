@@ -252,9 +252,8 @@ static void WriteIdentity(BlobWriter& w, BlobStrings& s, const BlobIdentity& it)
     w.UInt(s.Put(it.author));
     w.UInt(s.Put(it.source));
     w.UInt(it.pages);
-    if (it.year > 0) {
-        w.UInt(it.year);
-    }
+    w.UInt(it.year);
+    w.UInt(it.ocrState);
 }
 
 static void ReadIdentity(BlobReader& r, const Vec<const char*>& t, BlobIdentity& it) {
@@ -272,6 +271,9 @@ static void ReadIdentity(BlobReader& r, const Vec<const char*>& t, BlobIdentity&
     it.pages = r.Int();
     if (r.at < r.size) {
         it.year = r.Int();
+    }
+    if (r.at < r.size) {
+        it.ocrState = r.Int();
     }
 }
 
@@ -1417,6 +1419,140 @@ static const char* BookRecordBadText(const BookBlobRecord& rec) {
         }
     }
     return nullptr;
+}
+
+typedef void (*BookRecordStringFn)(const char** slot, Str name, void* ctx);
+
+static void VisitRecordStrings(BookBlobRecord& rec, BookRecordStringFn fn, void* ctx) {
+    fn(&rec.identity.fingerprint, StrL("identity.fingerprint"), ctx);
+    fn(&rec.identity.title, StrL("identity.title"), ctx);
+    fn(&rec.identity.author, StrL("identity.author"), ctx);
+    fn(&rec.identity.source, StrL("identity.source"), ctx);
+    fn(&rec.shelf.genre, StrL("shelf.genre"), ctx);
+    fn(&rec.shelf.subgenre, StrL("shelf.subgenre"), ctx);
+    fn(&rec.shelf.series, StrL("shelf.series"), ctx);
+    fn(&rec.shelf.seriesParent, StrL("shelf.seriesParent"), ctx);
+    fn(&rec.shelf.collection, StrL("shelf.collection"), ctx);
+    for (int i = 0; i < rec.shelf.partitions.len; i++) {
+        fn(&rec.shelf.partitions.els[i], StrL("shelf.partitions"), ctx);
+    }
+    for (int i = 0; i < rec.shelf.tags.len; i++) {
+        fn(&rec.shelf.tags.els[i], StrL("shelf.tags"), ctx);
+    }
+    fn(&rec.cover.format, StrL("cover.format"), ctx);
+    fn(&rec.cast.narratorVoice, StrL("cast.narratorVoice"), ctx);
+    for (int i = 0; i < rec.cast.people.len; i++) {
+        fn(&rec.cast.people.els[i].name, StrL("cast.people.name"), ctx);
+        fn(&rec.cast.people.els[i].voice, StrL("cast.people.voice"), ctx);
+    }
+    for (int i = 0; i < rec.cast.aliases.len; i++) {
+        fn(&rec.cast.aliases.els[i], StrL("cast.aliases"), ctx);
+    }
+    for (int i = 0; i < rec.entities.len; i++) {
+        fn(&rec.entities.els[i].prop, StrL("entities.prop"), ctx);
+        fn(&rec.entities.els[i].cat, StrL("entities.cat"), ctx);
+    }
+    for (int i = 0; i < rec.lore.len; i++) {
+        fn(&rec.lore.els[i].subject, StrL("lore.subject"), ctx);
+        fn(&rec.lore.els[i].predicate, StrL("lore.predicate"), ctx);
+        fn(&rec.lore.els[i].object, StrL("lore.object"), ctx);
+    }
+    for (int i = 0; i < rec.evidence.len; i++) {
+        fn(&rec.evidence.els[i].note, StrL("evidence.note"), ctx);
+    }
+    for (int i = 0; i < rec.chapters.len; i++) {
+        fn(&rec.chapters.els[i].title, StrL("chapters.title"), ctx);
+    }
+    for (int i = 0; i < rec.adaptations.len; i++) {
+        fn(&rec.adaptations.els[i].title, StrL("adaptations.title"), ctx);
+        fn(&rec.adaptations.els[i].kind, StrL("adaptations.kind"), ctx);
+        fn(&rec.adaptations.els[i].ref, StrL("adaptations.ref"), ctx);
+    }
+}
+
+struct RecordOwnerCheck {
+    const StrVec* strings;
+    const char* foreign;
+    Str which;
+};
+
+static void CheckOneStringIsOwned(const char** slot, Str name, void* ctx) {
+    RecordOwnerCheck* c = (RecordOwnerCheck*)ctx;
+    const char* s = *slot;
+    if (!s || c->foreign) {
+        return;
+    }
+    for (int i = 0; i < c->strings->size; i++) {
+        if (c->strings->At(i).s == s) {
+            return;
+        }
+    }
+    c->foreign = s;
+    c->which = name;
+}
+
+const char* BookRecordForeignString(const BookBlobRecord& rec, Str* whichOut) {
+    RecordOwnerCheck c;
+    c.strings = &rec.strings;
+    c.foreign = nullptr;
+    VisitRecordStrings(const_cast<BookBlobRecord&>(rec), CheckOneStringIsOwned, &c);
+    if (c.foreign && whichOut) {
+        *whichOut = c.which;
+    }
+    return c.foreign;
+}
+
+static void CloneOneString(const char** slot, Str, void* ctx) {
+    const char* s = *slot;
+    if (!s) {
+        return;
+    }
+    StrVec* strings = (StrVec*)ctx;
+    *slot = strings->Append(Str(s)).s;
+}
+
+void BookBlobRecordReset(BookBlobRecord& rec) {
+    rec.strings.Reset(nullptr);
+    rec.hasIdentity = false;
+    rec.identity = BlobIdentity();
+    rec.hasShelf = false;
+    rec.shelf = BlobShelf();
+    rec.hasCover = false;
+    rec.cover = BlobCover();
+    rec.hasCast = false;
+    rec.cast = BlobCast();
+    rec.speakers.Reset();
+    rec.entities.Reset();
+    rec.lore.Reset();
+    rec.evidence.Reset();
+    rec.chapters.Reset();
+    rec.adaptations.Reset();
+    rec.hasStats = false;
+    rec.stats = BlobStats();
+}
+
+void BookBlobRecordClone(const BookBlobRecord& src, BookBlobRecord& dst) {
+    if (&src == &dst) {
+        return;
+    }
+    dst.strings.Reset(nullptr);
+    dst.hasIdentity = src.hasIdentity;
+    dst.identity = src.identity;
+    dst.hasShelf = src.hasShelf;
+    dst.shelf = src.shelf;
+    dst.hasCover = src.hasCover;
+    dst.cover = src.cover;
+    dst.hasCast = src.hasCast;
+    dst.cast = src.cast;
+    dst.speakers = src.speakers;
+    dst.entities = src.entities;
+    dst.lore = src.lore;
+    dst.evidence = src.evidence;
+    dst.chapters = src.chapters;
+    dst.adaptations = src.adaptations;
+    dst.hasStats = src.hasStats;
+    dst.stats = src.stats;
+    VisitRecordStrings(dst, CloneOneString, &dst.strings);
 }
 
 TempStr BookRecordWhyInvalid(const BookBlobRecord& rec) {

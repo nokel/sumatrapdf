@@ -232,6 +232,10 @@ EXPORTS
 
 	fz_new_stext_device
 
+	fz_new_ocr_device
+
+	fz_new_ocr_device_with_options
+
 	fz_rect_from_quad
 
 	fz_new_outline

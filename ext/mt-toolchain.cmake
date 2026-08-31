@@ -1,0 +1,13 @@
+function(fix_mt_runtime)
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    file(GLOB_RECURSE vcxproj_files "${CMAKE_BINARY_DIR}/*.vcxproj")
+    foreach (vcxproj_file ${vcxproj_files})
+      file(READ "${vcxproj_file}" contents)
+      string(REPLACE "MultiThreadedDLL" "MultiThreaded" contents "${contents}")
+      string(REPLACE "MultiThreadedDebugDLL" "MultiThreadedDebug" contents "${contents}")
+      file(WRITE "${vcxproj_file}" "${contents}")
+    endforeach()
+  endif()
+endfunction()
+
+fix_mt_runtime()

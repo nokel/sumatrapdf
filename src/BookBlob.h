@@ -33,6 +33,7 @@ struct BlobIdentity {
     const char* source = nullptr;
     int pages = 0;
     int year = 0;
+    int ocrState = 0;
 };
 
 struct BlobShelf {
@@ -155,7 +156,14 @@ struct BookBlobRecord {
 
     bool hasStats = false;
     BlobStats stats;
+
+    BookBlobRecord() = default;
+    BookBlobRecord(const BookBlobRecord&) = delete;
+    BookBlobRecord& operator=(const BookBlobRecord&) = delete;
 };
+
+void BookBlobRecordClone(const BookBlobRecord& src, BookBlobRecord& dst);
+void BookBlobRecordReset(BookBlobRecord& rec);
 
 bool BookBlobPayload(const BookBlobRecord& rec, Vec<u8>& out);
 bool BookBlobUnpayload(const u8* data, int size, BookBlobRecord& out);
@@ -174,6 +182,7 @@ constexpr int kBookCoverMaxBytes = 4 << 20;
 const char* BookCoverFormatOfBytes(const u8* data, int size);
 
 TempStr BookRecordWhyInvalid(const BookBlobRecord& rec);
+const char* BookRecordForeignString(const BookBlobRecord& rec, Str* whichOut = nullptr);
 
 TempStr BookCoverSpotEncode(const BlobCover& cover);
 bool BookCoverSpotDecode(Str s, BlobCover* out);

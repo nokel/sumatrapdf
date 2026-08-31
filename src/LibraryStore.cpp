@@ -221,3 +221,141 @@ bool LibraryThumbsRemove(LibraryThumbs* thumbs, Str bookId) {
 Str LibraryThumbsError(LibraryThumbs* thumbs) {
     return thumbs ? AppendStoreError(&thumbs->store) : Str{};
 }
+
+// A book's fingerprint is a pure function of the file's bytes, but computing
+// it opens the document, extracts the text of every page and MD5s every
+// stream object in the xref. That is seconds per book, and the sidecar layer
+// recomputes it every time it reads a record. This store remembers the answer
+// keyed by the file's size and modification time, so an unchanged file is
+// never parsed twice.
+
+constexpr int kFingerprintsMapInitialSize = 1024;
+
+struct LibraryFingerprintEntry {
+    i64 fileSize = 0;
+    i64 modifiedTicks = 0;
+    Str fingerprint;
+};
+
+struct LibraryFingerprints {
+    AppendStore store;
+    Vec<LibraryFingerprintEntry> entries;
+    dict::MapStrToInt* byPath = nullptr;
+    bool opened = false;
+};
+
+static bool ParseFingerprintPayload(Str data, LibraryFingerprintEntry& out) {
+    StrVec parts;
+    Split(&parts, data, StrL(" "), true);
+    if (len(parts) != 3) {
+        return false;
+    }
+    out.fileSize = ParseInt64(parts[0]);
+    out.modifiedTicks = ParseInt64(parts[1]);
+    if (out.fileSize < 0 || out.modifiedTicks <= 0 || len(parts[2]) == 0) {
+        return false;
+    }
+    // parts owns its strings and dies with this call, so the entry keeps a copy
+    out.fingerprint = str::Dup(parts[2]);
+    return true;
+}
+
+static void OnFingerprintRecord(AppendStoreRecord* rec, Str data, void* userData) {
+    auto* prints = (LibraryFingerprints*)userData;
+    if (!str::Eq(rec->kind, StrL("fingerprint"))) {
+        return;
+    }
+    LibraryFingerprintEntry entry;
+    if (!ParseFingerprintPayload(data, entry)) {
+        return;
+    }
+    int idx;
+    if (prints->byPath->Get(rec->meta, &idx)) {
+        str::Free(prints->entries[idx].fingerprint);
+        prints->entries[idx] = entry;
+        return;
+    }
+    prints->entries.Append(entry);
+    prints->byPath->Insert(rec->meta, prints->entries.len - 1);
+}
+
+LibraryFingerprints* LibraryFingerprintsOpen(Str dataDir) {
+    auto* prints = new LibraryFingerprints();
+    prints->byPath = new dict::MapStrToInt(kFingerprintsMapInitialSize);
+    prints->store.dataDir = dataDir;
+    prints->store.indexFileName = StrL("SumatraLibraryFingerprints.txt");
+    prints->store.dataFileName = StrL("SumatraLibraryFingerprints.dat");
+    prints->store.onRecord = OnFingerprintRecord;
+    prints->store.userData = prints;
+    if (!AppendStoreOpen(&prints->store)) {
+        logf("LibraryFingerprintsOpen: %s\n", AppendStoreError(&prints->store));
+        delete prints->byPath;
+        delete prints;
+        return nullptr;
+    }
+    prints->opened = true;
+    return prints;
+}
+
+void LibraryFingerprintsClose(LibraryFingerprints* prints) {
+    if (!prints) {
+        return;
+    }
+    if (prints->opened) {
+        AppendStoreClose(&prints->store);
+    }
+    for (LibraryFingerprintEntry& e : prints->entries) {
+        str::Free(e.fingerprint);
+    }
+    delete prints->byPath;
+    delete prints;
+}
+
+Str LibraryFingerprintsGet(LibraryFingerprints* prints, Str bookPath, i64 fileSize, i64 modifiedTicks) {
+    if (!prints || len(bookPath) == 0 || modifiedTicks <= 0) {
+        return {};
+    }
+    int idx;
+    if (!prints->byPath->Get(bookPath, &idx)) {
+        return {};
+    }
+    const LibraryFingerprintEntry& e = prints->entries[idx];
+    if (e.fileSize != fileSize || e.modifiedTicks != modifiedTicks) {
+        return {};
+    }
+    return str::Dup(e.fingerprint);
+}
+
+bool LibraryFingerprintsPut(LibraryFingerprints* prints, Str bookPath, i64 fileSize, i64 modifiedTicks,
+                            Str fingerprint) {
+    if (!prints || len(bookPath) == 0 || modifiedTicks <= 0 || len(fingerprint) == 0) {
+        return false;
+    }
+    if (str::ContainsChar(bookPath, '\n') || str::ContainsChar(bookPath, '\r')) {
+        return false;
+    }
+    int idx;
+    if (prints->byPath->Get(bookPath, &idx)) {
+        const LibraryFingerprintEntry& have = prints->entries[idx];
+        if (have.fileSize == fileSize && have.modifiedTicks == modifiedTicks &&
+            str::Eq(have.fingerprint, fingerprint)) {
+            return true;
+        }
+    }
+    TempStr payload = str::FormatTemp("%lld %lld %s", (long long)fileSize, (long long)modifiedTicks, fingerprint);
+    AppendStoreAppendOptions opts;
+    opts.mode = AppendStoreMode::Inline;
+    opts.kind = StrL("fingerprint");
+    opts.meta = bookPath;
+    opts.data = payload;
+    AppendStoreRecord* rec = nullptr;
+    if (!AppendStoreAppend(&prints->store, opts, &rec)) {
+        return false;
+    }
+    OnFingerprintRecord(rec, payload, prints);
+    return true;
+}
+
+int LibraryFingerprintsCount(LibraryFingerprints* prints) {
+    return prints ? prints->entries.len : 0;
+}

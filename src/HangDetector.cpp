@@ -266,3 +266,87 @@ void StopUiHangDetector() {
     Free(nullptr, (void*)gThreadHandles);
     gThreadHandles = nullptr;
 }
+
+// chunk 34: sample the callstack of every thread of this process.
+// Used by the regression test to identify a hot thread that pins
+// one core without involving the UI thread (so StartUiHangDetector
+// never fires). Implementation mirrors CollectFrozenStacks() above
+// but returns a single temp string instead of writing to a log, and
+// does not require the watchdog to be running.
+TempStr DumpAllThreadStacksTemp() {
+    constexpr int kMaxThreadsSample = 256;
+    constexpr int kMaxFramesSample = 64;
+
+    // warm up dbghelp: GetAddressInfo loads modules on first use and
+    // we don't want the freeze window to wait on that
+    if (!EnsureSymbols()) {
+        return str::FormatTemp("ERR DumpAllThreadStacksTemp: dbghelp::Initialize failed\n");
+    }
+    dbghelp::GetCurrentThreadCallstackTemp();
+
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (snap == INVALID_HANDLE_VALUE) {
+        return str::FormatTemp("ERR DumpAllThreadStacksTemp: CreateToolhelp32Snapshot failed (%lu)\n", (unsigned long)GetLastError());
+    }
+
+    DWORD pid = GetCurrentProcessId();
+    DWORD access = THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION | THREAD_SUSPEND_RESUME;
+    DWORD thisTid = GetCurrentThreadId();
+    DWORD uiTid = gUiThreadId;
+
+    struct Entry {
+        DWORD tid;
+        HANDLE h;
+        int nAddrs;
+        u64 addrs[kMaxFramesSample];
+    };
+    Entry* entries = AllocArray<Entry>(nullptr, kMaxThreadsSample);
+    int n = 0;
+    THREADENTRY32 te32;
+    te32.dwSize = sizeof(te32);
+    BOOL ok = Thread32First(snap, &te32);
+    while (ok && n < kMaxThreadsSample) {
+        bool skip = te32.th32OwnerProcessID != pid || te32.th32ThreadID == thisTid;
+        if (!skip) {
+            HANDLE h = OpenThread(access, false, te32.th32ThreadID);
+            if (h) {
+                entries[n].tid = te32.th32ThreadID;
+                entries[n].h = h;
+                entries[n].nAddrs = 0;
+                n++;
+            }
+        }
+        ok = Thread32Next(snap, &te32);
+    }
+    CloseHandle(snap);
+
+    for (int i = 0; i < n; i++) {
+        SuspendThread(entries[i].h);
+    }
+    for (int i = 0; i < n; i++) {
+        entries[i].nAddrs = dbghelp::GetSuspendedThreadCallstackAddrs(entries[i].h, entries[i].addrs, kMaxFramesSample);
+    }
+    for (int i = 0; i < n; i++) {
+        ResumeThread(entries[i].h);
+        SafeCloseThreadHandle(&entries[i].h);
+    }
+
+    str::Builder s(64 * 1024);
+    s.Append(fmt("DUMP pid=%lu ui_tid=%lu threads=%d\n", (unsigned long)pid, (unsigned long)uiTid, n));
+    for (int i = 0; i < n; i++) {
+        Entry& e = entries[i];
+        if (e.nAddrs == 0) {
+            continue;
+        }
+        Str uiTag = e.tid == uiTid ? StrL(" (UI)") : StrL("");
+        s.Append(fmt("\nThread %lu%s (%d frames)\n", (unsigned long)e.tid, uiTag, e.nAddrs));
+        str::Builder cs(2048);
+        for (int j = 0; j < e.nAddrs; j++) {
+            dbghelp::GetAddressInfo(cs, (DWORD64)e.addrs[j], false);
+        }
+        s.Append(ToStr(cs));
+    }
+    Free(nullptr, entries);
+
+    return str::FormatTemp("OK stacks\n%s", ToStr(s));
+}

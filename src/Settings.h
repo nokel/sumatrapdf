@@ -216,6 +216,17 @@ struct ClaudeCode {
     ParsedColor bgColor;
 };
 
+// folders the Library looks for books in, edited in Settings -> Library
+// Indexing. Empty means work them out on first use: the folders that
+// already hold books in the Library, then Documents/Downloads/Desktop,
+// then a bounded scan of every fixed drive
+struct LibraryRoot {
+    // full path of the folder
+    Str path;
+    // if true, the Library scans this folder
+    bool enabled;
+};
+
 // settings for the Chatterbox audiobook Read Aloud engine
 struct Audiobook {
     // if true, the Read Aloud button reads the document with the
@@ -268,16 +279,25 @@ struct Audiobook {
     // adaptations. If false, the classic Frequently Read page is shown
     // instead
     bool libraryHome;
-    // folders to look for books in, separated by ; . Empty means work them
-    // out: the folders already analysed, then Documents/Downloads/Desktop,
-    // then a bounded scan of every fixed drive
-    Str libraryRoots;
+    // folders the Library looks for books in, edited in Settings ->
+    // Library Indexing. Empty means work them out on first use: the
+    // folders that already hold books in the Library, then
+    // Documents/Downloads/Desktop, then a bounded scan of every fixed
+    // drive
+    Vec<LibraryRoot*>* libraryRoots;
     // port of the Chatterbox library service (audiobook\library)
     int libraryPort;
     // how the library start page orders the series list: "alpha" (A to Z),
     // "genre" (grouped under genre headings), "most" (most books first) or
     // "fewest" (fewest books first). Chosen on the page
     Str librarySort;
+    bool progressiveLibraryScan;
+    // how many days a book taken out of the Library with Remove from
+    // library stays in Deskpan > Ignored. When the time is up the file
+    // becomes a permanent Library exclusion that automatic scans skip, and
+    // only a manual import brings it back. Edited in Settings ->
+    // SumatraPDF Options
+    int libraryIgnoreDays;
 };
 
 // settings for the Grok Build chat sidebar
@@ -1336,6 +1356,17 @@ static const StructInfo gClaudeCodeInfo = {
     "color of the Claude Code chat panel",
     false};
 
+static const FieldInfo gLibraryRootFields[] = {
+    {offsetof(LibraryRoot, path), SettingType::String, (intptr_t)""},
+    {offsetof(LibraryRoot, enabled), SettingType::Bool, true},
+};
+static const StructInfo gLibraryRootInfo = {sizeof(LibraryRoot),
+                                            2,
+                                            gLibraryRootFields,
+                                            "Path\0Enabled",
+                                            "full path of the folder\0if true, the Library scans this folder",
+                                            false};
+
 static const FieldInfo gAudiobookFields[] = {
     {offsetof(Audiobook, useChatterbox), SettingType::Bool, false},
     {offsetof(Audiobook, chatterboxDir), SettingType::String, (intptr_t)""},
@@ -1349,16 +1380,18 @@ static const FieldInfo gAudiobookFields[] = {
     {offsetof(Audiobook, charSort), SettingType::String, (intptr_t)"appearance"},
     {offsetof(Audiobook, sidebarDx), SettingType::Int, 0, true},
     {offsetof(Audiobook, libraryHome), SettingType::Bool, true},
-    {offsetof(Audiobook, libraryRoots), SettingType::String, (intptr_t)""},
+    {offsetof(Audiobook, libraryRoots), SettingType::Array, (intptr_t)&gLibraryRootInfo},
     {offsetof(Audiobook, libraryPort), SettingType::Int, 7863},
     {offsetof(Audiobook, librarySort), SettingType::String, (intptr_t)"alpha"},
+    {offsetof(Audiobook, progressiveLibraryScan), SettingType::Bool, true},
+    {offsetof(Audiobook, libraryIgnoreDays), SettingType::Int, 30},
 };
 static const StructInfo gAudiobookInfo = {
     sizeof(Audiobook),
-    15,
+    17,
     gAudiobookFields,
     "UseChatterbox\0ChatterboxDir\0PythonExe\0TtsServerPort\0LmStudioUrl\0NarratorVoice\0LmModel\0LmUrls\0Analyzer\0Cha"
-    "rSort\0SidebarDx\0LibraryHome\0LibraryRoots\0LibraryPort\0LibrarySort",
+    "rSort\0SidebarDx\0LibraryHome\0LibraryRoots\0LibraryPort\0LibrarySort\0ProgressiveLibraryScan\0LibraryIgnoreDays",
     "if true, the Read Aloud button reads the document with the Chatterbox audiobook engine (per-character voices and "
     "word highlighting) instead of the built-in Windows TTS\0folder of the Chatterbox-TTS-Extended install (contains "
     "tts_server.py and audiobook\\engine.py); found automatically, only set this if auto-detection fails\0python for "
@@ -1378,11 +1411,15 @@ static const StructInfo gAudiobookInfo = {
     "lines first), \"lines-asc\", \"name\" (A to Z) or \"name-desc\". Chosen in the panel\0width of the Audiobook "
     "Characters panel docked on the left\0if true, the start page is the library: a wall of book covers grouped by "
     "series, with a page per book showing its metadata, the characters/family/places BookNLP found in it, and its film "
-    "and TV adaptations. If false, the classic Frequently Read page is shown instead\0folders to look for books in, "
-    "separated by ; . Empty means work them out: the folders already analysed, then Documents/Downloads/Desktop, then "
-    "a bounded scan of every fixed drive\0port of the Chatterbox library service (audiobook\\library)\0how the library "
-    "start page orders the series list: \"alpha\" (A to Z), \"genre\" (grouped under genre headings), \"most\" (most "
-    "books first) or \"fewest\" (fewest books first). Chosen on the page",
+    "and TV adaptations. If false, the classic Frequently Read page is shown instead\0folders the Library looks for "
+    "books in, edited in Settings -> Library Indexing. Empty means work them out on first use: the folders that "
+    "already hold books in the Library, then Documents/Downloads/Desktop, then a bounded scan of every fixed "
+    "drive\0port of the Chatterbox library service (audiobook\\library)\0how the library start page orders the series "
+    "list: \"alpha\" (A to Z), \"genre\" (grouped under genre headings), \"most\" (most books first) or \"fewest\" "
+    "(fewest books first). Chosen on the page\0if true, show completed books while the Library scan continues\0how "
+    "many days a book taken out of the Library with Remove from library stays in Deskpan > Ignored. When the time is "
+    "up the file becomes a permanent Library exclusion that automatic scans skip, and only a manual import brings it "
+    "back. Edited in Settings -> SumatraPDF Options",
     false};
 
 static const FieldInfo gGrokBuildFields[] = {

@@ -13,7 +13,25 @@
 
 #include "LibrarySidecar.h"
 
-static bool RecordMatchesBook(Str bookPath, const BookBlobRecord& rec);
+static bool RecordIsBranded(const BookBlobRecord& rec);
+static bool RecordHasNoTextState(const BookBlobRecord& rec);
+
+// Performance counters: how many times the production hot path read or wrote
+// a record. Tracked here, not in SumatraPDF's logging channel, because the
+// bench harness needs to read them at arbitrary points without parsing log
+// output. Kept as plain statics so the only API surface is one extern "C"
+// function below.
+static int gReadCount = 0;
+static int gWriteCount = 0;
+
+extern "C" void LibrarySidecarPerfCounters(int* readsOut, int* writesOut) {
+    if (readsOut) {
+        *readsOut = gReadCount;
+    }
+    if (writesOut) {
+        *writesOut = gWriteCount;
+    }
+}
 
 namespace {
 
@@ -100,7 +118,7 @@ bool ReadZipRecord(Str bookPath, BookBlobRecord& recordOut) {
     return ok;
 }
 
-bool WriteZipRecord(Str bookPath, Str blob, Str* errorOut) {
+bool WriteZipRecord(Str bookPath, Str blob, bool allowNoText, Str* errorOut) {
     Archive* archive = OpenArchiveFromFile(bookPath, true, {});
     if (!archive || archive->isEncrypted) {
         delete archive;
@@ -133,7 +151,7 @@ bool WriteZipRecord(Str bookPath, Str blob, Str* errorOut) {
         return false;
     }
     BookBlobRecord check;
-    if (!ReadZipRecord(temp, check) || !RecordMatchesBook(bookPath, check)) {
+    if (!ReadZipRecord(temp, check) || (!RecordIsBranded(check) && !(allowNoText && RecordHasNoTextState(check)))) {
         file::Delete(temp);
         SidecarSetError(errorOut, StrL("the rebuilt archive did not verify"));
         return false;
@@ -189,33 +207,70 @@ bool LibrarySidecarHas(Str bookPath) {
     return file::Exists(path);
 }
 
-static bool RecordMatchesBook(Str bookPath, const BookBlobRecord& rec) {
+static bool IsLowerHex(Str s, int want) {
+    if (s.len != want) {
+        return false;
+    }
+    for (int i = 0; i < s.len; i++) {
+        char c = s.s[i];
+        bool digit = c >= '0' && c <= '9';
+        bool hex = c >= 'a' && c <= 'f';
+        if (!digit && !hex) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool RecordIsBranded(const BookBlobRecord& rec) {
     if (!rec.hasIdentity || !rec.identity.fingerprint) {
         return false;
     }
-    BookFingerprint fp;
-    if (!BookFingerprintOfFile(bookPath, fp, 0)) {
+    Str fingerprint(rec.identity.fingerprint);
+    TempStr prefix = str::FormatTemp("%s:", Str(kBookFingerprintVersion));
+    if (!str::StartsWith(fingerprint, prefix)) {
         return false;
     }
-    bool same = str::Eq(Str(rec.identity.fingerprint), fp.fingerprint);
-    BookFingerprintFree(fp);
-    return same;
+    Str rest(fingerprint.s + prefix.len, fingerprint.len - prefix.len);
+    int at = -1;
+    for (int i = 0; i < rest.len; i++) {
+        if (rest.s[i] == ':') {
+            at = i;
+            break;
+        }
+    }
+    if (at < 0) {
+        return false;
+    }
+    Str text(rest.s, at);
+    Str shape(rest.s + at + 1, rest.len - at - 1);
+    return IsLowerHex(text, 32) && !str::Eq(text, StrL("d41d8cd98f00b204e9800998ecf8427e")) && IsLowerHex(shape, 32);
 }
 
-static bool SetRecordIdentity(Str bookPath, BookBlobRecord& rec) {
-    BookFingerprint fp;
-    if (!BookFingerprintOfFile(bookPath, fp, 0)) {
+static bool RecordHasEmptyTextBrand(const BookBlobRecord& rec) {
+    if (!rec.hasIdentity || !rec.identity.fingerprint) {
         return false;
     }
-    rec.hasIdentity = true;
-    rec.identity.fingerprint = rec.strings.Append(fp.fingerprint).s;
-    for (int i = 0; i < 16; i++) {
-        rec.identity.textMd5.Append(fp.textMd5[i]);
+    TempStr prefix = str::FormatTemp("%s:d41d8cd98f00b204e9800998ecf8427e:", Str(kBookFingerprintVersion));
+    return str::StartsWith(Str(rec.identity.fingerprint), prefix);
+}
+
+static bool ReadUncheckedRecord(Str bookPath, BookBlobRecord& rec) {
+    if (IsPdf(bookPath) && PdfSidecarReadRecord(bookPath, rec)) {
+        return true;
     }
-    rec.identity.textLength = fp.textLength;
-    rec.identity.pages = fp.pages;
-    BookFingerprintFree(fp);
-    return true;
+    if (IsZipBook(bookPath) && ReadZipRecord(bookPath, rec)) {
+        return true;
+    }
+    TempStr path = SidecarFilePath(bookPath);
+    Str blob = file::ReadFile(path);
+    bool ok = len(blob) > 0 && BookBlobDecode((const u8*)blob.s, blob.len, rec);
+    str::Free(blob);
+    return ok;
+}
+
+static bool RecordHasNoTextState(const BookBlobRecord& rec) {
+    return rec.hasIdentity && !rec.identity.fingerprint && rec.identity.ocrState == kBookOcrNoText;
 }
 
 static void SetRecordBookInfo(BookBlobRecord& rec, Str bookPath, Str title, Str author, Str series, int year) {
@@ -255,33 +310,45 @@ static bool SetLegacyPdfCover(Str bookPath, BookBlobRecord& rec) {
 }
 
 bool LibrarySidecarReadRecord(Str bookPath, BookBlobRecord& recordOut) {
+    gReadCount++;
     if (IsPdf(bookPath)) {
-        if (PdfSidecarReadRecord(bookPath, recordOut) && RecordMatchesBook(bookPath, recordOut)) {
+        if (PdfSidecarReadRecord(bookPath, recordOut) && RecordIsBranded(recordOut)) {
             SetLegacyPdfCover(bookPath, recordOut);
             return true;
         }
+        // A record we refused belongs to some other book. Wipe it before the
+        // next attempt so none of its title, cover, cast or read state can
+        // survive into a record we later write for this book.
+        BookBlobRecordReset(recordOut);
     }
-    if (IsZipBook(bookPath) && ReadZipRecord(bookPath, recordOut) && RecordMatchesBook(bookPath, recordOut)) {
-        return true;
+    if (IsZipBook(bookPath)) {
+        if (ReadZipRecord(bookPath, recordOut) && RecordIsBranded(recordOut)) {
+            return true;
+        }
+        BookBlobRecordReset(recordOut);
     }
     TempStr path = SidecarFilePath(bookPath);
     Str blob = file::ReadFile(path);
     if (len(blob) == 0) {
         str::Free(blob);
-        if (!IsPdf(bookPath) || !SetRecordIdentity(bookPath, recordOut)) {
-            return false;
+        if (IsPdf(bookPath)) {
+            SetLegacyPdfCover(bookPath, recordOut);
         }
-        return SetLegacyPdfCover(bookPath, recordOut);
+        return false;
     }
-    bool ok = BookBlobDecode((const u8*)blob.s, blob.len, recordOut) && RecordMatchesBook(bookPath, recordOut);
+    bool ok = BookBlobDecode((const u8*)blob.s, blob.len, recordOut) && RecordIsBranded(recordOut);
     str::Free(blob);
-    if (ok && IsPdf(bookPath)) {
+    if (!ok) {
+        BookBlobRecordReset(recordOut);
+        return false;
+    }
+    if (IsPdf(bookPath)) {
         SetLegacyPdfCover(bookPath, recordOut);
     }
-    return ok;
+    return true;
 }
 
-static bool WriteRawRecord(Str bookPath, Str blob, Str* errorOut) {
+static bool WriteRawRecord(Str bookPath, Str blob, bool allowNoText, Str* errorOut) {
     TempStr path = SidecarFilePath(bookPath);
     TempStr temp = str::FormatTemp("%s.tmp", path);
     if (!file::WriteFile(temp, blob)) {
@@ -291,7 +358,8 @@ static bool WriteRawRecord(Str bookPath, Str blob, Str* errorOut) {
     Str check = file::ReadFile(temp);
     BookBlobRecord readBack;
     bool valid = len(check) == len(blob) && memcmp(check.s, blob.s, (size_t)blob.len) == 0 &&
-                 BookBlobDecode((const u8*)check.s, check.len, readBack) && RecordMatchesBook(bookPath, readBack);
+                 BookBlobDecode((const u8*)check.s, check.len, readBack) &&
+                 (RecordIsBranded(readBack) || (allowNoText && RecordHasNoTextState(readBack)));
     str::Free(check);
     if (!valid) {
         file::Delete(temp);
@@ -307,6 +375,7 @@ static bool WriteRawRecord(Str bookPath, Str blob, Str* errorOut) {
 }
 
 bool LibrarySidecarWriteRecord(Str bookPath, const BookBlobRecord& record, Str* errorOut) {
+    gWriteCount++;
     if (errorOut) {
         str::ReplaceWithCopy(errorOut, {});
     }
@@ -315,7 +384,7 @@ bool LibrarySidecarWriteRecord(Str bookPath, const BookBlobRecord& record, Str* 
         SidecarSetError(errorOut, invalid);
         return false;
     }
-    if (!RecordMatchesBook(bookPath, record)) {
+    if (!RecordIsBranded(record)) {
         SidecarSetError(errorOut, StrL("the record fingerprint does not match the book"));
         return false;
     }
@@ -336,11 +405,43 @@ bool LibrarySidecarWriteRecord(Str bookPath, const BookBlobRecord& record, Str* 
         SidecarSetError(errorOut, pdfError);
         str::Free(pdfError);
     }
-    if (IsZipBook(bookPath) && WriteZipRecord(bookPath, blob, errorOut)) {
+    if (IsZipBook(bookPath) && WriteZipRecord(bookPath, blob, false, errorOut)) {
         DeleteSidecarFile(bookPath);
         return true;
     }
-    return WriteRawRecord(bookPath, blob, errorOut);
+    return WriteRawRecord(bookPath, blob, false, errorOut);
+}
+
+static bool WriteNoTextRecord(Str bookPath, const BookBlobRecord& record, Str* errorOut) {
+    gWriteCount++;
+    if (!RecordHasNoTextState(record)) {
+        SidecarSetError(errorOut, StrL("the record does not contain a portable no-text state"));
+        return false;
+    }
+    Vec<u8> packed;
+    if (!BookBlobEncode(record, packed)) {
+        SidecarSetError(errorOut, StrL("the OCR state could not be encoded"));
+        return false;
+    }
+    Str blob((const char*)packed.LendData(), packed.len);
+    if (IsPdf(bookPath)) {
+        Str pdfError;
+        if (PdfSidecarWriteBlob(bookPath, packed.LendData(), packed.len, {}, nullptr, &pdfError)) {
+            BookBlobRecord check;
+            if (PdfSidecarReadRecord(bookPath, check) && RecordHasNoTextState(check)) {
+                DeleteSidecarFile(bookPath);
+                str::Free(pdfError);
+                return true;
+            }
+        }
+        SidecarSetError(errorOut, pdfError);
+        str::Free(pdfError);
+    }
+    if (IsZipBook(bookPath) && WriteZipRecord(bookPath, blob, true, errorOut)) {
+        DeleteSidecarFile(bookPath);
+        return true;
+    }
+    return WriteRawRecord(bookPath, blob, true, errorOut);
 }
 
 bool LibrarySidecarReadCover(Str bookPath, LibrarySidecarCover* coverOut) {
@@ -414,15 +515,45 @@ bool LibrarySidecarReadFingerprint(Str bookPath, Str* fingerprintOut) {
         return false;
     }
     str::ReplaceWithCopy(fingerprintOut, {});
-    if (!IsPdf(bookPath)) {
+    BookBlobRecord rec;
+    if (!ReadUncheckedRecord(bookPath, rec)) {
         return false;
     }
-    TempStr fp = PdfSidecarReadFingerprint(bookPath);
-    if (!fp) {
+    if (!RecordIsBranded(rec) && rec.hasIdentity && rec.identity.fingerprint &&
+        str::StartsWith(Str(rec.identity.fingerprint), StrL("fp2:"))) {
+        if (LibrarySidecarBrandIfUnbranded(bookPath) < 0) {
+            return false;
+        }
+        BookBlobRecordReset(rec);
+        if (!ReadUncheckedRecord(bookPath, rec)) {
+            return false;
+        }
+    }
+    if (!RecordIsBranded(rec)) {
         return false;
     }
-    *fingerprintOut = str::Dup(fp);
+    *fingerprintOut = str::Dup(Str(rec.identity.fingerprint));
     return true;
+}
+
+bool LibrarySidecarReadOcrState(Str bookPath, int* stateOut, bool* brandedOut) {
+    if (stateOut) {
+        *stateOut = kBookOcrNotAttempted;
+    }
+    if (brandedOut) {
+        *brandedOut = false;
+    }
+    BookBlobRecord rec;
+    if (!ReadUncheckedRecord(bookPath, rec)) {
+        return false;
+    }
+    if (stateOut && rec.hasIdentity) {
+        *stateOut = rec.identity.ocrState;
+    }
+    if (brandedOut) {
+        *brandedOut = RecordIsBranded(rec);
+    }
+    return rec.hasIdentity;
 }
 
 bool LibrarySidecarWriteCover(Str bookPath, Str coverFormat, Str coverData, Str title, Str author, Str series,
@@ -436,18 +567,7 @@ bool LibrarySidecarWriteCover(Str bookPath, Str coverFormat, Str coverData, Str 
     }
     BookBlobRecord rec;
     if (!LibrarySidecarReadRecord(bookPath, rec)) {
-        BookFingerprint fp;
-        if (!BookFingerprintOfFile(bookPath, fp, 0)) {
-            return false;
-        }
-        rec.hasIdentity = true;
-        rec.identity.fingerprint = rec.strings.Append(fp.fingerprint).s;
-        for (int i = 0; i < 16; i++) {
-            rec.identity.textMd5.Append(fp.textMd5[i]);
-        }
-        rec.identity.textLength = fp.textLength;
-        rec.identity.pages = fp.pages;
-        BookFingerprintFree(fp);
+        return false;
     }
     SetRecordBookInfo(rec, bookPath, title, author, series, year);
     rec.hasCover = true;
@@ -468,18 +588,7 @@ bool LibrarySidecarWriteCoverSpot(Str bookPath, int pageNo, RectF rect, int rota
                                   Str author, Str series, int year) {
     BookBlobRecord rec;
     if (!LibrarySidecarReadRecord(bookPath, rec)) {
-        BookFingerprint fp;
-        if (!BookFingerprintOfFile(bookPath, fp, 0)) {
-            return false;
-        }
-        rec.hasIdentity = true;
-        rec.identity.fingerprint = rec.strings.Append(fp.fingerprint).s;
-        for (int i = 0; i < 16; i++) {
-            rec.identity.textMd5.Append(fp.textMd5[i]);
-        }
-        rec.identity.textLength = fp.textLength;
-        rec.identity.pages = fp.pages;
-        BookFingerprintFree(fp);
+        return false;
     }
     SetRecordBookInfo(rec, bookPath, title, author, series, year);
     rec.hasCover = true;
@@ -533,18 +642,7 @@ bool LibrarySidecarWriteInfo(Str bookPath, Str title, Str author, Str series) {
     }
     BookBlobRecord rec;
     if (!LibrarySidecarReadRecord(bookPath, rec)) {
-        BookFingerprint fp;
-        if (!BookFingerprintOfFile(bookPath, fp, 0)) {
-            return false;
-        }
-        rec.hasIdentity = true;
-        rec.identity.fingerprint = rec.strings.Append(fp.fingerprint).s;
-        for (int i = 0; i < 16; i++) {
-            rec.identity.textMd5.Append(fp.textMd5[i]);
-        }
-        rec.identity.textLength = fp.textLength;
-        rec.identity.pages = fp.pages;
-        BookFingerprintFree(fp);
+        return false;
     }
     if (title.len > 0) {
         rec.identity.title = rec.strings.Append(title).s;
@@ -568,51 +666,87 @@ bool LibrarySidecarWriteInfo(Str bookPath, Str title, Str author, Str series) {
 bool LibrarySidecarWriteMetadata(Str bookPath, Str title, Str author, Str series, Str seriesParent, Str genre,
                                  Str subgenre, Str tags, Str partitions, int seriesIndex, int year, int pages,
                                  const BlobStats* stats) {
+    return LibrarySidecarWriteMetadataWithRec(bookPath, nullptr, title, author, series, seriesParent, genre, subgenre,
+                                              tags, partitions, seriesIndex, year, pages, stats);
+}
+
+bool LibrarySidecarWriteMetadataWithRec(Str bookPath, const BookBlobRecord* existingRec, Str title, Str author,
+                                        Str series, Str seriesParent, Str genre, Str subgenre, Str tags, Str partitions,
+                                        int seriesIndex, int year, int pages, const BlobStats* stats) {
     BookBlobRecord rec;
-    bool had = LibrarySidecarReadRecord(bookPath, rec);
-    bool changed = !had;
-    if (!had) {
-        if (!SetRecordIdentity(bookPath, rec)) {
-            return false;
-        }
+    // existingRec is a chance to skip one LibrarySidecarReadRecord per book
+    // per model load (chunk 30). On a 231-book warm load that drops the
+    // SyncEmbeddedRecords sweep's read count from N to 0 — the adopt pass
+    // already read each record a moment earlier, and AdoptEmbeddedRecordFields
+    // is happy to share it with us. Callers that have no cached record pass
+    // nullptr, and we fall back to the read path exactly like before.
+    bool had = false;
+    if (existingRec) {
+        had = true;
     } else {
-        changed = changed || !str::Eq(Str(rec.identity.title ? rec.identity.title : ""), title);
-        changed = changed || !str::Eq(Str(rec.identity.author ? rec.identity.author : ""), author);
-        changed = changed || !rec.hasShelf || !str::Eq(Str(rec.shelf.series ? rec.shelf.series : ""), series);
-        changed = changed || !rec.hasShelf ||
-                  !str::Eq(Str(rec.shelf.seriesParent ? rec.shelf.seriesParent : ""), seriesParent);
-        changed = changed || !rec.hasShelf || !str::Eq(Str(rec.shelf.genre ? rec.shelf.genre : ""), genre);
-        changed = changed || !rec.hasShelf || !str::Eq(Str(rec.shelf.subgenre ? rec.shelf.subgenre : ""), subgenre);
+        had = LibrarySidecarReadRecord(bookPath, rec);
+    }
+    const BookBlobRecord& base = existingRec ? *existingRec : rec;
+    const char* why = nullptr;
+    if (!had) {
+        return false;
+    } else {
         str::Builder haveTags;
-        if (rec.hasShelf) {
-            for (const char* tag : rec.shelf.tags) {
+        if (base.hasShelf) {
+            for (const char* tag : base.shelf.tags) {
                 if (len(haveTags) > 0) {
                     haveTags.Append(StrL(";"));
                 }
                 haveTags.Append(Str(tag));
             }
         }
-        changed = changed || !str::Eq(ToStr(haveTags), tags);
         str::Builder havePartitions;
-        if (rec.hasShelf) {
-            for (const char* partition : rec.shelf.partitions) {
+        if (base.hasShelf) {
+            for (const char* partition : base.shelf.partitions) {
                 if (len(havePartitions) > 0) {
                     havePartitions.Append(StrL(";"));
                 }
                 havePartitions.Append(Str(partition));
             }
         }
-        changed = changed || !str::Eq(ToStr(havePartitions), partitions);
-        changed = changed || !rec.hasShelf || rec.shelf.seriesIndex != seriesIndex;
-        // Not `year > 0 &&`: the caller passes 0 to say "this year is not the
-        // user's any more, take it out of the record". Skipping the write in
-        // that case would leave the old year behind, still looking manual.
-        changed = changed || rec.identity.year != year;
-        changed = changed || (pages > 0 && rec.identity.pages != pages);
-        changed = changed || (stats && (!rec.hasStats || 0 != memcmp(&rec.stats, stats, sizeof(*stats))));
+        if (!str::Eq(Str(base.identity.title ? base.identity.title : ""), title)) {
+            why = "title";
+        } else if (!str::Eq(Str(base.identity.author ? base.identity.author : ""), author)) {
+            why = "author";
+        } else if (!base.hasShelf) {
+            why = "no shelf block";
+        } else if (!str::Eq(Str(base.shelf.series ? base.shelf.series : ""), series)) {
+            why = "series";
+        } else if (!str::Eq(Str(base.shelf.seriesParent ? base.shelf.seriesParent : ""), seriesParent)) {
+            why = "series parent";
+        } else if (!str::Eq(Str(base.shelf.genre ? base.shelf.genre : ""), genre)) {
+            why = "genre";
+        } else if (!str::Eq(Str(base.shelf.subgenre ? base.shelf.subgenre : ""), subgenre)) {
+            why = "subgenre";
+        } else if (!str::Eq(ToStr(haveTags), tags)) {
+            why = "tags";
+        } else if (!str::Eq(ToStr(havePartitions), partitions)) {
+            why = "partitions";
+        } else if (base.shelf.seriesIndex != seriesIndex) {
+            why = "series index";
+        } else if (base.identity.year != year) {
+            // Not `year > 0 &&`: the caller passes 0 to say "this year is not
+            // the user's any more, take it out of the record". Skipping the
+            // write in that case would leave the old year behind, still
+            // looking manual.
+            why = "year";
+        } else if (pages > 0 && base.identity.pages != pages) {
+            why = "pages";
+        } else if (stats && (!base.hasStats || 0 != memcmp(&base.stats, stats, sizeof(*stats)))) {
+            why = "reading stats";
+        }
     }
-    if (!changed) {
+    if (!why) {
         return true;
+    }
+    logf("LibrarySidecarWriteMetadata: rewriting %s because the %s differs\n", bookPath, Str(why));
+    if (existingRec) {
+        BookBlobRecordClone(*existingRec, rec);
     }
     SetRecordBookInfo(rec, bookPath, title, author, series, year);
     rec.identity.title = len(title) > 0 ? rec.strings.Append(title).s : nullptr;
@@ -654,4 +788,112 @@ bool LibrarySidecarWriteMetadata(Str bookPath, Str title, Str author, Str series
     }
     str::Free(err);
     return ok;
+}
+
+int LibrarySidecarBrandIfUnbranded(Str bookPath, LibrarySidecarProgressCb progressCb, void* progressCtx, bool runOcr) {
+    BookBlobRecord rec;
+    bool found = ReadUncheckedRecord(bookPath, rec);
+    if (found && RecordIsBranded(rec)) {
+        return 0;
+    }
+    if (found && RecordHasNoTextState(rec)) {
+        return 0;
+    }
+    if (found && RecordHasEmptyTextBrand(rec)) {
+        rec.identity.fingerprint = nullptr;
+        rec.identity.textMd5.Reset();
+        rec.identity.textLength = 0;
+        rec.identity.ocrState = kBookOcrNoText;
+        Str err;
+        bool ok = WriteNoTextRecord(bookPath, rec, &err);
+        if (!ok) {
+            logf("LibrarySidecar: could not replace empty OCR brand '%s': %s\n", bookPath, err);
+        }
+        str::Free(err);
+        return ok ? 1 : -1;
+    }
+    if (!found) {
+        BookBlobRecordReset(rec);
+    }
+    BookFingerprint fp;
+    if (!BookFingerprintOfFile(bookPath, fp, 0, false, runOcr, progressCb, progressCtx)) {
+        logf("LibrarySidecar: unreadable book, not branded: '%s'\n", bookPath);
+        return -1;
+    }
+    rec.hasIdentity = true;
+    rec.identity.fingerprint = nullptr;
+    rec.identity.textMd5.Reset();
+    rec.identity.textLength = 0;
+    rec.identity.pages = fp.pages;
+    rec.identity.ocrState = fp.ocrState;
+    if (len(fp.fingerprint) > 0) {
+        rec.identity.fingerprint = rec.strings.Append(fp.fingerprint).s;
+        for (int i = 0; i < 16; i++) {
+            rec.identity.textMd5.Append(fp.textMd5[i]);
+        }
+        rec.identity.textLength = fp.textLength;
+    }
+    BookFingerprintFree(fp);
+    if (rec.identity.ocrState == kBookOcrEngineUnavailable) {
+        return -1;
+    }
+    Str err;
+    bool ok = RecordHasNoTextState(rec) ? WriteNoTextRecord(bookPath, rec, &err)
+                                         : LibrarySidecarWriteRecord(bookPath, rec, &err);
+    if (!ok) {
+        logf("LibrarySidecar: could not brand '%s': %s\n", bookPath, err);
+    }
+    str::Free(err);
+    return ok ? 1 : -1;
+}
+
+int LibrarySidecarRunOcrMigration(Str bookPath) {
+    BookBlobRecord rec;
+    if (!ReadUncheckedRecord(bookPath, rec)) {
+        BookBlobRecordReset(rec);
+    }
+    if (RecordIsBranded(rec)) {
+        return 0;
+    }
+    if (rec.identity.ocrState == kBookOcrSuccess || rec.identity.ocrState == kBookOcrNoText) {
+        return 0;
+    }
+    BookFingerprint fp;
+    if (!BookFingerprintOfFile(bookPath, fp, 0, false, true)) {
+        BookFingerprintFree(fp);
+        return -1;
+    }
+    rec.hasIdentity = true;
+    rec.identity.fingerprint = nullptr;
+    rec.identity.textMd5.Reset();
+    rec.identity.textLength = 0;
+    rec.identity.pages = fp.pages;
+    rec.identity.ocrState = fp.ocrState;
+    if (len(fp.fingerprint) == 0) {
+        BookFingerprintFree(fp);
+        if (fp.ocrState == kBookOcrEngineUnavailable) {
+            return -1;
+        }
+        Str err;
+        bool ok = WriteNoTextRecord(bookPath, rec, &err);
+        if (!ok) {
+            logf("LibrarySidecar: could not write OCR no-text for '%s': %s\n", bookPath, err);
+        }
+        str::Free(err);
+        BookFingerprintFree(fp);
+        return ok ? 1 : -1;
+    }
+    rec.identity.fingerprint = rec.strings.Append(fp.fingerprint).s;
+    for (int i = 0; i < 16; i++) {
+        rec.identity.textMd5.Append(fp.textMd5[i]);
+    }
+    rec.identity.textLength = fp.textLength;
+    Str err;
+    bool ok = LibrarySidecarWriteRecord(bookPath, rec, &err);
+    if (!ok) {
+        logf("LibrarySidecar: could not write OCR brand for '%s': %s\n", bookPath, err);
+    }
+    str::Free(err);
+    BookFingerprintFree(fp);
+    return ok ? 1 : -1;
 }

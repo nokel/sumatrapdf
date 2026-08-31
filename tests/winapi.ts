@@ -71,6 +71,17 @@ const user32 = dlopen("user32.dll", {
   GetMenuItemCount: { args: [FFIType.u64], returns: FFIType.i32 },
   GetSubMenu: { args: [FFIType.u64, FFIType.i32], returns: FFIType.u64 },
   GetMenuStringW: { args: [FFIType.u64, FFIType.u32, FFIType.ptr, FFIType.i32, FFIType.u32], returns: FFIType.i32 },
+  GetMenuItemRect: { args: [FFIType.ptr, FFIType.u64, FFIType.u32, FFIType.ptr], returns: FFIType.bool },
+  GetMenuItemInfoW: { args: [FFIType.u64, FFIType.u32, FFIType.bool, FFIType.ptr], returns: FFIType.bool },
+  SendInput: { args: [FFIType.u32, FFIType.ptr, FFIType.i32], returns: FFIType.u32 },
+  GetCursorPos: { args: [FFIType.ptr], returns: FFIType.bool },
+  AttachThreadInput: { args: [FFIType.u32, FFIType.u32, FFIType.bool], returns: FFIType.bool },
+  BringWindowToTop: { args: [FFIType.ptr], returns: FFIType.bool },
+  AllowSetForegroundWindow: { args: [FFIType.u32], returns: FFIType.bool },
+  MonitorFromWindow: { args: [FFIType.ptr, FFIType.u32], returns: FFIType.u64 },
+  MonitorFromPoint: { args: [FFIType.i64, FFIType.u32], returns: FFIType.u64 },
+  GetMonitorInfoW: { args: [FFIType.u64, FFIType.ptr], returns: FFIType.bool },
+  IsIconic: { args: [FFIType.ptr], returns: FFIType.bool },
 });
 
 // GDI + GDI+ for capturing a window to a PNG (see captureWindowToPng). Capturing
@@ -161,6 +172,7 @@ const kernel32 = dlopen("kernel32.dll", {
   WaitForSingleObject: { args: [FFIType.u64, FFIType.u32], returns: FFIType.u32 },
   CloseHandle: { args: [FFIType.u64], returns: FFIType.bool },
   GetLastError: { args: [], returns: FFIType.u32 },
+  GetCurrentThreadId: { args: [], returns: FFIType.u32 },
 });
 
 // Authenticode helpers (mirror src/base/Crypto_win.cpp GetExecutableSignerTemp / IsPEFileSigned).
@@ -1427,6 +1439,240 @@ export function readMenuTree(hmenu: bigint): MenuItem[] {
     } else if (text) {
       out.push({ text });
     }
+  }
+  return out;
+}
+
+export const MONITOR_DEFAULTTONEAREST = 0x2;
+export const MONITOR_DEFAULTTOPRIMARY = 0x1;
+export const MONITORINFOF_PRIMARY = 0x1;
+export const MIIM_STATE = 0x0001;
+export const MIIM_ID = 0x0002;
+export const MFS_HILITE = 0x0080;
+
+export type MonitorInfo = { rect: Rect; work: Rect; primary: boolean };
+
+function readMonitorInfo(hmon: bigint): MonitorInfo | null {
+  const buf = new Uint8Array(40);
+  const dv = new DataView(buf.buffer);
+  dv.setUint32(0, 40, true);
+  if (!user32.symbols.GetMonitorInfoW(hmon, ptr(buf))) {
+    return null;
+  }
+  return {
+    rect: {
+      left: dv.getInt32(4, true),
+      top: dv.getInt32(8, true),
+      right: dv.getInt32(12, true),
+      bottom: dv.getInt32(16, true),
+    },
+    work: {
+      left: dv.getInt32(20, true),
+      top: dv.getInt32(24, true),
+      right: dv.getInt32(28, true),
+      bottom: dv.getInt32(32, true),
+    },
+    primary: (dv.getUint32(36, true) & MONITORINFOF_PRIMARY) !== 0,
+  };
+}
+
+export function monitorOfWindow(hwnd: number): MonitorInfo | null {
+  return readMonitorInfo(user32.symbols.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST));
+}
+
+export function primaryMonitor(): MonitorInfo | null {
+  return readMonitorInfo(user32.symbols.MonitorFromPoint(0n as unknown as number, MONITOR_DEFAULTTOPRIMARY));
+}
+
+export function isIconic(hwnd: number): boolean {
+  return user32.symbols.IsIconic(hwnd);
+}
+
+export function getCurrentThreadId(): number {
+  return kernel32.symbols.GetCurrentThreadId();
+}
+
+export function getWindowThreadId(hwnd: number): number {
+  return user32.symbols.GetWindowThreadProcessId(hwnd, null as unknown as number);
+}
+
+export function getCursorPos(): { x: number; y: number } {
+  const buf = new Int32Array(2);
+  user32.symbols.GetCursorPos(ptr(buf));
+  return { x: buf[0], y: buf[1] };
+}
+
+const INPUT_MOUSE = 0;
+const INPUT_KEYBOARD = 1;
+const INPUT_SIZE = 40;
+
+export const MOUSEEVENTF_MOVE = 0x0001;
+export const MOUSEEVENTF_LEFTDOWN = 0x0002;
+export const MOUSEEVENTF_LEFTUP = 0x0004;
+export const MOUSEEVENTF_RIGHTDOWN = 0x0008;
+export const MOUSEEVENTF_RIGHTUP = 0x0010;
+export const MOUSEEVENTF_ABSOLUTE = 0x8000;
+export const MOUSEEVENTF_VIRTUALDESK = 0x4000;
+export const KEYEVENTF_KEYUP = 0x0002;
+
+export const SM_XVIRTUALSCREEN = 76;
+export const SM_YVIRTUALSCREEN = 77;
+export const SM_CXVIRTUALSCREEN = 78;
+export const SM_CYVIRTUALSCREEN = 79;
+
+// Normalized 0..65535 absolute coordinate over the whole virtual desktop, the
+// only form SendInput accepts together with MOUSEEVENTF_VIRTUALDESK.
+function normalizeToVirtualDesk(x: number, y: number): { nx: number; ny: number } {
+  const vx = getSystemMetrics(SM_XVIRTUALSCREEN);
+  const vy = getSystemMetrics(SM_YVIRTUALSCREEN);
+  const vw = getSystemMetrics(SM_CXVIRTUALSCREEN);
+  const vh = getSystemMetrics(SM_CYVIRTUALSCREEN);
+  const nx = Math.round(((x - vx) * 65535) / Math.max(1, vw - 1));
+  const ny = Math.round(((y - vy) * 65535) / Math.max(1, vh - 1));
+  return { nx, ny };
+}
+
+function writeMouseInput(buf: Uint8Array, i: number, dx: number, dy: number, flags: number): void {
+  const dv = new DataView(buf.buffer, i * INPUT_SIZE, INPUT_SIZE);
+  dv.setUint32(0, INPUT_MOUSE, true);
+  dv.setInt32(8, dx, true);
+  dv.setInt32(12, dy, true);
+  dv.setUint32(16, 0, true);
+  dv.setUint32(20, flags, true);
+  dv.setUint32(24, 0, true);
+  dv.setBigUint64(32, 0n, true);
+}
+
+function writeKeyInput(buf: Uint8Array, i: number, vk: number, flags: number): void {
+  const dv = new DataView(buf.buffer, i * INPUT_SIZE, INPUT_SIZE);
+  dv.setUint32(0, INPUT_KEYBOARD, true);
+  dv.setUint16(8, vk, true);
+  dv.setUint16(10, 0, true);
+  dv.setUint32(12, flags, true);
+  dv.setUint32(16, 0, true);
+  dv.setBigUint64(24, 0n, true);
+}
+
+function sendInputs(buf: Uint8Array, n: number): number {
+  return user32.symbols.SendInput(n, ptr(buf), INPUT_SIZE);
+}
+
+// Move the real pointer to a screen pixel with injected hardware-level input.
+// SetCursorPos runs as well: the two agree because both take physical pixels,
+// and the second one makes the position stick if the injected move is coalesced.
+export function realMouseMove(x: number, y: number): boolean {
+  const n = normalizeToVirtualDesk(x, y);
+  const buf = new Uint8Array(INPUT_SIZE);
+  writeMouseInput(buf, 0, n.nx, n.ny, MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+  const sent = sendInputs(buf, 1);
+  user32.symbols.SetCursorPos(x, y);
+  return sent === 1;
+}
+
+// A real button press at the current pointer position. Down and up go in one
+// SendInput call so no other input can interleave between them.
+export function realMouseClick(button: string): boolean {
+  const down = button === "left" ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_RIGHTDOWN;
+  const up = button === "left" ? MOUSEEVENTF_LEFTUP : MOUSEEVENTF_RIGHTUP;
+  const buf = new Uint8Array(INPUT_SIZE * 2);
+  writeMouseInput(buf, 0, 0, 0, down);
+  writeMouseInput(buf, 1, 0, 0, up);
+  return sendInputs(buf, 2) === 2;
+}
+
+export function realKeyPress(vk: number): boolean {
+  const buf = new Uint8Array(INPUT_SIZE * 2);
+  writeKeyInput(buf, 0, vk, 0);
+  writeKeyInput(buf, 1, vk, KEYEVENTF_KEYUP);
+  return sendInputs(buf, 2) === 2;
+}
+
+// Give this process the last input event, one of the conditions
+// SetForegroundWindow requires of its caller.
+export function claimLastInputEvent(): void {
+  const VK_MENU = 0x12;
+  const buf = new Uint8Array(INPUT_SIZE * 2);
+  writeKeyInput(buf, 0, VK_MENU, 0);
+  writeKeyInput(buf, 1, VK_MENU, KEYEVENTF_KEYUP);
+  sendInputs(buf, 2);
+}
+
+// Bring hwnd to the foreground for real, not only visually. SetForegroundWindow
+// on its own is refused unless the caller already owns the foreground, so this
+// also injects an input event and attaches to the foreground thread's input
+// queue, the two documented ways to satisfy that rule.
+export async function forceForeground(hwnd: number, timeoutMs = 6000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  const me = getCurrentThreadId();
+  while (Date.now() < deadline) {
+    if (isIconic(hwnd)) {
+      showWindow(hwnd, SW_RESTORE);
+    }
+    claimLastInputEvent();
+    const fg = getForegroundWindow();
+    const fgThread = fg ? getWindowThreadId(fg) : 0;
+    const target = getWindowThreadId(hwnd);
+    const attachedFg = fgThread !== 0 && fgThread !== me ? user32.symbols.AttachThreadInput(me, fgThread, true) : false;
+    const attachedTarget =
+      target !== 0 && target !== me && target !== fgThread ? user32.symbols.AttachThreadInput(me, target, true) : false;
+    user32.symbols.AllowSetForegroundWindow(0xffffffff);
+    user32.symbols.BringWindowToTop(hwnd);
+    user32.symbols.SetForegroundWindow(hwnd);
+    if (attachedTarget) {
+      user32.symbols.AttachThreadInput(me, target, false);
+    }
+    if (attachedFg) {
+      user32.symbols.AttachThreadInput(me, fgThread, false);
+    }
+    await sleep(150);
+    if (getForegroundWindow() === hwnd) {
+      return true;
+    }
+  }
+  return getForegroundWindow() === hwnd;
+}
+
+// Screen rect of one menu item, by position. This works across processes: menus
+// are user objects in the shared handle table, so the popup's own HMENU can be
+// measured from here.
+export function getMenuItemRect(hwndOwner: number, hmenu: bigint, pos: number): Rect | null {
+  const buf = new Int32Array(4);
+  if (!user32.symbols.GetMenuItemRect(hwndOwner, hmenu, pos, ptr(buf))) {
+    return null;
+  }
+  return { left: buf[0], top: buf[1], right: buf[2], bottom: buf[3] };
+}
+
+function menuItemInfo(hmenu: bigint, pos: number): DataView | null {
+  const buf = new Uint8Array(80);
+  const dv = new DataView(buf.buffer);
+  dv.setUint32(0, 80, true);
+  dv.setUint32(4, MIIM_STATE | MIIM_ID, true);
+  if (!user32.symbols.GetMenuItemInfoW(hmenu, pos, true, ptr(buf))) {
+    return null;
+  }
+  return dv;
+}
+
+// fState of a menu item, by position. MFS_HILITE tells whether that item is the
+// one the menu would act on right now.
+export function getMenuItemState(hmenu: bigint, pos: number): number {
+  const dv = menuItemInfo(hmenu, pos);
+  return dv ? dv.getUint32(12, true) : -1;
+}
+
+export function getMenuItemId(hmenu: bigint, pos: number): number {
+  const dv = menuItemInfo(hmenu, pos);
+  return dv ? dv.getUint32(16, true) : -1;
+}
+
+// Every item of a menu in position order, separators included, so a caller can
+// address an item by the same index TrackPopupMenu uses.
+export function readMenuItemsFlat(hmenu: bigint): Array<{ pos: number; text: string; id: number; sub: bigint }> {
+  const out: Array<{ pos: number; text: string; id: number; sub: bigint }> = [];
+  const n = getMenuItemCount(hmenu);
+  for (let i = 0; i < n; i++) {
+    out.push({ pos: i, text: getMenuItemText(hmenu, i), id: getMenuItemId(hmenu, i), sub: getSubMenu(hmenu, i) });
   }
   return out;
 }

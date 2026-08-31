@@ -1,0 +1,1171 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug x64_asan|Win32">
+      <Configuration>Debug x64_asan</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug x64_asan|x64">
+      <Configuration>Debug x64_asan</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug x64_asan|ARM64">
+      <Configuration>Debug x64_asan</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="DebugFull|Win32">
+      <Configuration>DebugFull</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="DebugFull|x64">
+      <Configuration>DebugFull</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="DebugFull|ARM64">
+      <Configuration>DebugFull</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="DebugFull x64_asan|Win32">
+      <Configuration>DebugFull x64_asan</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="DebugFull x64_asan|x64">
+      <Configuration>DebugFull x64_asan</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="DebugFull x64_asan|ARM64">
+      <Configuration>DebugFull x64_asan</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release x64_asan|Win32">
+      <Configuration>Release x64_asan</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release x64_asan|x64">
+      <Configuration>Release x64_asan</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release x64_asan|ARM64">
+      <Configuration>Release x64_asan</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseAnalyze|Win32">
+      <Configuration>ReleaseAnalyze</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseAnalyze|x64">
+      <Configuration>ReleaseAnalyze</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseAnalyze|ARM64">
+      <Configuration>ReleaseAnalyze</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseAnalyze x64_asan|Win32">
+      <Configuration>ReleaseAnalyze x64_asan</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseAnalyze x64_asan|x64">
+      <Configuration>ReleaseAnalyze x64_asan</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="ReleaseAnalyze x64_asan|ARM64">
+      <Configuration>ReleaseAnalyze x64_asan</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{818CD0CF-ED41-49C5-7636-439CE2EA3FC9}</ProjectGuid>
+    <IgnoreWarnCompileDuplicatedFilename>true</IgnoreWarnCompileDuplicatedFilename>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>a-tesseract</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+    <WindowsSDKDesktopARM64Support>true</WindowsSDKDesktopARM64Support>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug x64_asan|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <EnableASAN>true</EnableASAN>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|ARM64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+    <WindowsSDKDesktopARM64Support>true</WindowsSDKDesktopARM64Support>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull x64_asan|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <EnableASAN>true</EnableASAN>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <WindowsSDKDesktopARM64Support>true</WindowsSDKDesktopARM64Support>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release x64_asan|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <EnableASAN>true</EnableASAN>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|ARM64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <WindowsSDKDesktopARM64Support>true</WindowsSDKDesktopARM64Support>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze x64_asan|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+    <EnableASAN>true</EnableASAN>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug x64_asan|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='DebugFull|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='DebugFull|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='DebugFull|ARM64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='DebugFull x64_asan|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release x64_asan|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|ARM64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze x64_asan|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <OutDir>$(ProjectDir)..\out\dbg32\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\dbg32\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(ProjectDir)..\out\dbg64\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\dbg64\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <OutDir>$(ProjectDir)..\out\dbgarm64\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\dbgarm64\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug x64_asan|x64'">
+    <OutDir>$(ProjectDir)..\out\dbg64_asan\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\dbg64_asan\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|Win32'">
+    <OutDir>$(ProjectDir)..\out\dbgfull32\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\dbgfull32\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|x64'">
+    <OutDir>$(ProjectDir)..\out\dbgfull64\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\dbgfull64\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|ARM64'">
+    <OutDir>$(ProjectDir)..\out\dbgfullarm64\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\dbgfullarm64\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull x64_asan|x64'">
+    <OutDir>$(ProjectDir)..\out\dbgfull64_asan\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\dbgfull64_asan\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <OutDir>$(ProjectDir)..\out\rel32\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\rel32\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(ProjectDir)..\out\rel64\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\rel64\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <OutDir>$(ProjectDir)..\out\arm64\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\arm64\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release x64_asan|x64'">
+    <OutDir>$(ProjectDir)..\out\rel64_asan\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\rel64_asan\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|Win32'">
+    <OutDir>$(ProjectDir)..\out\rel32_prefast\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\rel32_prefast\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|x64'">
+    <OutDir>$(ProjectDir)..\out\rel64_prefast\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\rel64_prefast\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|ARM64'">
+    <OutDir>$(ProjectDir)..\out\arm64_prefast\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\arm64_prefast\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze x64_asan|x64'">
+    <OutDir>$(ProjectDir)..\out\rel64_prefast_asan\obj-s\</OutDir>
+    <IntDir>$(ProjectDir)..\out\rel64_prefast_asan\obj-s\a-tesseract\</IntDir>
+    <TargetName>a-tesseract</TargetName>
+    <TargetExt>.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug x64_asan|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull|ARM64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFull x64_asan|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release x64_asan|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze|ARM64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='ReleaseAnalyze x64_asan|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4800;6319;4005;4013;4018;4100;4115;4130;4200;4244;4245;4267;4305;4389;4456;4457;4702;4706;4819;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;_CRT_SECURE_NO_WARNINGS;TESSERACT_STATIC;DISABLED_LEGACY_ENGINE;GRAPHICS_DISABLED;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <UndefinePreprocessorDefinitions>DEBUG;%(UndefinePreprocessorDefinitions)</UndefinePreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-tesseract\include;..\ext\a-tesseract\src;..\ext\a-tesseract\src\api;..\ext\a-tesseract\src\arch;..\ext\a-tesseract\src\ccmain;..\ext\a-tesseract\src\ccstruct;..\ext\a-tesseract\src\ccutil;..\ext\a-tesseract\src\classify;..\ext\a-tesseract\src\cutil;..\ext\a-tesseract\src\dict;..\ext\a-tesseract\src\lstm;..\ext\a-tesseract\src\textord;..\ext\a-tesseract\src\viewer;..\ext\a-tesseract\src\wordrec;..\ext\a-leptonica\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>MinSpace</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <AdditionalOptions>/utf-8 /we4840 %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <ExternalWarningLevel>Level3</ExternalWarningLevel>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+    <ProjectReference>
+    </ProjectReference>
+    <CustomBuild>
+      <BuildInParallel>true</BuildInParallel>
+    </CustomBuild>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\baseapi.h" />
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\capi.h" />
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\export.h" />
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\ltrresultiterator.h" />
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\ocrclass.h" />
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\osdetect.h" />
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\pageiterator.h" />
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\publictypes.h" />
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\renderer.h" />
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\resultiterator.h" />
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\unichar.h" />
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\version.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\ext\a-tesseract\src\api\altorenderer.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\api\baseapi.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\api\capi.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\api\hocrrenderer.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\api\lstmboxrenderer.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\api\pdfrenderer.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\api\renderer.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\api\wordstrboxrenderer.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproduct.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproductavx.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproductavx512.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproductfma.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproductneon.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproductsse.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\arch\intsimdmatrix.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\arch\intsimdmatrixavx2.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\arch\intsimdmatrixneon.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\arch\intsimdmatrixsse.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\arch\simddetect.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\adaptions.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\applybox.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\control.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\docqual.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\equationdetect.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\fixspace.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\fixxht.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\linerec.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\ltrresultiterator.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\mutableiterator.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\osdetect.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\output.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\pageiterator.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\pagesegmain.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\pagewalk.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\par_control.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\paragraphs.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\paramsd.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\pgedit.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\recogtraining.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\reject.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\resultiterator.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\superscript.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\tessbox.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\tessedit.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\tesseractclass.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\tessvars.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\tfacepp.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\thresholder.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\werdit.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\blamer.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\blobbox.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\blobs.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\blread.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\boxread.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\boxword.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\ccstruct.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\coutln.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\detlinefit.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\dppoint.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\fontinfo.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\image.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\imagedata.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\linlsq.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\matrix.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\mod128.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\normalis.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\ocrblock.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\ocrpara.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\ocrrow.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\otsuthr.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\pageres.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\params_training_featdef.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\pdblock.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\points.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\polyaprx.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\polyblk.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\quadlsq.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\quspline.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\ratngs.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\rect.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\rejctmap.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\seam.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\split.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\statistc.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\stepblob.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\werd.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\ambigs.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\bitvector.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\ccutil.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\clst.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\elst.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\elst2.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\errcode.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\indexmapbidi.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\params.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\scanutils.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\serialis.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\tessdatamanager.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\tprintf.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\unichar.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\unicharcompress.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\unicharmap.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\unicharset.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\adaptive.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\adaptmatch.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\blobclass.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\classify.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\cluster.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\clusttool.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\cutoffs.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\featdefs.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\float2int.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\fpoint.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\intfeaturespace.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\intfx.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\intmatcher.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\intproto.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\kdtree.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\mf.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\mfoutline.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\mfx.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\normfeat.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\normmatch.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\ocrfeatures.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\outfeat.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\picofeat.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\protos.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\shapeclassifier.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\shapetable.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\tessclassifier.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\classify\trainingsample.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\cutil\oldlist.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\dict\context.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\dict\dawg.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\dict\dawg_cache.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\dict\dict.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\dict\hyphen.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\dict\permdawg.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\dict\stopper.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\dict\trie.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\convolve.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\fullyconnected.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\functions.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\input.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\lstm.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\lstmrecognizer.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\maxpool.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\network.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\networkio.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\parallel.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\plumbing.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\recodebeam.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\reconfig.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\reversed.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\series.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\stridemap.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\tfnetwork.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\weightmatrix.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\alignedblob.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\baselinedetect.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\bbgrid.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\blkocc.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\blobgrid.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\ccnontextdetect.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\cjkpitch.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\colfind.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\colpartition.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\colpartitiongrid.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\colpartitionset.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\devanagari_processing.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\drawtord.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\edgblob.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\edgloop.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\equationdetectbase.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\fpchop.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\gap_map.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\imagefind.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\linefind.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\makerow.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\oldbasel.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\pithsync.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\pitsync1.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\scanedg.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\sortflts.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\strokewidth.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tabfind.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tablefind.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tablerecog.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tabvector.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\textlineprojection.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\textord.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\topitch.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tordmain.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tospace.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tovars.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\underlin.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\wordseg.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\textord\workingpartset.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\associate.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\chop.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\chopper.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\drawfx.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\findseam.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\gradechop.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\language_model.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\lm_consistency.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\lm_pain_points.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\lm_state.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\outlines.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\params_model.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\pieces.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\plotedges.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\render.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\segsearch.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\tface.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\wordclass.cpp" />
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\wordrec.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="a-leptonica.vcxproj">
+      <Project>{525C0648-BE11-7F3D-4706-7914B3BA7541}</Project>
+    </ProjectReference>
+    <ProjectReference Include="libjpeg-turbo.vcxproj">
+      <Project>{DB56484D-4717-C483-1052-0D017CD10860}</Project>
+    </ProjectReference>
+    <ProjectReference Include="a-zlib.vcxproj">
+      <Project>{047896ED-F019-C1C3-D9D4-D417C5154814}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

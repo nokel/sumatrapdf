@@ -960,6 +960,7 @@
   <ItemGroup>
     <ClInclude Include="..\src\BookBlob.h" />
     <ClInclude Include="..\src\BookFingerprint.h" />
+    <ClInclude Include="..\src\BookOcr.h" />
     <ClInclude Include="..\src\LibraryData.h" />
     <ClInclude Include="..\src\LibrarySidecar.h" />
     <ClInclude Include="..\src\LibraryStore.h" />
@@ -1006,6 +1007,7 @@
     </ClCompile>
     <ClCompile Include="..\src\BookBlob.cpp" />
     <ClCompile Include="..\src\BookFingerprint.cpp" />
+    <ClCompile Include="..\src\BookOcr.cpp" />
     <ClCompile Include="..\src\CrashHandlerNoOp.cpp" />
     <ClCompile Include="..\src\LibrarySidecar.cpp" />
     <ClCompile Include="..\src\LibraryStore.cpp" />

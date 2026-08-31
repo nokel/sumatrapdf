@@ -949,10 +949,187 @@ static void LibrarySidecar_UnitTests() {
                                          StrL("a;b"), 3, 1998, 42, &stats));
     Str after = file::ReadFile(dst);
     utassert(str::Eq(unchanged, after));
-    str::Free(unchanged);
     str::Free(after);
 
+    // chunk 30: the WithRec overload must produce the same on-disk result
+    // as the no-cache overload, and must NOT re-read the file when the
+    // caller already has a fresh record. The counter check is the proof
+    // that the read was actually skipped: we capture the read count, call
+    // WriteMetadataWithRec with a record the caller "already has" (the
+    // one we just read above), and assert the counter did not move.
+    BookBlobRecord preCached;
+    utassert(LibrarySidecarReadRecord(dst, preCached));
+    int readsBefore = 0, writesBefore = 0;
+    LibrarySidecarPerfCounters(&readsBefore, &writesBefore);
+    utassert(LibrarySidecarWriteMetadataWithRec(dst, &preCached, StrL("Moved title"), StrL("Moved author"),
+                                                StrL("Moved series"), StrL("Moved parent"), StrL("Fantasy"),
+                                                StrL("Portal"), StrL("one;two"), StrL("a;b"), 3, 1998, 42, &stats));
+    int readsAfter = 0, writesAfter = 0;
+    LibrarySidecarPerfCounters(&readsAfter, &writesAfter);
+    utassert(readsAfter == readsBefore);
+    utassert(writesAfter == writesBefore);
+    // Round-trip the no-cache path against the same data to confirm both
+    // overloads produce the same on-disk record.
+    Str after2 = file::ReadFile(dst);
+    utassert(str::Eq(unchanged, after2));
+    str::Free(after2);
+
+    // Now change a field through the WithRec overload and confirm the
+    // change is written exactly once (no double-write, no skipped write).
+    utassert(LibrarySidecarWriteMetadataWithRec(dst, &preCached, StrL("Final title"), StrL("Moved author"),
+                                                StrL("Moved series"), StrL("Moved parent"), StrL("Fantasy"),
+                                                StrL("Portal"), StrL("one;two"), StrL("a;b"), 3, 1998, 42, &stats));
+    BookBlobRecord finalRec;
+    utassert(LibrarySidecarReadRecord(dst, finalRec));
+    utassert(str::Eq(Str(finalRec.identity.title), StrL("Final title")));
+
+    str::Free(unchanged);
     file::Delete(sidecar);
+    file::Delete(dst);
+    str::Free(dst);
+}
+
+static void ChurnHeap() {
+    for (int i = 0; i < 120; i++) {
+        StrVec v;
+        for (int j = 0; j < 48; j++) {
+            v.Append(StrL("filler text that reuses whatever StrVec pages were just freed"));
+        }
+    }
+}
+
+static void SeedLifetimeRecord(Str bookPath) {
+    BookFingerprint fp;
+    utassert(BookFingerprintOfFile(bookPath, fp, 0));
+    BookBlobRecord seed;
+    seed.hasIdentity = true;
+    seed.identity.fingerprint = seed.strings.Append(fp.fingerprint).s;
+    for (int i = 0; i < 16; i++) {
+        seed.identity.textMd5.Append(fp.textMd5[i]);
+    }
+    seed.identity.textLength = fp.textLength;
+    seed.identity.pages = fp.pages;
+    BookFingerprintFree(fp);
+    seed.identity.title = seed.strings.Append(StrL("Lifetime title")).s;
+    seed.identity.author = seed.strings.Append(StrL("Lifetime author")).s;
+    seed.identity.year = 1997;
+    seed.hasShelf = true;
+    seed.shelf.series = seed.strings.Append(StrL("Lifetime series")).s;
+    seed.shelf.seriesParent = seed.strings.Append(StrL("Lifetime parent")).s;
+    seed.shelf.genre = seed.strings.Append(StrL("Lifetime genre")).s;
+    seed.shelf.subgenre = seed.strings.Append(StrL("Lifetime subgenre")).s;
+    seed.shelf.seriesIndex = 3;
+    seed.shelf.tags.Append(seed.strings.Append(StrL("one")).s);
+    seed.shelf.tags.Append(seed.strings.Append(StrL("two")).s);
+    seed.shelf.partitions.Append(seed.strings.Append(StrL("a")).s);
+    seed.shelf.partitions.Append(seed.strings.Append(StrL("b")).s);
+    seed.hasCover = true;
+    seed.cover.kind = kBlobCoverImage;
+    seed.cover.format = seed.strings.Append(StrL("webp")).s;
+    FakeArt(seed.cover.data, "webp", 4096);
+    BlobChapter chapter{};
+    chapter.title = seed.strings.Append(StrL("Lifetime chapter")).s;
+    chapter.page = 5;
+    seed.chapters.Append(chapter);
+    utassert(!BookRecordForeignString(seed));
+    Str err;
+    utassert(LibrarySidecarWriteRecord(bookPath, seed, &err));
+    str::Free(err);
+}
+
+static void ReadThenDropSource(Str bookPath, BookBlobRecord& out) {
+    BookBlobRecord* onDisk = new BookBlobRecord();
+    utassert(LibrarySidecarReadRecord(bookPath, *onDisk));
+    utassert(!BookRecordForeignString(*onDisk));
+    BookBlobRecordClone(*onDisk, out);
+    delete onDisk;
+    ChurnHeap();
+}
+
+static void BookBlobLifetime_UnitTests() {
+    Str src = StrL("tests/issue-5846.epub");
+    TempStr tempBase = GetTempFilePathTemp(StrL("sumatra-lifetime-"));
+    Str dst = str::Dup(str::FormatTemp("%s.epub", tempBase));
+    file::Delete(tempBase);
+    file::Delete(dst);
+    utassert(file::Copy(dst, src, false));
+    SeedLifetimeRecord(dst);
+
+    BookBlobRecord clone;
+    ReadThenDropSource(dst, clone);
+    Str which;
+    const char* foreign = BookRecordForeignString(clone, &which);
+    if (foreign) {
+        logf("BookBlobLifetime: %s does not point into the clone's own strings\n", which);
+    }
+    utassert(!foreign);
+    utassert(str::Eq(Str(clone.identity.title), StrL("Lifetime title")));
+    utassert(str::Eq(Str(clone.identity.author), StrL("Lifetime author")));
+    utassert(clone.identity.year == 1997);
+    utassert(str::Eq(Str(clone.shelf.series), StrL("Lifetime series")));
+    utassert(str::Eq(Str(clone.shelf.seriesParent), StrL("Lifetime parent")));
+    utassert(str::Eq(Str(clone.shelf.genre), StrL("Lifetime genre")));
+    utassert(str::Eq(Str(clone.shelf.subgenre), StrL("Lifetime subgenre")));
+    utassert(clone.shelf.seriesIndex == 3);
+    utassert(clone.shelf.tags.len == 2 && str::Eq(Str(clone.shelf.tags[0]), StrL("one")) &&
+             str::Eq(Str(clone.shelf.tags[1]), StrL("two")));
+    utassert(clone.shelf.partitions.len == 2 && str::Eq(Str(clone.shelf.partitions[0]), StrL("a")) &&
+             str::Eq(Str(clone.shelf.partitions[1]), StrL("b")));
+    utassert(clone.chapters.len == 1 && str::Eq(Str(clone.chapters[0].title), StrL("Lifetime chapter")));
+    utassert(clone.hasCover && clone.cover.data.len == 4096);
+    utassert(str::Eq(Str(clone.cover.format), StrL("webp")));
+    utassert(clone.hasIdentity && clone.identity.fingerprint && *clone.identity.fingerprint);
+    TempStr why = BookRecordWhyInvalid(clone);
+    if (why.s) {
+        logf("BookBlobLifetime: a cloned record was refused: %s\n", why);
+    }
+    utassert(!why.s);
+
+    for (int round = 0; round < 40; round++) {
+        BookBlobRecord cached;
+        ReadThenDropSource(dst, cached);
+        utassert(!BookRecordForeignString(cached));
+        utassert(cached.hasCover && str::Eq(Str(cached.cover.format), StrL("webp")));
+        TempStr bad = BookRecordWhyInvalid(cached);
+        if (bad.s) {
+            logf("BookBlobLifetime: round %d refused a cached record: %s\n", round, bad);
+        }
+        utassert(!bad.s);
+        int readsPre = 0, writesPre = 0;
+        LibrarySidecarPerfCounters(&readsPre, &writesPre);
+        utassert(LibrarySidecarWriteMetadataWithRec(dst, &cached, StrL("Lifetime title"), StrL("Lifetime author"),
+                                                    StrL("Lifetime series"), StrL("Lifetime parent"),
+                                                    StrL("Lifetime genre"), StrL("Lifetime subgenre"), StrL("one;two"),
+                                                    StrL("a;b"), 3, 1997, cached.identity.pages, nullptr));
+        int readsPost = 0, writesPost = 0;
+        LibrarySidecarPerfCounters(&readsPost, &writesPost);
+        utassert(readsPost == readsPre);
+        utassert(writesPost == writesPre);
+    }
+
+    BookBlobRecord cachedForWrite;
+    ReadThenDropSource(dst, cachedForWrite);
+    int readsPre = 0, writesPre = 0;
+    LibrarySidecarPerfCounters(&readsPre, &writesPre);
+    utassert(LibrarySidecarWriteMetadataWithRec(dst, &cachedForWrite, StrL("Changed title"), StrL("Lifetime author"),
+                                                StrL("Lifetime series"), StrL("Lifetime parent"),
+                                                StrL("Lifetime genre"), StrL("Lifetime subgenre"), StrL("one;two"),
+                                                StrL("a;b"), 3, 1997, cachedForWrite.identity.pages, nullptr));
+    int readsPost = 0, writesPost = 0;
+    LibrarySidecarPerfCounters(&readsPost, &writesPost);
+    utassert(readsPost == readsPre);
+    utassert(writesPost == writesPre + 1);
+    ChurnHeap();
+    BookBlobRecord back;
+    utassert(LibrarySidecarReadRecord(dst, back));
+    utassert(!BookRecordForeignString(back));
+    utassert(str::Eq(Str(back.identity.title), StrL("Changed title")));
+    utassert(str::Eq(Str(back.identity.author), StrL("Lifetime author")));
+    utassert(back.hasCover && back.cover.data.len == 4096);
+    utassert(str::Eq(Str(back.cover.format), StrL("webp")));
+    utassert(back.chapters.len == 1 && str::Eq(Str(back.chapters[0].title), StrL("Lifetime chapter")));
+    utassert(back.shelf.tags.len == 2 && back.shelf.partitions.len == 2);
+
     file::Delete(dst);
     str::Free(dst);
 }
@@ -1129,6 +1306,7 @@ int RunAppUnitTests() {
     CoverSpot_UnitTests();
     BookRecordCheck_UnitTests();
     LibrarySidecar_UnitTests();
+    BookBlobLifetime_UnitTests();
     RoamingBook_UnitTests();
     SidecarDump_UnitTests();
     InteropBook_UnitTests();

@@ -296,6 +296,7 @@ export const commands = [
     "CmdSignDocument", "Sign Document...",
     "CmdInsertImage", "Insert Image...",
     "CmdToggleHighlightFormFields", "Toggle Highlight Form Fields",
+    "CmdLibraryIndexing", "Library Indexing...",
     "CmdNone", "Do nothing",
 ];
 

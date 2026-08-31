@@ -564,6 +564,10 @@ static MenuDef menuDefSettings[] = {
         CmdAdvancedOptions,
     },
     {
+        _TRN("&Library Indexing..."),
+        CmdLibraryIndexing,
+    },
+    {
         _TRN("&Theme"),
         (UINT_PTR)menuDefThemes,
     },

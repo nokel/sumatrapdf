@@ -368,8 +368,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -397,8 +397,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -415,6 +415,10 @@
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalDependencies>tesseract53.lib;leptonica-1.84.0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ext\build\ocr-install\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
     <ProjectReference>
     </ProjectReference>
     <CustomBuild>
@@ -426,8 +430,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;ARCH_HAS_NEON=1;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;ARCH_HAS_NEON=1;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -455,8 +459,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -473,6 +477,10 @@
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalDependencies>tesseract53.lib;leptonica-1.84.0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ext\build\ocr-install\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
     <ProjectReference>
     </ProjectReference>
     <CustomBuild>
@@ -484,8 +492,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -513,8 +521,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -531,6 +539,10 @@
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalDependencies>tesseract53.lib;leptonica-1.84.0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ext\build\ocr-install\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
     <ProjectReference>
     </ProjectReference>
     <CustomBuild>
@@ -542,8 +554,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;ARCH_HAS_NEON=1;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;ARCH_HAS_NEON=1;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -571,8 +583,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;DEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
@@ -589,6 +601,10 @@
       <FullProgramDatabaseFile>true</FullProgramDatabaseFile>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
     </Link>
+    <Lib>
+      <AdditionalDependencies>tesseract53.lib;leptonica-1.84.0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ext\build\ocr-install\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
     <ProjectReference>
     </ProjectReference>
     <CustomBuild>
@@ -600,8 +616,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -633,8 +649,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -655,6 +671,10 @@
       <OptimizeReferences>true</OptimizeReferences>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
+    <Lib>
+      <AdditionalDependencies>tesseract53.lib;leptonica-1.84.0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ext\build\ocr-install\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
     <ProjectReference>
     </ProjectReference>
     <CustomBuild>
@@ -666,8 +686,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;ARCH_HAS_NEON=1;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;ARCH_HAS_NEON=1;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -699,8 +719,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -720,6 +740,10 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <Lib>
+      <AdditionalDependencies>tesseract53.lib;leptonica-1.84.0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ext\build\ocr-install\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
     <ProjectReference>
     </ProjectReference>
     <CustomBuild>
@@ -731,8 +755,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -765,8 +789,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -788,6 +812,10 @@
       <OptimizeReferences>true</OptimizeReferences>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
     </Link>
+    <Lib>
+      <AdditionalDependencies>tesseract53.lib;leptonica-1.84.0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ext\build\ocr-install\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
     <ProjectReference>
     </ProjectReference>
     <CustomBuild>
@@ -799,8 +827,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;ARCH_HAS_NEON=1;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;ARCH_HAS_NEON=1;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -833,8 +861,8 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <WarningLevel>Level4</WarningLevel>
       <DisableSpecificWarnings>4127;4189;4324;4458;4522;4611;4702;4800;6319;4005;4013;4018;4057;4100;4115;4130;4132;4146;4200;4204;4206;4210;4245;4267;4295;4305;4389;4456;4457;4703;4706;4819;5286;%(DisableSpecificWarnings)</DisableSpecificWarnings>
-      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>ASAN_BUILD=1;IS_TRACY=0;WIN32;_WIN32;WINVER=0x0601;_WIN32_WINNT=0x0601;NTDDI_VERSION=0x06010000;_HAS_ITERATOR_DEBUGGING=0;NDEBUG;USE_JPIP;OPJ_EXPORTS;HAVE_LCMS2MT=1;HAVE_WEBP=1;OPJ_STATIC;SHARE_JPEG;TOFU_NOTO;TOFU_CJK_LANG;TOFU_NOTO_SUMATRA;FZ_ENABLE_PDF=1;FZ_ENABLE_SVG=1;FZ_ENABLE_BROTLI=1;FZ_ENABLE_BARCODE=0;FZ_ENABLE_JS=1;FZ_ENABLE_HYPHEN=0;FZ_ENABLE_MD=1;HAVE_LIBARCHIVE;LIBARCHIVE_STATIC;_UCRT_NOISY_NAN;CMARK_GFM_STATIC_DEFINE;HAVE_TESSERACT;HAVE_LEPTONICA;_HAS_EXCEPTIONS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\ext\a-zlib;..\ext\mupdf\include;..\ext\mupdf\generated;..\ext\a-jbig2dec;..\ext\libjpeg-turbo\src;..\ext\a-openjpeg;..\ext\build\ocr-install\include;..\ext\build\ocr-install\include\leptonica;..\ext\a-leptonica\src;..\ext\mupdf\scripts\freetype;..\ext\freetype\include;..\ext\a-mujs;..\ext\brotli\c\include;..\ext\cmark-gfm\src;..\ext\cmark-gfm\extensions;..\ext\mupdf\scripts\cmark-gfm;..\ext\harfbuzz\src;..\ext\lcms2\include;..\ext\a-gumbo;..\ext\a-extract;..\ext\libarchive;..\ext\libwebp\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>MinSpace</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -855,6 +883,10 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
     </Link>
+    <Lib>
+      <AdditionalDependencies>tesseract53.lib;leptonica-1.84.0.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>..\ext\build\ocr-install\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Lib>
     <ProjectReference>
     </ProjectReference>
     <CustomBuild>
@@ -1049,6 +1081,10 @@
     <ClCompile Include="..\ext\mupdf\source\fitz\image.c" />
     <ClCompile Include="..\ext\mupdf\source\fitz\jmemcust.c" />
     <ClCompile Include="..\ext\mupdf\source\fitz\json.c" />
+    <ClCompile Include="..\ext\mupdf\source\fitz\leptonica-wrap.c">
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+    </ClCompile>
     <ClCompile Include="..\ext\mupdf\source\fitz\link.c" />
     <ClCompile Include="..\ext\mupdf\source\fitz\list-device.c" />
     <ClCompile Include="..\ext\mupdf\source\fitz\load-bmp.c" />
@@ -1108,6 +1144,10 @@
     <ClCompile Include="..\ext\mupdf\source\fitz\subset-cff.c" />
     <ClCompile Include="..\ext\mupdf\source\fitz\subset-ttf.c" />
     <ClCompile Include="..\ext\mupdf\source\fitz\svg-device.c" />
+    <ClCompile Include="..\ext\mupdf\source\fitz\tessocr.cpp">
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+    </ClCompile>
     <ClCompile Include="..\ext\mupdf\source\fitz\test-device.c" />
     <ClCompile Include="..\ext\mupdf\source\fitz\text-decoder.c" />
     <ClCompile Include="..\ext\mupdf\source\fitz\text.c" />

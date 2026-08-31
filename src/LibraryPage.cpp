@@ -9,8 +9,10 @@
 #include "base/GdiPlusUtil.h"
 #include "base/Pixmap.h"
 #include "base/Http.h"
+#include "base/UITask.h"
 #include "base/JsonParser.h"
 #include "JsonVisitor.h"
+#include "LibraryImportWindow.h"
 #include "base/Crypto.h"
 
 #include "gui/UIModels.h"
@@ -61,6 +63,8 @@ constexpr const char* kLinkRead = "<Library,Read>";
 constexpr const char* kLinkTab = "<Library,Tab>";
 constexpr const char* kLinkPerson = "<Library,Person>";
 constexpr const char* kLinkRescan = "<Library,Rescan>";
+constexpr const char* kLinkProgressiveScan = "<Library,ProgressiveScan>";
+constexpr const char* kLinkImportBook = "<Library,ImportBook>";
 constexpr const char* kLinkClassic = "<Library,Classic>";
 constexpr const char* kLinkAllBooks = "<Library,All>";
 constexpr const char* kLinkEditMetadata = "<Library,EditMetadata>";
@@ -134,8 +138,12 @@ constexpr int kMenuSelectFiles = 12;
 constexpr int kMenuLeaveSeries = 13;
 constexpr int kMenuRenameSeries = 14;
 constexpr int kMenuEditBookMetadata = 15;
+constexpr int kMenuRestoreAutoSeries = 16;
+constexpr int kMenuRestoreAutoParent = 17;
 constexpr int kMenuRejoinFirst = 60;
 constexpr int kMenuPartitionFirst = 100;
+constexpr int kMenuSeriesFirst = 1000;
+constexpr int kMenuRowParentFirst = 2000;
 constexpr int kMaxPartitions = 64;
 
 constexpr const char* kKindBook = "book";
@@ -204,6 +212,7 @@ struct LibSeries {
     Str subhead;
     Str kind;
     Str guessed;
+    Str parentSource;
     int books = 0;
     int booknlp = 0;
     int facts = 0;
@@ -263,10 +272,20 @@ struct LibModel {
     Str error;
     bool loaded = false;
     bool loading = false;
+    bool loadFailed = false;
     bool scanning = false;
     bool scopeCurrent = true;
+    bool resumePending = false;
     int scanDone = 0;
     int scanTotal = 0;
+    int scanItemDone = 0;
+    int scanItemTotal = 0;
+    bool scanItemIndeterminate = false;
+    Str scanItem;
+    Str scanItemAction;
+    int scanTraversals = 0;
+    int scanFilesDiscovered = 0;
+    int scanFilesProcessed = 0;
     int total = 0;
     int documents = 0;
     int ignored = 0;
@@ -300,7 +319,8 @@ struct LibDesk {
 
 static bool gNativeScanning = false;
 static bool gAutoSweepStarted = false;
-static volatile bool gScanCancel = false;
+static volatile LONG gScanCancel = 0;
+static volatile bool gSweepActive = false;
 
 struct LibDetail {
     Str id;
@@ -406,12 +426,151 @@ static CoverSlot gCovers[kMaxCovers];
 static int gNCovers = 0;
 static CRITICAL_SECTION gLock;
 static bool gLockReady = false;
+static Mutex gLoadModelMutex;
 static int gWorkers = 0;
 static HWND gNotifyHwnd = nullptr;
+static UINT_PTR gScanAnimationTimer = 0;
 static bool gDetailOpen = false;
 static int gPort = 0;
 
-static void SyncEmbeddedRecords();
+// chunk 31: total number of LoadModelThread invocations since process
+// start. Used by the bench/test harness to count how many full model
+// loads a user action actually triggers (one of the chunk's required
+// metrics: "number of LoadModelThread starts" per user operation).
+static AtomicInt gLoadModelThreadStarts = 0;
+// chunk 34 regression: incremented at the very end of LoadModelThread
+// (after the snapshot is written). The test harness uses this counter
+// to wait for a triggered load to FULLY COMPLETE before reading perf,
+// instead of just waiting for the load to START. Without this, a slow
+// adopt loop from a previous load (e.g. the initial Full load on a
+// large library) can finish after a subsequent catalogue-only load,
+// overwriting the snapshot the test is about to read.
+static AtomicInt gLoadModelThreadCompletes = 0;
+// chunk 34 regression: the generation of the most recently STARTED
+// LoadModelThread. A load that is still completing checks this at
+// the end and only writes its perf snapshot if it is still the most
+// recent load. Otherwise a slow initial Full load would overwrite
+// the snapshot of a fast catalogue-only load that started after it.
+static AtomicInt gLoadModelCurrentGeneration = 0;
+
+// chunk 34 regression: atomic snapshot of the most recently COMPLETED
+// LoadModelThread. Written at the end of LoadModelThread, read by
+// LastLoadPerfOnce. Prevents the test from seeing a torn snapshot
+// (e.g. skippedEmbedded from load N + adoptMs from load N-1) when a
+// slow adopt loop from a previous load is still running while a
+// catalogue-only load completes.
+static u64 gLastCompletedLoadAdoptMs = 0;
+static u64 gLastCompletedLoadSyncMs = 0;
+static int gLastCompletedLoadReads = 0;
+static int gLastCompletedLoadWrites = 0;
+static int gLastCompletedLoadPdfOpen = 0;
+static int gLastCompletedLoadBooks = 0;
+static bool gLastCompletedLoadSkippedEmbedded = false;
+static int gLastCompletedLoadGeneration = 0; // matches gLoadModelThreadStarts at completion
+
+// Test hook: returns the most recent COMPLETED LoadModelThread's perf
+// summary as a one-line "OK ..." string. Called by the chunk 31 /
+// chunk 34 control commands after they trigger a user action and
+// wait for the model to settle.
+TempStr LastLoadPerfOnce() {
+    return str::FormatTemp("OK adoptMs=%llu syncMs=%llu reads=%d writes=%d pdfOpen=%d books=%d skippedEmbedded=%d\n",
+                           (unsigned long long)gLastCompletedLoadAdoptMs, (unsigned long long)gLastCompletedLoadSyncMs,
+                           gLastCompletedLoadReads, gLastCompletedLoadWrites, gLastCompletedLoadPdfOpen,
+                           gLastCompletedLoadBooks, gLastCompletedLoadSkippedEmbedded ? 1 : 0);
+}
+
+int LoadModelThreadStartCount() {
+    return AtomicIntGet(&gLoadModelThreadStarts);
+}
+
+int LoadModelThreadCompleteCount() {
+    return AtomicIntGet(&gLoadModelThreadCompletes);
+}
+
+// Model-load-scoped record cache (chunk 30).
+//
+// One warm LoadModelThread run previously read each book's record from disk
+// twice: once for AdoptEmbeddedRecordFields, then again inside
+// LibrarySidecarWriteMetadata during the SyncEmbeddedRecords sweep. With a
+// 231-book library that is ~402 extra fz_open_document + LZMA2 decode
+// round-trips per load — measurable seconds. The fix is a path-keyed cache
+// that lives for exactly one LoadModelThread run:
+//
+//   adopt loop:
+//     LibrarySidecarReadRecord(bookPath, rec)
+//     AdoptEmbeddedRecordFields(..., rec)
+//     cache.Put(bookPath, rec)         // remember what we just read
+//
+//   sync sweep (SyncEmbeddedRecords, in the same thread):
+//     cached = cache.Find(bookPath)
+//     LibrarySidecarWriteMetadataWithRec(bookPath, cached, ...)
+//       if (write actually happened)
+//         cache.Invalidate(bookPath)   // our cached copy is now stale
+//
+// Lifetime is the body of LoadModelThread; the destructor deletes every
+// entry, and each BookBlobRecord frees the StrVec pages it owns. Entries
+// are heap-allocated so that a Vec growth cannot move a record that a
+// caller is still holding a pointer to. Lookup is O(N) — N is the book count, in
+// the low hundreds at most, and SyncEmbeddedRecords already walks the books
+// in index order, so we keep entries in insert order to avoid reshuffling.
+//
+// The cache is keyed on book path (not book id) by design. Two different
+// book ids can point at the same file (e.g. after a rename and a rescan
+// that have not yet reconciled), but the file on disk has exactly one
+// record. The path is the right identity for the question "what is on
+// disk for this file right now".
+struct LoadRecordCache {
+    struct Entry {
+        Str path;
+        BookBlobRecord rec;
+    };
+    Vec<Entry*> entries;
+
+    ~LoadRecordCache() {
+        for (int i = 0; i < entries.len; i++) {
+            str::Free(entries[i]->path);
+            delete entries[i];
+        }
+    }
+
+    const BookBlobRecord* Find(Str bookPath) {
+        for (int i = 0; i < entries.len; i++) {
+            if (str::Eq(entries[i]->path, bookPath)) {
+                return &entries[i]->rec;
+            }
+        }
+        return nullptr;
+    }
+
+    // Store a record by path. BookBlobRecordClone gives the entry its own
+    // StrVec and re-points every string at it, so the cached record stays
+    // readable after the caller's record is destroyed at the end of the
+    // adopt loop iteration. The function intentionally does not check for
+    // an existing entry: the same book should only be Put() at most once
+    // per model load.
+    void Put(Str bookPath, const BookBlobRecord& rec) {
+        Entry* e = new Entry();
+        e->path = str::Dup(bookPath);
+        BookBlobRecordClone(rec, e->rec);
+        entries.Append(e);
+    }
+
+    // Drop the cached record for bookPath because the file on disk was just
+    // rewritten and our copy no longer matches reality. The next caller
+    // will re-read from disk on demand.
+    void Invalidate(Str bookPath) {
+        for (int i = 0; i < entries.len; i++) {
+            if (str::Eq(entries[i]->path, bookPath)) {
+                str::Free(entries[i]->path);
+                delete entries[i];
+                entries.RemoveAt(i);
+                return;
+            }
+        }
+    }
+};
+
+static void SyncEmbeddedRecords(LoadRecordCache* recordCache = nullptr);
 static void SaveModelToStore(const LibModel* m);
 
 static void EnterLib() {
@@ -453,6 +612,26 @@ int LibraryServicePort() {
 static void Repaint() {
     if (gNotifyHwnd && IsWindow(gNotifyHwnd)) {
         InvalidateRect(gNotifyHwnd, nullptr, FALSE);
+    }
+}
+
+static void CALLBACK ScanAnimationTimerProc(HWND hwnd, UINT, UINT_PTR timerId, DWORD) {
+    EnterLib();
+    bool scanning = gModel.scanning;
+    LeaveLib();
+    if (!scanning) {
+        KillTimer(hwnd, timerId);
+        if (gScanAnimationTimer == timerId) {
+            gScanAnimationTimer = 0;
+        }
+        return;
+    }
+    InvalidateRect(hwnd, nullptr, FALSE);
+}
+
+static void EnsureScanAnimationTimer(HWND hwnd) {
+    if (gScanAnimationTimer == 0) {
+        gScanAnimationTimer = SetTimer(hwnd, 0, 33, ScanAnimationTimerProc);
     }
 }
 
@@ -630,6 +809,8 @@ struct LibraryParser : JsonVisitor {
                 str::ReplaceWithCopy(&s.kind, value);
             } else if (str::EndsWith(path, StrL("/guessed"))) {
                 str::ReplaceWithCopy(&s.guessed, value);
+            } else if (str::EndsWith(path, StrL("/parent_source"))) {
+                str::ReplaceWithCopy(&s.parentSource, value);
             } else if (str::EndsWith(path, StrL("/books"))) {
                 s.books = atoi(value.s);
             } else if (str::EndsWith(path, StrL("/booknlp"))) {
@@ -643,6 +824,8 @@ struct LibraryParser : JsonVisitor {
             m->total = atoi(value.s);
         } else if (str::Eq(path, StrL("/status/scope_current"))) {
             m->scopeCurrent = IsTrue(value);
+        } else if (str::Eq(path, StrL("/status/resume_pending"))) {
+            m->resumePending = IsTrue(value);
         } else if (str::Eq(path, StrL("/status/documents"))) {
             m->documents = atoi(value.s);
         } else if (str::Eq(path, StrL("/status/ignored"))) {
@@ -1129,6 +1312,7 @@ static void FreeSeriesRow(LibSeries& s) {
     str::Free(s.subhead);
     str::Free(s.kind);
     str::Free(s.guessed);
+    str::Free(s.parentSource);
     s = LibSeries{};
 }
 
@@ -1287,16 +1471,23 @@ static LibSeries* FormRowFor(const LibBook& b) {
     return nullptr;
 }
 
-static LibSeries* RowByName(Str name) {
+static bool IsActualSeriesRow(const LibSeries& s) {
+    return str::StartsWith(s.key, StrL("series:"));
+}
+
+static LibSeries* SeriesRowByName(Str name) {
+    LibSeries* found = nullptr;
     for (int i = 0; i < gModel.nSeries; i++) {
         LibSeries& s = gModel.series[i];
-        bool shelf = str::EqI(s.kind, StrL("series")) || str::EqI(s.kind, StrL("collection")) ||
-                     str::EqI(s.kind, StrL("parent"));
-        if (shelf && str::EqI(s.name, name)) {
-            return &s;
+        if (!IsActualSeriesRow(s) || !str::EqI(s.name, name)) {
+            continue;
         }
+        if (found) {
+            return nullptr;
+        }
+        found = &s;
     }
-    return nullptr;
+    return found;
 }
 
 static LibSeries* AddSeriesRow(Str key, Str name, LibSeries* under, LibSeries* after) {
@@ -1375,9 +1566,12 @@ static bool RebuildSeriesTree() {
                 continue;
             }
             LibSeries* basis = row;
-            row = RowByName(b.series);
+            row = RowByKey(key);
+            if (row && !IsActualSeriesRow(*row)) {
+                row = nullptr;
+            }
             if (!row) {
-                row = RowByKey(key);
+                row = SeriesRowByName(b.series);
             }
             if (!row) {
                 LibSeries* under = RememberedParent(key);
@@ -1537,6 +1731,29 @@ static void FreeDetail(LibDetail* d) {
     d->tab = keepTab;
 }
 
+// chunk 31R: explicit load mode for LoadModelThread instead of the
+// earlier vague `skipEmbeddedPass` flag. Full is the original behavior
+// (load store, fetch catalogue, adopt embedded records, sync embedded
+// records). CatalogueOnly is the new fast path used by hierarchy
+// changes (Series -> Series, Series -> partition) that do not touch
+// any book file on disk: fetch the catalogue, keep only the fields the
+// service genuinely does NOT provide, and do NOT open any book file.
+enum class LoadMode {
+    // Load store, fetch catalogue, adopt embedded records, sync embedded
+    // records. Used for the initial load, the rescan path, and any
+    // caller that needs the full model including sidecar-only fields.
+    Full,
+    // Fetch /library from the service, merge, and skip both the adopt
+    // pass (no sidecar reads) and the sync sweep (no sidecar writes).
+    // Used for hierarchy changes that the service already applied:
+    // a fresh catalogue response carries the new keys/seriesKey/etc.,
+    // and the in-memory model is updated by the parser alone. The
+    // only fields retained from the pre-rebuild model are the ones
+    // that are genuinely sidecar-only (see SidecarOnlyFields in
+    // LoadModelThread).
+    CatalogueOnly,
+};
+
 struct LibJob {
     Str a;
     Str b;
@@ -1545,12 +1762,14 @@ struct LibJob {
     // without re-walking the model.
     Str c;
     int cleared = 0;
+    LoadMode loadMode = LoadMode::Full;
 };
 
 static LibJob* NewJob(Str a, Str b = {}) {
     auto j = new LibJob();
     j->a = str::Dup(a);
     j->b = str::Dup(b);
+    j->loadMode = LoadMode::Full;
     return j;
 }
 
@@ -1560,6 +1779,18 @@ static LibJob* NewJob3(Str a, Str b, Str c, int cleared = 0) {
     j->b = str::Dup(b);
     j->c = str::Dup(c);
     j->cleared = cleared;
+    j->loadMode = LoadMode::Full;
+    return j;
+}
+
+// chunk 31R: hierarchy changes (Series -> Series, Series -> partition)
+// post to the service and then ask LoadModelThread to refresh the
+// catalogue from the service without re-reading any book file. The
+// service response is authoritative for keys, seriesKey, series,
+// seriesSource, genre, subgenre — those are never carried forward.
+static LibJob* NewJobCatalogueOnly() {
+    auto j = new LibJob();
+    j->loadMode = LoadMode::CatalogueOnly;
     return j;
 }
 
@@ -1674,6 +1905,7 @@ static void CopySeriesFromStore(LibSeries& s, LibrarySeries* src) {
     str::ReplaceWithCopy(&s.subhead, src->subhead);
     str::ReplaceWithCopy(&s.kind, src->kind);
     str::ReplaceWithCopy(&s.guessed, src->guessed);
+    str::ReplaceWithCopy(&s.parentSource, src->parentSource);
     s.books = src->books;
     s.booknlp = src->bookNlp;
     s.facts = src->facts;
@@ -1775,9 +2007,18 @@ static bool AdoptEmbeddedRecordFields(LibModel* model, LibBook& book, const Book
         }
     }
     if (rec.hasStats && rec.hasIdentity && rec.identity.fingerprint) {
+        bool firstSight = FindRoamed(model, Str(rec.identity.fingerprint), false) == nullptr;
         LibraryRoamed* before = FindRoamed(model, Str(rec.identity.fingerprint), true);
         if (!before) {
             return changed;
+        }
+        if (firstSight) {
+            FileState* here = FileHistoryFindByPath(book.path);
+            if (here) {
+                before->lastReadAt = here->lastReadAt;
+                before->timeSpentMs = here->timeSpentMs;
+                before->openCount = here->openCount;
+            }
         }
         i64 addTime = 0;
         i64 addOpens = 0;
@@ -1868,6 +2109,7 @@ static void CopySeriesToStore(LibrarySeries* dst, const LibSeries& s) {
     dst->subhead = str::Dup(s.subhead);
     dst->kind = str::Dup(s.kind);
     dst->guessed = str::Dup(s.guessed);
+    dst->parentSource = str::Dup(s.parentSource);
     dst->books = s.books;
     dst->bookNlp = s.booknlp;
     dst->facts = s.facts;
@@ -1910,7 +2152,35 @@ static void SaveModelToStore(const LibModel* m) {
 static void RescanThread(LibJob* job);
 
 static void LoadModelThread(LibJob* job) {
+    ScopedMutex loadLock(&gLoadModelMutex);
+    LoadMode loadMode = job ? job->loadMode : LoadMode::Full;
+    bool isCatalogueOnly = (loadMode == LoadMode::CatalogueOnly);
     FreeJob(job);
+
+    // chunk 34 regression: claim a generation number at the very start.
+    // If a newer load has already started by the time we finish, we
+    // will NOT write our perf snapshot (the newer load owns it).
+    // AtomicIntInc returns the NEW value, so loadGeneration IS the
+    // post-increment value of gLoadModelCurrentGeneration.
+    int loadGeneration = AtomicIntInc(&gLoadModelCurrentGeneration);
+
+    BookFingerprintCacheOpen(Str(GetAppDataDirTemp()));
+
+    // chunk 31: count this load, reset per-call perf snapshot.
+    AtomicIntInc(&gLoadModelThreadStarts);
+    // chunk 34 regression: local counters for this load only. The old
+    // gLastLoad* globals were shared between concurrent LoadModelThread
+    // calls, so a slow initial Full load's adopt loop could overwrite
+    // the counters of a fast catalogue-only load that ran concurrently
+    // and read them back at the end. Local variables are private to
+    // this call, so the snapshot we write at the end is always this
+    // load's own numbers.
+    u64 loadAdoptMs = 0;
+    u64 loadSyncMs = 0;
+    int loadReads = 0;
+    int loadWrites = 0;
+    int loadPdfOpen = 0;
+    bool loadSkippedEmbedded = isCatalogueOnly;
 
     // draw what the last scan found before waiting on the service, so a cold
     // start shows the library instead of an empty page. We split the store
@@ -1970,6 +2240,37 @@ static void LoadModelThread(LibJob* job) {
     TempStr body = ServiceGetTextTemp(ToStr(path));
     TempStr parts = ServiceGetTextTemp("/partitions");
     bool catalogueLoaded = len(body) > 0;
+
+    // chunk 31R: CatalogueOnly mode is used by hierarchy changes
+    // (Series -> Series, Series -> partition) that the service has
+    // already applied. Fresh catalogue values win for every field
+    // the service owns: series, seriesSource, seriesKey, keys,
+    // genre, subgenre. Only the genuinely sidecar-only fields
+    // (seriesParent, tags) may be carried forward; the service does
+    // not provide them. We do NOT preserve keys / seriesKey /
+    // series / seriesSource / genre / subgenre here because chunk 18
+    // already established that fresh catalogue keys must not be
+    // overwritten by stale embedded snapshots, and a hierarchy
+    // operation is exactly the case where old membership would
+    // be wrong.
+    struct SidecarOnlyFields {
+        Str path;
+        Str seriesParent;
+        Str tags;
+    };
+    Vec<SidecarOnlyFields> preserved;
+    if (isCatalogueOnly && len(body) > 0) {
+        EnterLib();
+        for (int i = 0; i < gModel.nBooks; i++) {
+            SidecarOnlyFields s;
+            s.path = str::Dup(gModel.books[i].path);
+            s.seriesParent = str::Dup(gModel.books[i].seriesParent);
+            s.tags = str::Dup(gModel.books[i].tags);
+            preserved.Append(s);
+        }
+        LeaveLib();
+    }
+
     EnterLib();
     FreePartitions();
     if (len(parts) > 0) {
@@ -1981,20 +2282,44 @@ static void LoadModelThread(LibJob* job) {
         FreeModel(&gModel);
         LibraryParser p(&gModel);
         JsonParseWithVisitor(Str(body), &p);
+        // chunk 31R: restore ONLY the sidecar-only fields the service
+        // does not provide (seriesParent, tags). Do NOT restore
+        // keys, seriesKey, series, seriesSource, genre, subgenre —
+        // those are service-owned and the parser has just set them
+        // to the fresh catalogue values. Any stale entry from the
+        // pre-rebuild model would be wrong specifically when the
+        // caller is a hierarchy change.
+        for (int i = 0; i < gModel.nBooks && preserved.len > 0; i++) {
+            for (int j = 0; j < preserved.len; j++) {
+                if (str::Eq(gModel.books[i].path, preserved[j].path)) {
+                    str::ReplaceWithCopy(&gModel.books[i].seriesParent, preserved[j].seriesParent);
+                    str::ReplaceWithCopy(&gModel.books[i].tags, preserved[j].tags);
+                    break;
+                }
+            }
+        }
+        for (int i = 0; i < preserved.len; i++) {
+            str::Free(preserved[i].path);
+            str::Free(preserved[i].seriesParent);
+            str::Free(preserved[i].tags);
+        }
+        preserved.Reset();
         gModel.loaded = true;
+        gModel.loadFailed = false;
         str::FreePtr(&gModel.error);
         RebuildSeriesTree();
-    } else if (showStored) {
-        // the service is not answering but the last index is on disk, and that
-        // is what the page is already showing, so it is not an error
+    } else if (gModel.nBooks > 0) {
         gModel.loaded = true;
+        gModel.loadFailed = false;
         str::FreePtr(&gModel.error);
     } else {
         FreeModel(&gModel);
-        str::ReplaceWithCopy(&gModel.error, StrL("the library service is not answering"));
+        gModel.loadFailed = true;
+        str::ReplaceWithCopy(&gModel.error, StrL("the library service is not answering. "
+                                                 "Use Library > Rescan library to try again."));
     }
     gModel.loading = false;
-    bool sweepDevice = !gModel.scopeCurrent && !gNativeScanning && !gAutoSweepStarted;
+    bool sweepDevice = (!gModel.scopeCurrent || gModel.resumePending) && !gNativeScanning && !gAutoSweepStarted;
     if (sweepDevice) {
         gAutoSweepStarted = true;
     }
@@ -2008,46 +2333,79 @@ static void LoadModelThread(LibJob* job) {
     // have a sidecar at all — without that guard, on a 128-book library
     // with a few hundred milliseconds of LZMA2 decode per file, this loop
     // heats the CPU to the point of throttling for over a minute.
+    //
+    // chunk 30: every record we read here is also retained in
+    // `recordCache` so the SyncEmbeddedRecords sweep below can reuse it
+    // instead of opening the same PDFs a second time. The cache lives only
+    // for the rest of this LoadModelThread call.
+    //
+    // chunk 31R: when loadMode is CatalogueOnly, the caller is a
+    // hierarchy change that has already been applied by the service.
+    // We skip both the adopt pass (no book file changed) and the sync
+    // sweep (no sidecar write is needed). The sidecar-only fields the
+    // service does not provide (seriesParent, tags) were preserved
+    // across the model rebuild above. This turns a Series -> Series
+    // or Series -> partition move from "open 230 sidecars" to
+    // "refresh catalogue from service, zero I/O on the books".
     bool adopted = false;
-    {
-        int n = 0;
+    LoadRecordCache recordCache;
+    if (loadMode == LoadMode::Full) {
+        u64 adoptStart = GetTickCount64();
+        int readCountBeforeAdopt = 0, writeCountBeforeAdopt = 0;
+        LibrarySidecarPerfCounters(&readCountBeforeAdopt, &writeCountBeforeAdopt);
         {
-            EnterLib();
-            n = gModel.nBooks;
-            LeaveLib();
-        }
-        for (int i = 0; i < n; i++) {
-            Str bookPath;
+            int n = 0;
             {
                 EnterLib();
-                if (i < gModel.nBooks) {
-                    bookPath = str::Dup(gModel.books[i].path);
-                }
+                n = gModel.nBooks;
                 LeaveLib();
             }
-            if (len(bookPath) == 0) {
-                str::Free(bookPath);
-                continue;
-            }
-            if (!LibrarySidecarHas(bookPath)) {
-                str::Free(bookPath);
-                continue;
-            }
-            BookBlobRecord rec;
-            if (!LibrarySidecarReadRecord(bookPath, rec)) {
-                str::Free(bookPath);
-                continue;
-            }
-            // Apply changes under the lock; the in-memory mutation is cheap
-            EnterLib();
-            if (i < gModel.nBooks && str::Eq(gModel.books[i].path, bookPath)) {
-                if (AdoptEmbeddedRecordFields(&gModel, gModel.books[i], rec)) {
-                    adopted = true;
+            for (int i = 0; i < n; i++) {
+                Str bookPath;
+                {
+                    EnterLib();
+                    if (i < gModel.nBooks) {
+                        bookPath = str::Dup(gModel.books[i].path);
+                    }
+                    LeaveLib();
                 }
+                if (len(bookPath) == 0) {
+                    str::Free(bookPath);
+                    continue;
+                }
+                if (!LibrarySidecarHas(bookPath)) {
+                    str::Free(bookPath);
+                    continue;
+                }
+                BookBlobRecord rec;
+                if (!LibrarySidecarReadRecord(bookPath, rec)) {
+                    str::Free(bookPath);
+                    continue;
+                }
+                // Apply changes under the lock; the in-memory mutation is cheap
+                EnterLib();
+                if (i < gModel.nBooks && str::Eq(gModel.books[i].path, bookPath)) {
+                    if (AdoptEmbeddedRecordFields(&gModel, gModel.books[i], rec)) {
+                        adopted = true;
+                    }
+                }
+                LeaveLib();
+                // Remember the record so the next sweep can skip its own read.
+                // Put() clones the record into storage the cache owns, so the
+                // local `rec` can be freed at the end of this iteration without
+                // affecting the cached copy.
+                recordCache.Put(bookPath, rec);
+                str::Free(bookPath);
             }
-            LeaveLib();
-            str::Free(bookPath);
         }
+        int readCountAfterAdopt = 0, writeCountAfterAdopt = 0;
+        LibrarySidecarPerfCounters(&readCountAfterAdopt, &writeCountAfterAdopt);
+        loadReads = readCountAfterAdopt - readCountBeforeAdopt;
+        loadAdoptMs = GetTickCount64() - adoptStart;
+        int fpFull = 0, fpShape = 0, fpHits = 0, fpSeeded = 0;
+        BookFingerprintPerfCounters(&fpFull, &fpShape, &fpHits, &fpSeeded, nullptr, nullptr, nullptr, nullptr);
+        logf("LoadModelThread adopt: %d ms; fingerprint full=%d shape=%d cacheHits=%d seeded=%d\n", (int)loadAdoptMs,
+             fpFull, fpShape, fpHits, fpSeeded);
     }
     if (adopted || catalogueLoaded) {
         EnterLib();
@@ -2059,14 +2417,72 @@ static void LoadModelThread(LibJob* job) {
         }
     }
 
-    SyncEmbeddedRecords();
+    if (isCatalogueOnly) {
+        // chunk 31R: still re-save the model so the catalogue-only
+        // changes (e.g. a Series -> partition membership change) get
+        // persisted, but do not run SyncEmbeddedRecords. The sync
+        // sweep writes user-metadata back to sidecar files, and no
+        // sidecar needs to change on a kind/partition move.
+        EnterLib();
+        SaveModelToStore(&gModel);
+        LeaveLib();
+    } else {
+        u64 syncStart = GetTickCount64();
+        int writeCountBeforeSync = 0, readCountBeforeSync = 0;
+        LibrarySidecarPerfCounters(&readCountBeforeSync, &writeCountBeforeSync);
+        SyncEmbeddedRecords(&recordCache);
+        int writeCountAfterSync = 0, readCountAfterSync = 0;
+        LibrarySidecarPerfCounters(&readCountAfterSync, &writeCountAfterSync);
+        loadWrites = writeCountAfterSync - writeCountBeforeSync;
+        loadSyncMs = GetTickCount64() - syncStart;
+        loadReads += readCountAfterSync - readCountBeforeSync;
+    }
+    // recordCache goes out of scope here; its StrVec pages are freed by the
+    // BookBlobRecord destructors. We deliberately do NOT keep the cache
+    // alive past this LoadModelThread call: a stale entry is exactly the
+    // bug we are trying to prevent, and a fresh cache costs the same as
+    // building one on every load.
     if (sweepDevice) {
         RunAsync(MkFunc0<LibJob>(RescanThread, NewJob({})), "libRescan");
     }
+    {
+        EnterLib();
+        int loadBooks = gModel.nBooks;
+        LeaveLib();
+        // chunk 34 regression: write this load's own counters (local
+        // variables) to the snapshot. The old code wrote the shared
+        // gLastLoad* globals, which could be overwritten by a slow
+        // adopt loop of a concurrent load. Local variables are
+        // private to this call, so the snapshot is always this
+        // load's own numbers.
+        //
+        // Only write the snapshot if THIS load is still the most
+        // recent one. If a newer LoadModelThread has already started
+        // (e.g. a fast catalogue-only load triggered while the
+        // initial Full load is still in its slow adopt loop), the
+        // newer load's snapshot is the one the test cares about, and
+        // this load's snapshot would just overwrite it with stale
+        // values.
+        int myGeneration = loadGeneration;
+        if (AtomicIntGet(&gLoadModelCurrentGeneration) == myGeneration) {
+            gLastCompletedLoadAdoptMs = loadAdoptMs;
+            gLastCompletedLoadSyncMs = loadSyncMs;
+            gLastCompletedLoadReads = loadReads;
+            gLastCompletedLoadWrites = loadWrites;
+            gLastCompletedLoadPdfOpen = loadPdfOpen;
+            gLastCompletedLoadBooks = loadBooks;
+            gLastCompletedLoadSkippedEmbedded = loadSkippedEmbedded;
+            gLastCompletedLoadGeneration = AtomicIntGet(&gLoadModelThreadStarts);
+        }
+    }
+    // chunk 34 regression: signal that this load is fully done. The
+    // test harness polls this counter to know it is safe to read the
+    // snapshot above. Must be the LAST thing this function does.
+    AtomicIntInc(&gLoadModelThreadCompletes);
 }
 
 static void EnsureModel() {
-    if (gModel.loaded || gModel.loading) {
+    if (gModel.loaded || gModel.loading || gModel.loadFailed) {
         return;
     }
     gModel.loading = true;
@@ -2136,13 +2552,38 @@ struct KnownParser : JsonVisitor {
             f.size = (i64)_atoi64(value.s);
         } else if (str::EndsWith(path, StrL("/mtime"))) {
             f.mtime = atof(value.s);
+        } else if (str::EndsWith(path, StrL("/completed"))) {
+            f.completed = str::Eq(value, StrL("true"));
+        } else if (str::EndsWith(path, StrL("/resume_candidate"))) {
+            f.resumeCandidate = str::Eq(value, StrL("true"));
+        } else if (str::EndsWith(path, StrL("/indexed"))) {
+            f.indexed = str::Eq(value, StrL("true"));
+        } else if (str::EndsWith(path, StrL("/placeholder"))) {
+            f.placeholder = str::Eq(value, StrL("true"));
+        } else if (str::EndsWith(path, StrL("/details_pending"))) {
+            f.detailsPending = str::Eq(value, StrL("true"));
+        } else if (str::EndsWith(path, StrL("/scan_json"))) {
+            f.scanJson = str::Dup(value);
         }
         return true;
     }
 };
 
-static void ReadKnownFiles(Vec<LibraryKnownFile>& out) {
-    TempStr body = ServiceGetTextTemp("/known");
+static TempStr JsonStrTemp(Str s);
+
+static void ReadKnownFiles(Vec<LibraryKnownFile>& out, const StrVec& roots, bool wholeDevice) {
+    str::Builder rootsJson;
+    rootsJson.AppendChar('[');
+    for (int i = 0; i < roots.size; i++) {
+        if (i > 0) {
+            rootsJson.AppendChar(',');
+        }
+        rootsJson.Append(JsonStrTemp(roots.At(i)));
+    }
+    rootsJson.AppendChar(']');
+    TempStr request =
+        fmt("/known?scope=%d&roots=%s", wholeDevice ? kLibraryScanScope : 0, UrlEncodeTemp(ToStr(rootsJson)));
+    TempStr body = ServiceGetTextTemp(request);
     if (len(body) == 0) {
         return;
     }
@@ -2153,6 +2594,7 @@ static void ReadKnownFiles(Vec<LibraryKnownFile>& out) {
 static void FreeKnownFiles(Vec<LibraryKnownFile>& files) {
     for (LibraryKnownFile& f : files) {
         str::Free(f.path);
+        str::Free(f.scanJson);
     }
     files.Reset();
 }
@@ -2162,18 +2604,74 @@ static void OnScanProgress(const LibraryScanProgress& progress, void*) {
     gModel.scanning = true;
     gModel.scanDone = progress.reading ? progress.done : progress.found;
     gModel.scanTotal = progress.reading ? progress.total : 0;
+    gModel.scanFilesDiscovered = progress.reading ? progress.total : progress.found;
+    gModel.scanFilesProcessed = progress.reading ? progress.done : 0;
+    gModel.scanItemDone = progress.itemDone;
+    gModel.scanItemTotal = progress.itemTotal;
+    gModel.scanItemIndeterminate = progress.itemIndeterminate;
+    str::ReplaceWithCopy(&gModel.scanItem, progress.item);
+    str::ReplaceWithCopy(&gModel.scanItemAction, progress.itemAction);
     LeaveLib();
     Repaint();
 }
 
+struct ScanCallCtx {
+    StrVec roots;
+    bool wholeDevice;
+};
+
+static void OnScanSnapshot(Str bookJson, void* ctx) {
+    auto* c = (ScanCallCtx*)ctx;
+    if (!c) {
+        return;
+    }
+    str::Builder body(1024);
+    body.Append(StrL("{\"roots\":["));
+    for (int i = 0; i < c->roots.size; i++) {
+        if (i > 0) {
+            body.AppendChar(',');
+        }
+        body.Append(JsonStrTemp(c->roots.At(i)));
+    }
+    body.Append(StrL("],\"scope\":"));
+    body.Append(StrL(c->wholeDevice ? "2" : "0"));
+    body.Append(StrL(",\"book\":"));
+    body.Append(bookJson);
+    body.AppendChar('}');
+    if (!ServicePost("/book", Str(body.els, body.len))) {
+        logf("OnScanSnapshot: /book failed for size=%d\n", (int)bookJson.len);
+    }
+    if (gGlobalPrefs && gGlobalPrefs->audiobook.progressiveLibraryScan) {
+        LoadModelThread(NewJobCatalogueOnly());
+    }
+}
+
+static void OnScanManifest(Str manifestJson, void* ctx) {
+    auto* c = (ScanCallCtx*)ctx;
+    if (!c) {
+        return;
+    }
+    if (!ServicePost("/manifest", manifestJson)) {
+        logf("OnScanManifest: /manifest failed for size=%d\n", (int)manifestJson.len);
+    }
+}
+
 static void RunOneScan(const StrVec& roots, const Vec<LibraryKnownFile>& known, bool wholeDevice) {
-    Str body = LibraryScanToJson(roots, known, wholeDevice, OnScanProgress, nullptr, &gScanCancel);
+    EnterLib();
+    gModel.scanTraversals++;
+    LeaveLib();
+    ScanCallCtx ctx;
+    ctx.roots = roots;
+    ctx.wholeDevice = wholeDevice;
+    Str body = LibraryScanToJson(roots, known, wholeDevice, OnScanProgress, nullptr, &gScanCancel, OnScanSnapshot,
+                                  &ctx, OnScanManifest, &ctx);
     if (!gScanCancel) {
         ServicePost("/index", body);
     }
     str::Free(body);
     EnterLib();
     gModel.loaded = false;
+    gModel.loadFailed = false;
     LeaveLib();
     EnsureModel();
 }
@@ -2185,15 +2683,26 @@ static void RescanThread(LibJob* job) {
     bool busy = gNativeScanning;
     if (!busy) {
         gNativeScanning = true;
-        gScanCancel = false;
+        InterlockedExchange(&gScanCancel, 0);
         gModel.scanning = true;
         gModel.scanDone = 0;
         gModel.scanTotal = 0;
+        gModel.scanItemDone = 0;
+        gModel.scanItemTotal = 0;
+        gModel.scanItemIndeterminate = false;
+        str::ReplaceWithCopy(&gModel.scanItem, {});
+        str::ReplaceWithCopy(&gModel.scanItemAction, {});
+        gModel.scanTraversals = 0;
+        gModel.scanFilesDiscovered = 0;
+        gModel.scanFilesProcessed = 0;
     }
     LeaveLib();
     if (busy) {
         return;
     }
+
+    BookFingerprintResetCounters();
+
     if (!LibraryEnsureService()) {
         // The local library service (the Python audiobook.library process
         // that owns the index) is not running and we can't bring it up.
@@ -2213,29 +2722,88 @@ static void RescanThread(LibJob* job) {
     }
     Repaint();
 
-    Vec<LibraryKnownFile> known;
-    ReadKnownFiles(known);
-
-    StrVec starting = LibraryStartingRoots();
-    if (starting.size > 0 && !gScanCancel) {
-        RunOneScan(starting, known, false);
-        FreeKnownFiles(known);
-        ReadKnownFiles(known);
+    StrVec roots = LibraryStartingRoots();
+    bool wholeDevice = !LibraryHasExplicitRoots();
+    if (wholeDevice) {
+        roots = LibraryWholeDeviceRoots();
     }
-
-    StrVec everywhere = LibraryWholeDeviceRoots();
-    if (everywhere.size > 0 && !gScanCancel) {
-        RunOneScan(everywhere, known, true);
+    Vec<LibraryKnownFile> known;
+    ReadKnownFiles(known, roots, wholeDevice);
+    if (roots.size > 0 && !gScanCancel) {
+        RunOneScan(roots, known, wholeDevice);
     }
     FreeKnownFiles(known);
 
     EnterLib();
     gNativeScanning = false;
     gModel.scanning = false;
+    gModel.scanItemDone = 0;
+    gModel.scanItemTotal = 0;
+    gModel.scanItemIndeterminate = false;
+    str::ReplaceWithCopy(&gModel.scanItem, {});
+    str::ReplaceWithCopy(&gModel.scanItemAction, {});
     gModel.loaded = false;
+    gModel.loadFailed = false;
     LeaveLib();
     EnsureModel();
     Repaint();
+}
+
+struct ResumeParser : JsonVisitor {
+    bool resumePending = false;
+
+    bool Visit(Str path, Str value, json::Type type) override {
+        if (type != json::Type::Null && str::Eq(path, StrL("/resume_pending"))) {
+            resumePending = IsTrue(value);
+        }
+        return true;
+    }
+};
+
+static bool AutoScanAlreadyOwned() {
+    EnterLib();
+    bool owned = gAutoSweepStarted || gNativeScanning || gModel.loading;
+    LeaveLib();
+    return owned;
+}
+
+static void ResumeScanThread(LibJob* job) {
+    FreeJob(job);
+    if (!file::Exists(LibraryStorePathTemp())) {
+        return;
+    }
+    if (AutoScanAlreadyOwned()) {
+        return;
+    }
+    if (!LibraryEnsureService()) {
+        logf("LibraryResumeInterruptedScan: the library service is not answering\n");
+        return;
+    }
+    TempStr body = ServiceGetTextTemp("/status");
+    if (len(body) == 0) {
+        return;
+    }
+    ResumeParser p;
+    JsonParseWithVisitor(Str(body), &p);
+    if (!p.resumePending) {
+        return;
+    }
+    EnterLib();
+    bool owned = gAutoSweepStarted || gNativeScanning || gModel.loading;
+    if (!owned) {
+        gModel.loaded = false;
+        gModel.loadFailed = false;
+    }
+    LeaveLib();
+    if (owned) {
+        return;
+    }
+    logf("LibraryResumeInterruptedScan: an unfinished library scan is pending\n");
+    EnsureModel();
+}
+
+void LibraryResumeInterruptedScan() {
+    RunAsync(MkFunc0<LibJob>(ResumeScanThread, NewJob({})), "libResume");
 }
 
 void LibraryRefresh(MainWindow* win, bool rescan) {
@@ -2245,6 +2813,7 @@ void LibraryRefresh(MainWindow* win, bool rescan) {
     }
     EnterLib();
     gModel.loaded = false;
+    gModel.loadFailed = false;
     LeaveLib();
     EnsureModel();
     Repaint();
@@ -2814,14 +3383,18 @@ static void FreeCoverBookInfo(CoverBookInfo& info) {
     info = {};
 }
 
-static void SyncEmbeddedRecords() {
+static void SyncEmbeddedRecords(LoadRecordCache* recordCache) {
     int count;
     EnterLib();
     count = gModel.nBooks;
     LeaveLib();
     int pdfSidecarCtxBefore = 0, pdfSidecarOpenedBefore = 0, blobBefore = 0, coverBefore = 0;
     PdfSidecarPerfCounters(&pdfSidecarCtxBefore, &pdfSidecarOpenedBefore, &blobBefore, &coverBefore);
+    int readCountBefore = 0, writeCountBefore = 0;
+    LibrarySidecarPerfCounters(&readCountBefore, &writeCountBefore);
     u64 startMs = GetTickCount64();
+    int adoptedHits = 0;
+    int writes = 0;
     for (int i = 0; i < count; i++) {
         Str id;
         EnterLib();
@@ -2850,20 +3423,46 @@ static void SyncEmbeddedRecords() {
                        len(book.subgenre) > 0 || len(book.tags) > 0 || len(book.partitions) > 0 || statsPtr ||
                        LibrarySidecarHas(book.path);
         if (len(book.path) > 0 && carries) {
-            LibrarySidecarWriteMetadata(book.path, PortableTitle(book), PortableAuthor(book), PortableSeries(book),
-                                        book.seriesParent, book.genre, book.subgenre, book.tags, book.partitions,
-                                        book.seriesIndex, PortableYear(book), book.pages, statsPtr);
+            // chunk 30: if the adopt pass in this same LoadModelThread already
+            // read this book's record, reuse it instead of opening the PDF /
+            // parsing the LZMA2 blob again just to learn "nothing changed".
+            // For a 231-book warm load this drops the read count of the
+            // second sweep from N to 0.
+            const BookBlobRecord* cached = recordCache ? recordCache->Find(book.path) : nullptr;
+            if (cached) {
+                adoptedHits++;
+            }
+            int writeCountPre = 0;
+            LibrarySidecarPerfCounters(nullptr, &writeCountPre);
+            LibrarySidecarWriteMetadataWithRec(book.path, cached, PortableTitle(book), PortableAuthor(book),
+                                               PortableSeries(book), book.seriesParent, book.genre, book.subgenre,
+                                               book.tags, book.partitions, book.seriesIndex, PortableYear(book),
+                                               book.pages, statsPtr);
+            int writeCountPost = 0;
+            LibrarySidecarPerfCounters(nullptr, &writeCountPost);
+            // If WriteMetadata decided a write was actually needed, the file
+            // on disk is now newer than the cached record we just used for
+            // comparison. Drop the cache entry so a subsequent sweep in the
+            // same load would re-read it instead of comparing against
+            // pre-write state.
+            if (recordCache && cached && writeCountPost > writeCountPre) {
+                recordCache->Invalidate(book.path);
+                writes++;
+            }
         }
         FreeCoverBookInfo(book);
     }
     u64 endMs = GetTickCount64();
     int pdfSidecarCtxAfter = 0, pdfSidecarOpenedAfter = 0, blobAfter = 0, coverAfter = 0;
     PdfSidecarPerfCounters(&pdfSidecarCtxAfter, &pdfSidecarOpenedAfter, &blobAfter, &coverAfter);
+    int readCountAfter = 0, writeCountAfter = 0;
+    LibrarySidecarPerfCounters(&readCountAfter, &writeCountAfter);
     logf(
         "SyncEmbeddedRecords: %d books in %llu ms; PdfSidecar ctx +%d, opened +%d, blob decoded +%d, cover decoded "
-        "+%d\n",
+        "+%d; LibrarySidecar reads +%d, writes +%d (adopt hits %d, invalidations %d)\n",
         count, (unsigned long long)(endMs - startMs), pdfSidecarCtxAfter - pdfSidecarCtxBefore,
-        pdfSidecarOpenedAfter - pdfSidecarOpenedBefore, blobAfter - blobBefore, coverAfter - coverBefore);
+        pdfSidecarOpenedAfter - pdfSidecarOpenedBefore, blobAfter - blobBefore, coverAfter - coverBefore,
+        readCountAfter - readCountBefore, writeCountAfter - writeCountBefore, adoptedHits, writes);
 }
 
 static Str BookPathById(Str id) {
@@ -3211,11 +3810,88 @@ static void PartitionThread(LibJob* job) {
     EnterLib();
     gModel.loading = true;
     LeaveLib();
-    LoadModelThread(NewJob({}));
+    // chunk 31R: a hierarchy change (Series -> Series via
+    // /series/parent, Series -> partition via /partition/assign) is
+    // applied by the service. The next /library response already
+    // carries the new keys, seriesKey, series, genre, subgenre.
+    // We refresh the catalogue from the service without re-reading
+    // any book file. The only fields retained from the old model
+    // are the genuinely sidecar-only ones (seriesParent, tags) that
+    // the service does not provide.
+    LoadModelThread(NewJobCatalogueOnly());
 }
 
 static void PostPartition(const char* path, Str body) {
     RunAsync(MkFunc0<LibJob>(PartitionThread, NewJob(Str(path), body)), "libPartition");
+}
+
+// chunk 31R: regression-test observation helpers. They go through
+// the EXACT production paths the UI uses — PostPartition for hierarchy
+// changes and PostBookEdit for /book/edit — and a getter for the
+// in-memory book state. They do NOT construct alternate service
+// operations, do NOT touch a different URL than the UI does, and
+// therefore exercise the same code path a real user click would.
+TempStr TestBookStateTemp(Str bookId) {
+    EnterLib();
+    LibBook* found = nullptr;
+    for (int i = 0; i < gModel.nBooks; i++) {
+        if (str::Eq(gModel.books[i].id, bookId)) {
+            found = &gModel.books[i];
+            break;
+        }
+    }
+    if (!found) {
+        LeaveLib();
+        return str::FormatTemp("ERR not_found id=%s\n", bookId);
+    }
+    // Snapshot the fields under the lock; copy out the Strs so the
+    // formatted reply is safe once we drop the lock.
+    Str id = str::Dup(found->id);
+    Str title = str::Dup(found->title);
+    Str series = str::Dup(found->series);
+    Str seriesSource = str::Dup(found->seriesSource);
+    Str seriesKey = str::Dup(found->seriesKey);
+    Str seriesParent = str::Dup(found->seriesParent);
+    Str keys = str::Dup(found->keys);
+    Str genre = str::Dup(found->genre);
+    Str subgenre = str::Dup(found->subgenre);
+    Str tags = str::Dup(found->tags);
+    Str path = str::Dup(found->path);
+    LeaveLib();
+    TempStr res = str::FormatTemp(
+        "OK id=%s title=%s series=%s seriesSource=%s seriesKey=%s seriesParent=%s keys=%s genre=%s subgenre=%s tags=%s "
+        "path=%s\n",
+        id, title, series, seriesSource, seriesKey, seriesParent, keys, genre, subgenre, tags, path);
+    str::Free(id);
+    str::Free(title);
+    str::Free(series);
+    str::Free(seriesSource);
+    str::Free(seriesKey);
+    str::Free(seriesParent);
+    str::Free(keys);
+    str::Free(genre);
+    str::Free(subgenre);
+    str::Free(tags);
+    str::Free(path);
+    return res;
+}
+
+void TestTriggerPartition(Str url, Str body) {
+    // chunk 31R: this is the same call the UI makes from
+    // kMenuRowParentFirst / kMenuTakeOutOfPartition / partition
+    // context-menu handlers. url is the service endpoint, body is the
+    // JSON payload. The wrapper is a thin pass-through; it does not
+    // construct an alternate service operation.
+    PostPartition(url.s, body);
+}
+
+void TestTriggerBookEdit(Str body, Str bookId) {
+    // chunk 31R: this is the same call PostUserFieldEdit and
+    // RunEditBookMetadata make. /book/edit with the given body and
+    // bookId. MetadataEditThread targets a single book, never falls
+    // into LoadModelThread on the happy path, so the regression test
+    // asserts the load count does NOT move when this fires.
+    PostBookEdit("/book/edit", body, bookId, 0);
 }
 
 // Persist the current gModel state of a single book to its portable metadata
@@ -3449,6 +4125,14 @@ static void KindThread(LibJob* job) {
     gModel.loading = true;
     LeaveLib();
     LoadDeskThread(NewJob({}));
+    // /kind is the "ignored" / "document" / "trash" path (kMenuRemoveFromLibrary,
+    // kMenuIgnoreFile). It is NOT the production path for book -> Series
+    // (that goes through PostUserFieldEdit -> /book/edit with
+    // SeriesSource=user) nor for Series -> Series (that goes through
+    // PostPartition -> /series/parent). We use Full mode here because
+    // /kind can move a file between ignored and document; the
+    // catalogue's books list itself changes and we want a full adopt
+    // pass to pick up sidecar-only fields for any newly-visible book.
     LoadModelThread(NewJob({}));
 }
 
@@ -3511,10 +4195,251 @@ static void DeskStopSelecting() {
     gDesk.anchor = -1;
 }
 
+struct ImportPreviewParser : JsonVisitor {
+    LibraryImportData* d;
+
+    explicit ImportPreviewParser(LibraryImportData* data) : d(data) {
+    }
+
+    static void Take(LibraryImportField& f, Str value) {
+        str::ReplaceWithCopy(&f.value, value);
+        str::ReplaceWithCopy(&f.original, value);
+    }
+
+    bool Visit(Str path, Str value, json::Type type) override {
+        if (type == json::Type::Null) {
+            return true;
+        }
+        if (str::Eq(path, StrL("/path"))) {
+            str::ReplaceWithCopy(&d->path, value);
+        } else if (str::Eq(path, StrL("/id"))) {
+            str::ReplaceWithCopy(&d->bookId, value);
+        } else if (str::Eq(path, StrL("/proposed_kind"))) {
+            str::ReplaceWithCopy(&d->proposedKind, value);
+        } else if (str::Eq(path, StrL("/already"))) {
+            str::ReplaceWithCopy(&d->already, value);
+        } else if (str::Eq(path, StrL("/ext"))) {
+            str::ReplaceWithCopy(&d->ext, value);
+        } else if (str::Eq(path, StrL("/excluded"))) {
+            d->excluded = IsTrue(value);
+        } else if (str::Eq(path, StrL("/has_writing"))) {
+            d->hasWriting = IsTrue(value);
+        } else if (str::Eq(path, StrL("/pages"))) {
+            d->pages = atoi(CStrTemp(value));
+        } else if (str::Eq(path, StrL("/size"))) {
+            d->size = (i64)atof(CStrTemp(value));
+        } else if (str::Eq(path, StrL("/scraped/meta"))) {
+            d->scrapedMeta = IsTrue(value);
+        } else if (str::Eq(path, StrL("/scraped/series"))) {
+            d->scrapedSeries = IsTrue(value);
+        } else if (str::Eq(path, StrL("/fields/title/value"))) {
+            Take(d->title, value);
+        } else if (str::Eq(path, StrL("/fields/title/source"))) {
+            str::ReplaceWithCopy(&d->title.source, value);
+        } else if (str::Eq(path, StrL("/fields/author/value"))) {
+            Take(d->author, value);
+        } else if (str::Eq(path, StrL("/fields/author/source"))) {
+            str::ReplaceWithCopy(&d->author.source, value);
+        } else if (str::Eq(path, StrL("/fields/series/value"))) {
+            Take(d->series, value);
+        } else if (str::Eq(path, StrL("/fields/series/source"))) {
+            str::ReplaceWithCopy(&d->series.source, value);
+        } else if (str::Eq(path, StrL("/fields/series_index/value"))) {
+            Take(d->seriesIndex, value);
+        } else if (str::Eq(path, StrL("/fields/series_index/source"))) {
+            str::ReplaceWithCopy(&d->seriesIndex.source, value);
+        } else if (str::Eq(path, StrL("/fields/year/value"))) {
+            Take(d->year, value);
+        } else if (str::Eq(path, StrL("/fields/year/source"))) {
+            str::ReplaceWithCopy(&d->year.source, value);
+        } else if (str::Eq(path, StrL("/fields/genre/value"))) {
+            Take(d->genre, value);
+        } else if (str::Eq(path, StrL("/fields/genre/source"))) {
+            str::ReplaceWithCopy(&d->genre.source, value);
+        } else if (str::Eq(path, StrL("/fields/subgenre/value"))) {
+            Take(d->subgenre, value);
+        } else if (str::Eq(path, StrL("/fields/subgenre/source"))) {
+            str::ReplaceWithCopy(&d->subgenre.source, value);
+        } else if (str::EndsWith(path, StrL("/key")) && str::StartsWith(path, StrL("/partitions["))) {
+            d->partitionKeys.Append(value);
+        } else if (str::EndsWith(path, StrL("/name")) && str::StartsWith(path, StrL("/partitions["))) {
+            d->partitionNames.Append(value);
+        }
+        return true;
+    }
+};
+
+static void AppendImportField(str::Builder& b, const char* name, const LibraryImportField& f, bool& first) {
+    if (len(f.value) == 0) {
+        return;
+    }
+    Str source = f.overridden ? StrL("user") : f.source;
+    if (len(source) == 0) {
+        return;
+    }
+    if (!first) {
+        b.Append(",");
+    }
+    first = false;
+    b.Append(fmt("%s:{\"value\":%s,\"source\":%s}", JsonStrTemp(Str(name)), JsonStrTemp(f.value),
+                 JsonStrTemp(source)));
+}
+
+static void AppendImportCorrection(str::Builder& b, const char* name, const LibraryImportField& f, bool& first) {
+    if (!f.overridden) {
+        return;
+    }
+    if (!first) {
+        b.Append(",");
+    }
+    first = false;
+    b.Append(fmt("%s:{\"from\":%s,\"to\":%s}", JsonStrTemp(Str(name)), JsonStrTemp(f.original),
+                 JsonStrTemp(f.value)));
+}
+
+static void ImportCommitThread(LibJob* job) {
+    LibraryEnsureService();
+    bool ok = ServicePost("/import/commit", job->a);
+    logf("LibraryImport: commit posted=%d\n", (int)ok);
+    FreeJob(job);
+    EnterLib();
+    gModel.loading = true;
+    gModel.loaded = false;
+    gDesk.loaded = false;
+    LeaveLib();
+    LoadDeskThread(NewJob({}));
+    LoadModelThread(NewJob({}));
+}
+
+static void LibraryImportCommit(MainWindow* win, LibraryImportData* d) {
+    if (!d || len(d->bookJson) == 0) {
+        return;
+    }
+    str::Builder body;
+    body.Append("{\"roots\":[");
+    StrVec roots = LibraryStartingRoots();
+    for (int i = 0; i < len(roots); i++) {
+        if (i > 0) {
+            body.Append(",");
+        }
+        body.Append(JsonStrTemp(roots.At(i)));
+    }
+    body.Append("],\"book\":");
+    body.Append(d->bookJson);
+    body.Append(fmt(",\"kind\":%s", JsonStrTemp(d->chosenKind)));
+    body.Append(fmt(",\"proposed_kind\":%s", JsonStrTemp(d->proposedKind)));
+    if (len(d->partitionKey) > 0) {
+        body.Append(fmt(",\"partition\":%s", JsonStrTemp(d->partitionKey)));
+    }
+    body.Append(",\"fields\":{");
+    bool first = true;
+    AppendImportField(body, "title", d->title, first);
+    AppendImportField(body, "author", d->author, first);
+    AppendImportField(body, "series", d->series, first);
+    AppendImportField(body, "year", d->year, first);
+    body.Append("},\"corrections\":{");
+    first = true;
+    AppendImportCorrection(body, "title", d->title, first);
+    AppendImportCorrection(body, "author", d->author, first);
+    body.Append("}}");
+    Str payload = body.TakeStr();
+    logf("LibraryImport: committing %s as %s\n", d->path, d->chosenKind);
+    RunAsync(MkFunc0<LibJob>(ImportCommitThread, NewJob(payload)), "libImportCommit");
+    str::Free(payload);
+}
+
+struct ImportPreviewJob {
+    MainWindow* win = nullptr;
+    Str path;
+    Str reply;
+    Str bookJson;
+};
+
+static void ShowImportPreview(ImportPreviewJob* job) {
+    if (!job) {
+        return;
+    }
+    if (len(job->reply) == 0) {
+        logf("LibraryImport: could not read the picked file\n");
+    } else {
+        auto* d = new LibraryImportData();
+        str::ReplaceWithCopy(&d->path, job->path);
+        str::ReplaceWithCopy(&d->bookJson, job->bookJson);
+        str::ReplaceWithCopy(&d->proposedKind, StrL("book"));
+        ImportPreviewParser parser(d);
+        JsonParseWithVisitor(job->reply, &parser);
+        str::ReplaceWithCopy(&d->chosenKind, StrL("book"));
+        ShowLibraryImportWindow(job->win, d, LibraryImportCommit);
+    }
+    str::Free(job->path);
+    str::Free(job->reply);
+    str::Free(job->bookJson);
+    delete job;
+}
+
+static void ImportPreviewThread(LibJob* job) {
+    auto* out = new ImportPreviewJob();
+    out->win = (len(gWindows) == 0) ? nullptr : gWindows[0];
+    out->path = str::Dup(job->a);
+    FreeJob(job);
+    Str bookJson = LibraryScanOneFileToJson(out->path);
+    if (len(bookJson) == 0) {
+        uitask::Post(MkFunc0<ImportPreviewJob>(ShowImportPreview, out), "libImportPreview");
+        return;
+    }
+    out->bookJson = bookJson;
+    str::Builder body;
+    body.Append("{\"roots\":[");
+    StrVec roots = LibraryStartingRoots();
+    for (int i = 0; i < len(roots); i++) {
+        if (i > 0) {
+            body.Append(",");
+        }
+        body.Append(JsonStrTemp(roots.At(i)));
+    }
+    body.Append("],\"book\":");
+    body.Append(bookJson);
+    body.Append("}");
+    Str payload = body.TakeStr();
+    LibraryEnsureService();
+    HttpRsp rsp;
+    TempStr url = fmt("http://127.0.0.1:%d/import/preview", LibraryServicePort());
+    if (HttpPostUrl(Str(url), StrL("application/json"), Str(), payload, &rsp) && IsHttpRspOk(&rsp)) {
+        out->reply = str::Dup(ToStr(rsp.data));
+    }
+    str::Free(payload);
+    uitask::Post(MkFunc0<ImportPreviewJob>(ShowImportPreview, out), "libImportPreview");
+}
+
+void LibraryImportBook(MainWindow* win) {
+    if (!win) {
+        return;
+    }
+    TempStr picked = PickOneDocumentFileTemp(win->hwndFrame);
+    if (len(picked) == 0) {
+        logf("LibraryImport: the file picker was cancelled\n");
+        return;
+    }
+    logf("LibraryImport: picked %s\n", picked);
+    RunAsync(MkFunc0<LibJob>(ImportPreviewThread, NewJob(Str(picked))), "libImportPreview");
+}
+
+int LibraryIgnoreDays() {
+    int days = gGlobalPrefs ? gGlobalPrefs->audiobook.libraryIgnoreDays : 30;
+    if (days < 1) {
+        days = 30;
+    }
+    if (days > 3650) {
+        days = 3650;
+    }
+    return days;
+}
+
 static void MoveDeskChosen(const char* kind) {
     str::Builder b;
     b.Append("{\"kind\":");
     b.Append(JsonStrTemp(Str(kind)));
+    b.Append(fmt(",\"days\":%d", LibraryIgnoreDays()));
     b.Append(",\"paths\":[");
     int n = 0;
     for (int i = 0; i < gDesk.nFiles; i++) {
@@ -3541,12 +4466,33 @@ static void MoveOneFile(Str path, const char* kind) {
     if (len(path) == 0) {
         return;
     }
-    TempStr body = fmt("{\"kind\":%s,\"paths\":[%s]}", JsonStrTemp(Str(kind)), JsonStrTemp(path));
+    TempStr body = fmt("{\"kind\":%s,\"days\":%d,\"paths\":[%s]}", JsonStrTemp(Str(kind)), LibraryIgnoreDays(),
+                       JsonStrTemp(path));
     PostKind(Str(body));
+}
+
+void LibraryRequestScanCancel() {
+    InterlockedExchange(&gScanCancel, 1);
+}
+
+void LibraryRequestScanCancelAndWait() {
+    InterlockedExchange(&gScanCancel, 1);
+    int spinCount = 0;
+    while (gNativeScanning) {
+        SleepInMs(10);
+        spinCount++;
+        if (spinCount > 600) {
+            break;
+        }
+    }
 }
 
 void LibraryFreeCache() {
     gScanCancel = true;
+    if (gScanAnimationTimer != 0 && gNotifyHwnd) {
+        KillTimer(gNotifyHwnd, gScanAnimationTimer);
+        gScanAnimationTimer = 0;
+    }
     CoverEditorShutdown();
     EnterLib();
     FreePartitions();
@@ -3558,12 +4504,17 @@ void LibraryFreeCache() {
     }
     gNCovers = 0;
     FreeModel(&gModel);
+    str::Free(gModel.scanItem);
+    gModel.scanItem = {};
+    str::Free(gModel.scanItemAction);
+    gModel.scanItemAction = {};
     FreeDetail(&gDetail);
     FreeDesk(&gDesk);
     gDesk.loaded = false;
     str::Free(gModel.filter);
     gModel.filter = {};
     gModel.loaded = false;
+    gModel.loadFailed = false;
     LeaveLib();
     EnterThumbs();
     LibraryThumbsClose(gThumbs);
@@ -3659,6 +4610,25 @@ static void FillRound(HDC hdc, Rect r, COLORREF col, int radius) {
     ScopedSelectObject sb(hdc, br);
     ScopedSelectObject sp(hdc, pen);
     RoundRect(hdc, r.x, r.y, r.x + r.dx, r.y + r.dy, radius, radius);
+}
+
+static COLORREF Mix(COLORREF a, COLORREF b, int pct);
+
+static void DrawScanBar(HDC hdc, Rect r, int done, int total, bool indeterminate) {
+    COLORREF bg = ThemeMainWindowBackgroundColor();
+    COLORREF text = ThemeWindowTextColor();
+    FillRound(hdc, r, Mix(bg, text, 12), r.dy / 2);
+    Rect fill = r;
+    if (indeterminate || total <= 0) {
+        fill.dx = DpiScale(24) > r.dx / 4 ? DpiScale(24) : r.dx / 4;
+        int travel = r.dx - fill.dx > 1 ? r.dx - fill.dx : 1;
+        fill.x += (int)((GetTickCount64() / 18) % (u64)travel);
+    } else {
+        fill.dx = (int)((i64)r.dx * limitValue(done, 0, total) / total);
+    }
+    if (fill.dx > 0) {
+        FillRound(hdc, fill, ThemeWindowLinkColor(), r.dy / 2);
+    }
 }
 
 static COLORREF Mix(COLORREF a, COLORREF b, int pct) {
@@ -3912,7 +4882,8 @@ static void DrawRail(HDC hdc, MainWindow* win, Rect rail, HFONT fontRow, HFONT f
     y += DrawSortRow(hdc, win, rcSort, fontRow) + DpiScale(8);
 
     int footDy = DpiScale(24);
-    int lastY = rail.y + rail.dy - 2 * footDy - 2 * pad;
+    int footerRows = gModel.scanning ? 6 : 4;
+    int lastY = rail.y + rail.dy - footerRows * footDy - 2 * pad;
     int headDy = DpiScale(20);
     int firstY = y;
     int bandDy = lastY - firstY;
@@ -3984,7 +4955,7 @@ static void DrawRail(HDC hdc, MainWindow* win, Rect rail, HFONT fontRow, HFONT f
     }
     DrawBar(hdc, gRailBar, gBarHot == &gRailBar || gBarDrag == &gRailBar);
 
-    Rect rcRescan(rail.x + DpiScale(6), rail.y + rail.dy - 2 * footDy - pad, rail.dx - DpiScale(12), footDy);
+    Rect rcRescan(rail.x + DpiScale(6), rail.y + rail.dy - footerRows * footDy - pad, rail.dx - DpiScale(12), footDy);
     SelectObject(hdc, fontRow);
     Str rescanLabel = StrL("Rescan library");
     if (gModel.scanning) {
@@ -3997,7 +4968,44 @@ static void DrawRail(HDC hdc, MainWindow* win, Rect rail, HFONT fontRow, HFONT f
         AddLink(win, rcRescan, Str(kLinkRescan), StrL("Look for new books on disk"));
     }
 
-    Rect rcClassic(rcRescan.x, rcRescan.y + footDy, rcRescan.dx, footDy);
+    int nextY = rcRescan.y + footDy;
+    if (gModel.scanning) {
+        EnsureScanAnimationTimer(win->hwndCanvas);
+        Str item = gModel.scanItem;
+        TempStr itemLabel;
+        if (gModel.scanItemTotal > 0) {
+            itemLabel =
+                fmt("%s — %s — %d of %d", gModel.scanItemAction, item, gModel.scanItemDone, gModel.scanItemTotal);
+        } else if (len(item) > 0) {
+            itemLabel = fmt("%s — %s", gModel.scanItemAction, item);
+        } else {
+            itemLabel = str::DupTemp(gModel.scanItemAction);
+        }
+        Rect rcItem(rcRescan.x + DpiScale(8), nextY, rcRescan.dx - DpiScale(8), footDy);
+        DrawTextIn(hdc, rcItem, itemLabel, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS, dim);
+        int scanBarDx = rcRescan.dx - DpiScale(16);
+        int barX = rcRescan.x + DpiScale(8);
+        Rect overall(barX, nextY + footDy + DpiScale(2), scanBarDx, DpiScale(6));
+        Rect current(barX, overall.y + overall.dy + DpiScale(4), scanBarDx, DpiScale(6));
+        DrawScanBar(hdc, overall, gModel.scanDone, gModel.scanTotal, gModel.scanTotal <= 0);
+        DrawScanBar(hdc, current, gModel.scanItemDone, gModel.scanItemTotal, gModel.scanItemIndeterminate);
+        nextY += 2 * footDy;
+    }
+
+    Rect rcProgressive(rcRescan.x, nextY, rcRescan.dx, footDy);
+    TempStr progressive = fmt("[%c] Show books while scanning",
+                              gGlobalPrefs && gGlobalPrefs->audiobook.progressiveLibraryScan ? 'x' : ' ');
+    DrawTextIn(hdc, Rect(rcProgressive.x + DpiScale(8), rcProgressive.y, rcProgressive.dx, rcProgressive.dy),
+               progressive, DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX, ThemeWindowLinkColor());
+    AddLink(win, rcProgressive, Str(kLinkProgressiveScan), StrL("Show completed books before the scan finishes"));
+
+    Rect rcImport(rcRescan.x, rcProgressive.y + footDy, rcRescan.dx, footDy);
+    DrawTextIn(hdc, Rect(rcImport.x + DpiScale(8), rcImport.y, rcImport.dx, rcImport.dy),
+               StrL("Manually add book to library..."), DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
+               ThemeWindowLinkColor());
+    AddLink(win, rcImport, Str(kLinkImportBook), StrL("Pick one file, check what the Library found, then add it"));
+
+    Rect rcClassic(rcRescan.x, rcImport.y + footDy, rcRescan.dx, footDy);
     DrawTextIn(hdc, Rect(rcClassic.x + DpiScale(8), rcClassic.y, rcClassic.dx, rcClassic.dy), StrL("Frequently read"),
                DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX, ThemeWindowLinkColor());
     AddLink(win, rcClassic, Str(kLinkClassic), StrL("Show the classic home page"));
@@ -4118,7 +5126,7 @@ static int DrawDeskActions(HDC hdc, MainWindow* win, Rect row, HFONT font, int c
     int nDoing = 0;
     if (gDesk.showIgnored) {
         doing[nDoing++] = {kKindBook, "Move selected to library", "Put these files back on the shelf"};
-        doing[nDoing++] = {kKindDocument, "Remove from library", "Put these files back on the desk"};
+        doing[nDoing++] = {kKindDocument, "Put back on the desk", "Put these files back on the desk"};
     } else {
         doing[nDoing++] = {kKindBook, "Move selected to library", "Put these files on the shelf as books"};
         doing[nDoing++] = {kKindIgnored, "Ignore file", "Never show these files again"};
@@ -5457,6 +6465,7 @@ bool LibraryOnLinkClicked(MainWindow* win, Str url) {
             gRailScrollY = 0;
             EnterLib();
             gModel.loaded = false;
+            gModel.loadFailed = false;
             LeaveLib();
             EnsureModel();
         }
@@ -5482,6 +6491,10 @@ bool LibraryOnLinkClicked(MainWindow* win, Str url) {
         return true;
     }
     if (str::StartsWith(url, Str(kLinkBook))) {
+        if (!gDetailOpen) {
+            win->libScrollYBeforeDetail = win->homePageScrollY;
+            win->libScrollYSaved = true;
+        }
         OpenDetail(AfterPrefix(url, kLinkBook));
         win->homePageScrollY = 0;
         InvalidateRect(win->hwndCanvas, nullptr, FALSE);
@@ -5489,7 +6502,12 @@ bool LibraryOnLinkClicked(MainWindow* win, Str url) {
     }
     if (str::StartsWith(url, Str(kLinkBack))) {
         gDetailOpen = false;
-        win->homePageScrollY = 0;
+        if (win->libScrollYSaved) {
+            win->homePageScrollY = win->libScrollYBeforeDetail;
+            win->libScrollYSaved = false;
+        } else {
+            win->homePageScrollY = 0;
+        }
         InvalidateRect(win->hwndCanvas, nullptr, FALSE);
         return true;
     }
@@ -5561,6 +6579,18 @@ bool LibraryOnLinkClicked(MainWindow* win, Str url) {
     }
     if (str::StartsWith(url, Str(kLinkRescan))) {
         LibraryRefresh(win, true);
+        return true;
+    }
+    if (str::StartsWith(url, Str(kLinkImportBook))) {
+        LibraryImportBook(win);
+        return true;
+    }
+    if (str::StartsWith(url, Str(kLinkProgressiveScan))) {
+        if (gGlobalPrefs) {
+            gGlobalPrefs->audiobook.progressiveLibraryScan = !gGlobalPrefs->audiobook.progressiveLibraryScan;
+            SaveSettings();
+            InvalidateRect(win->hwndCanvas, nullptr, FALSE);
+        }
         return true;
     }
     if (str::StartsWith(url, Str(kLinkClassic))) {
@@ -5672,10 +6702,35 @@ static bool CanLeaveSeries(const LibBook* b) {
            !str::Eq(row->kind, StrL("partition"));
 }
 
-static void AddPartitionMenu(HMENU popup, Str rowKey) {
-    LibSeries* row = RowByKey(rowKey);
-    LibPartition* home = row ? PartitionByKey(row->parent) : nullptr;
-    HMENU move = CreatePopupMenu();
+static bool CanHostBooks(const LibSeries& row) {
+    return !str::Eq(row.kind, StrL("partition")) && !str::Eq(row.kind, StrL("loose"));
+}
+
+struct LibRowParentPick {
+    Str key;
+};
+
+static LibRowParentPick gRowParentPicks[kMaxSeries];
+static int gnRowParentPicks = 0;
+
+static void FreeRowParentPicks() {
+    for (int i = 0; i < gnRowParentPicks; i++) {
+        str::Free(gRowParentPicks[i].key);
+    }
+    gnRowParentPicks = 0;
+}
+
+static bool RowIsUnder(Str key, Str above) {
+    if (str::Eq(key, above)) {
+        return false;
+    }
+    Str chain[16];
+    int n = SeriesChain(key, chain, 16);
+    return InChain(chain, n, above);
+}
+
+static HMENU PartitionDestMenu(LibSeries* row, LibPartition* home) {
+    HMENU into = CreatePopupMenu();
     for (int i = 0; i < gNPartitions; i++) {
         LibPartition& p = gPartitions[i];
         if (row && str::Eq(row->key, p.key)) {
@@ -5690,13 +6745,63 @@ static void AddPartitionMenu(HMENU popup, Str rowKey) {
         if (home && str::Eq(home->key, p.key)) {
             flags |= MF_CHECKED;
         }
-        AppendMenuW(move, flags, kMenuPartitionFirst + i, ToWStrTemp(ToStr(label)).s);
+        AppendMenuW(into, flags, kMenuPartitionFirst + i, ToWStrTemp(ToStr(label)).s);
     }
     if (gNPartitions > 0) {
-        AppendMenuW(move, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(into, MF_SEPARATOR, 0, nullptr);
     }
-    AppendMenuW(move, MF_STRING, kMenuNewPartition, ToWStrTemp(StrL("New partition...")).s);
-    AppendMenuW(popup, MF_POPUP, (UINT_PTR)move, ToWStrTemp(StrL("Move to partition")).s);
+    AppendMenuW(into, MF_STRING, kMenuNewPartition, ToWStrTemp(StrL("New partition...")).s);
+    return into;
+}
+
+static HMENU SeriesDestMenu(LibSeries* row) {
+    FreeRowParentPicks();
+    if (!row) {
+        return nullptr;
+    }
+    HMENU into = CreatePopupMenu();
+    for (int i = 0; i < gModel.nSeries && gnRowParentPicks < kMaxSeries; i++) {
+        LibSeries& cand = gModel.series[i];
+        if (len(cand.key) == 0 || len(cand.name) == 0 || !CanHostBooks(cand)) {
+            continue;
+        }
+        if (str::Eq(cand.key, row->key) || RowIsUnder(cand.key, row->key)) {
+            continue;
+        }
+        str::Builder label;
+        for (int step = 0; step < cand.depth; step++) {
+            label.Append("    ");
+        }
+        label.Append(fmt("%s  (%d)", cand.name, cand.books));
+        uint flags = MF_STRING;
+        if (str::Eq(row->parent, cand.key)) {
+            flags |= MF_CHECKED;
+        }
+        AppendMenuW(into, flags, kMenuRowParentFirst + gnRowParentPicks, ToWStrTemp(ToStr(label)).s);
+        gRowParentPicks[gnRowParentPicks].key = str::Dup(cand.key);
+        gnRowParentPicks++;
+    }
+    if (gnRowParentPicks == 0) {
+        DestroyMenu(into);
+        return nullptr;
+    }
+    return into;
+}
+
+static void AddPartitionMenu(HMENU popup, Str rowKey) {
+    LibSeries* row = RowByKey(rowKey);
+    LibPartition* home = row ? PartitionByKey(row->parent) : nullptr;
+    HMENU move = CreatePopupMenu();
+    AppendMenuW(move, MF_POPUP, (UINT_PTR)PartitionDestMenu(row, home), ToWStrTemp(StrL("Partition")).s);
+    HMENU series = SeriesDestMenu(row);
+    if (series) {
+        AppendMenuW(move, MF_POPUP, (UINT_PTR)series, ToWStrTemp(StrL("Series")).s);
+    }
+    if (row && !home && str::EqI(row->parentSource, StrL("user"))) {
+        AppendMenuW(move, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(move, MF_STRING, kMenuRestoreAutoParent, ToWStrTemp(StrL("Restore automatic parent")).s);
+    }
+    AppendMenuW(popup, MF_POPUP, (UINT_PTR)move, ToWStrTemp(StrL("Move to")).s);
     if (home) {
         AppendMenuW(popup, MF_STRING, kMenuTakeOutOfPartition, ToWStrTemp(fmt("Take out of %s", home->name)).s);
     }
@@ -5788,7 +6893,7 @@ static Str LibBookGetField(LibBook* b, InlineField f) {
     return {};
 }
 
-static void LibBookSetField(LibBook* b, InlineField f, Str v) {
+static void LibBookSetField(LibBook* b, InlineField f, Str v, Str exactKey = {}) {
     switch (f) {
         case InlineField::Title:
             str::ReplaceWithCopy(&b->title, v);
@@ -5814,6 +6919,9 @@ static void LibBookSetField(LibBook* b, InlineField f, Str v) {
             str::ReplaceWithCopy(&b->seriesSource, StrL("user"));
             str::ReplaceWithCopy(&gDetail.series, v);
             EnterLib();
+            if (len(exactKey) > 0 && RowByKey(exactKey)) {
+                str::ReplaceWithCopy(&b->seriesKey, exactKey);
+            }
             RebuildSeriesTree();
             LeaveLib();
             break;
@@ -5856,6 +6964,171 @@ static const char* InlineFieldName(InlineField f) {
     return "title";
 }
 
+static void PostUserFieldEdit(LibBook* book, InlineField field, Str value, bool restoreAuto, Str exactKey = {}) {
+    if (!book) {
+        return;
+    }
+    int reverted = 0;
+    if (restoreAuto) {
+        LibBookClearFieldSource(book, field);
+        switch (field) {
+            case InlineField::Title:
+                reverted = kRevertedTitle;
+                break;
+            case InlineField::Author:
+                reverted = kRevertedAuthor;
+                break;
+            case InlineField::Year:
+                reverted = kRevertedYear;
+                break;
+            case InlineField::Series:
+                reverted = kRevertedSeries;
+                break;
+        }
+    } else {
+        LibBookSetField(book, field, value, exactKey);
+    }
+    TempStr body;
+    if (restoreAuto) {
+        body = fmt("{\"id\":%s,\"fields\":{\"%s\":{\"value\":\"\",\"source\":\"\"}}}", JsonStrTemp(book->id),
+                   Str(InlineFieldName(field)));
+    } else if (len(exactKey) > 0) {
+        body = fmt("{\"id\":%s,\"fields\":{\"%s\":{\"value\":%s,\"source\":\"user\",\"key\":%s}}}",
+                   JsonStrTemp(book->id), Str(InlineFieldName(field)), JsonStrTemp(value), JsonStrTemp(exactKey));
+    } else {
+        body = fmt("{\"id\":%s,\"fields\":{\"%s\":{\"value\":%s,\"source\":\"user\"}}}", JsonStrTemp(book->id),
+                   Str(InlineFieldName(field)), JsonStrTemp(value));
+    }
+    PostBookEdit("/book/edit", Str(body), book->id, reverted);
+}
+
+void TestTriggerUserFieldEdit(Str bookId, Str field, Str value, Str exactKey) {
+    LibBook* book = BookById(bookId);
+    if (!book) {
+        return;
+    }
+    InlineField which = InlineField::Title;
+    if (str::EqI(field, StrL("author"))) {
+        which = InlineField::Author;
+    } else if (str::EqI(field, StrL("year"))) {
+        which = InlineField::Year;
+    } else if (str::EqI(field, StrL("series"))) {
+        which = InlineField::Series;
+    }
+    PostUserFieldEdit(book, which, value, false, exactKey);
+}
+
+int CurrentLibScrollY() {
+    if (len(gWindows) == 0) {
+        return 0;
+    }
+    return gWindows[0]->homePageScrollY;
+}
+
+void TestLibScrollToY(int y) {
+    if (len(gWindows) == 0) {
+        return;
+    }
+    MainWindow* win = gWindows[0];
+    ScrollTo(win, y);
+}
+
+void TestLibForceScrollY(int y) {
+    if (len(gWindows) == 0) {
+        return;
+    }
+    MainWindow* win = gWindows[0];
+    win->homePageScrollY = y;
+    InvalidateRect(win->hwndCanvas, nullptr, FALSE);
+}
+
+void TestLibOpenBookById(Str bookId) {
+    if (len(gWindows) == 0) {
+        return;
+    }
+    MainWindow* win = gWindows[0];
+    Str url = str::Join(kLinkBook, bookId);
+    LibraryOnLinkClicked(win, url);
+}
+
+void TestLibClickBack() {
+    if (len(gWindows) == 0) {
+        return;
+    }
+    MainWindow* win = gWindows[0];
+    LibraryOnLinkClicked(win, Str(kLinkBack));
+}
+
+void TestLibRescan() {
+    LibraryRefresh(nullptr, true);
+}
+
+TempStr TestLibScanStatus() {
+    EnterLib();
+    int scanning = gModel.scanning ? 1 : 0;
+    int done = gModel.scanDone;
+    int total = gModel.scanTotal;
+    int scanning_ = gNativeScanning ? 1 : 0;
+    int ocr_sweep = gSweepActive ? 1 : 0;
+    int traversals = gModel.scanTraversals;
+    int discovered = gModel.scanFilesDiscovered;
+    int processed = gModel.scanFilesProcessed;
+    int itemDone = gModel.scanItemDone;
+    int itemTotal = gModel.scanItemTotal;
+    int itemIndeterminate = gModel.scanItemIndeterminate ? 1 : 0;
+    int itemAction = 0;
+    if (str::Eq(gModel.scanItemAction, StrL("Finding books"))) {
+        itemAction = 1;
+    } else if (str::Eq(gModel.scanItemAction, StrL("Opening file"))) {
+        itemAction = 2;
+    } else if (str::Eq(gModel.scanItemAction, StrL("Processing EPUB"))) {
+        itemAction = 3;
+    } else if (str::Eq(gModel.scanItemAction, StrL("Processing pages"))) {
+        itemAction = 4;
+    } else if (str::Eq(gModel.scanItemAction, StrL("Publishing item"))) {
+        itemAction = 5;
+    }
+    int visible = gModel.nBooks;
+    int progressive = gGlobalPrefs && gGlobalPrefs->audiobook.progressiveLibraryScan ? 1 : 0;
+    LeaveLib();
+    int full = 0;
+    int shape = 0;
+    int ocr = 0;
+    BookFingerprintPerfCounters(&full, &shape, nullptr, nullptr, &ocr, nullptr, nullptr, nullptr);
+    TempStr scan = str::FormatTemp(
+        "scanning=%d native=%d done=%d total=%d itemDone=%d itemTotal=%d itemIndeterminate=%d itemAction=%d "
+        "traversals=%d "
+        "discovered=%d processed=%d "
+        "visible=%d progressive=%d sweep=%d",
+        scanning, scanning_, done, total, itemDone, itemTotal, itemIndeterminate, itemAction, traversals, discovered,
+        processed, visible, progressive, ocr_sweep);
+    return str::FormatTemp("%s full=%d shape=%d ocr=%d\n", scan, full, shape, ocr);
+}
+
+void TestLibToggleProgressive() {
+    if (len(gWindows) == 0) {
+        return;
+    }
+    LibraryOnLinkClicked(gWindows[0], Str(kLinkProgressiveScan));
+}
+
+void TestLibClickAllBooks() {
+    if (len(gWindows) == 0) {
+        return;
+    }
+    MainWindow* win = gWindows[0];
+    LibraryOnLinkClicked(win, Str(kLinkAllBooks));
+}
+
+void TestLibClickSeries(Str seriesKey) {
+    if (len(gWindows) == 0) {
+        return;
+    }
+    MainWindow* win = gWindows[0];
+    Str url = str::Join(kLinkSeries, seriesKey);
+    LibraryOnLinkClicked(win, url);
+}
+
 static void CommitInlineEdit(bool commit) {
     if (!gInlineEdit.hwnd) {
         return;
@@ -5870,10 +7143,7 @@ static void CommitInlineEdit(bool commit) {
     if (commit && book != nullptr) {
         TempStr newVal = HwndGetTextTemp(h);
         if (!str::Eq(newVal, original)) {
-            LibBookSetField(book, field, Str(newVal));
-            Str body = fmt("{\"id\":%s,\"fields\":{\"%s\":{\"value\":%s,\"source\":\"user\"}}}", JsonStrTemp(book->id),
-                           Str(InlineFieldName(field)), JsonStrTemp(Str(newVal)));
-            PostBookEdit("/book/edit", body, book->id);
+            PostUserFieldEdit(book, field, Str(newVal), false);
         }
     }
 
@@ -6174,7 +7444,7 @@ static bool DeskRightClick(MainWindow* win, int x, int y) {
     Str move = chosen > 1 ? Str(fmt("Move %d to library", chosen)) : StrL("Move to library");
     AppendMenuW(popup, MF_STRING, kMenuMoveToLibrary, ToWStrTemp(move).s);
     if (ignoredView) {
-        AppendMenuW(popup, MF_STRING, kMenuRemoveFromLibrary, ToWStrTemp(StrL("Remove from library")).s);
+        AppendMenuW(popup, MF_STRING, kMenuRemoveFromLibrary, ToWStrTemp(StrL("Put back on the desk")).s);
     } else {
         Str hide = chosen > 1 ? Str(fmt("Ignore %d files", chosen)) : StrL("Ignore file");
         AppendMenuW(popup, MF_STRING, kMenuIgnoreFile, ToWStrTemp(hide).s);
@@ -6211,6 +7481,58 @@ static bool DeskRightClick(MainWindow* win, int x, int y) {
     return true;
 }
 
+struct LibSeriesPick {
+    Str key;
+    Str name;
+};
+
+static LibSeriesPick gSeriesPicks[kMaxSeries];
+static int gnSeriesPicks = 0;
+
+static void FreeSeriesPicks() {
+    for (int i = 0; i < gnSeriesPicks; i++) {
+        str::Free(gSeriesPicks[i].key);
+        str::Free(gSeriesPicks[i].name);
+    }
+    gnSeriesPicks = 0;
+}
+
+static void AddSeriesMenu(HMENU popup, LibBook* book) {
+    FreeSeriesPicks();
+    if (!book) {
+        return;
+    }
+    HMENU move = CreatePopupMenu();
+    for (int i = 0; i < gModel.nSeries && gnSeriesPicks < kMaxSeries; i++) {
+        LibSeries& row = gModel.series[i];
+        if (len(row.name) == 0 || !CanHostBooks(row)) {
+            continue;
+        }
+        str::Builder label;
+        for (int step = 0; step < row.depth; step++) {
+            label.Append("    ");
+        }
+        label.Append(fmt("%s  (%d)", row.name, row.books));
+        uint flags = MF_STRING;
+        if (str::Eq(book->seriesKey, row.key)) {
+            flags |= MF_CHECKED;
+        }
+        AppendMenuW(move, flags, kMenuSeriesFirst + gnSeriesPicks, ToWStrTemp(ToStr(label)).s);
+        gSeriesPicks[gnSeriesPicks].key = str::Dup(row.key);
+        gSeriesPicks[gnSeriesPicks].name = str::Dup(row.name);
+        gnSeriesPicks++;
+    }
+    if (gnSeriesPicks == 0) {
+        DestroyMenu(move);
+        return;
+    }
+    if (str::EqI(book->seriesSource, StrL("user"))) {
+        AppendMenuW(move, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(move, MF_STRING, kMenuRestoreAutoSeries, ToWStrTemp(StrL("Restore automatic series")).s);
+    }
+    AppendMenuW(popup, MF_POPUP, (UINT_PTR)move, ToWStrTemp(StrL("Move to series")).s);
+}
+
 bool LibraryOnRightClick(MainWindow* win, int x, int y) {
     if (!LibraryHomeEnabled()) {
         return false;
@@ -6241,6 +7563,7 @@ bool LibraryOnRightClick(MainWindow* win, int x, int y) {
             Str back = Str(fmt("Put back into %s", book->outOf[i].name));
             AppendMenuW(popup, MF_STRING, kMenuRejoinFirst + i, ToWStrTemp(back).s);
         }
+        AddSeriesMenu(popup, book);
         AppendMenuW(popup, MF_STRING, kMenuEditBookMetadata, ToWStrTemp(_TRA("Edit metadata...")).s);
         AppendMenuW(popup, MF_STRING, kMenuRemoveFromLibrary, ToWStrTemp(StrL("Remove from library")).s);
         AppendMenuW(popup, MF_STRING, kMenuIgnoreFile, ToWStrTemp(StrL("Ignore file")).s);
@@ -6264,7 +7587,7 @@ bool LibraryOnRightClick(MainWindow* win, int x, int y) {
     } else if (cmd == kMenuPlayAudiobook) {
         LibraryOpenBook(win, path, 0, true);
     } else if (cmd == kMenuRemoveFromLibrary) {
-        MoveOneFile(path, kKindDocument);
+        MoveOneFile(path, kKindIgnored);
     } else if (cmd == kMenuIgnoreFile) {
         MoveOneFile(path, kKindIgnored);
     } else if (cmd == kMenuLeaveSeries && CanLeaveSeries(book)) {
@@ -6277,10 +7600,29 @@ bool LibraryOnRightClick(MainWindow* win, int x, int y) {
         PostPartition("/series/restore", Str(body));
     } else if (cmd == kMenuEditBookMetadata && book) {
         RunEditBookMetadata(win, book);
+    } else if (cmd == kMenuRestoreAutoSeries && book) {
+        PostUserFieldEdit(book, InlineField::Series, Str(), true);
+    } else if (book && cmd >= kMenuSeriesFirst && cmd < kMenuSeriesFirst + gnSeriesPicks) {
+        Str pick = gSeriesPicks[cmd - kMenuSeriesFirst].name;
+        Str pickKey = gSeriesPicks[cmd - kMenuSeriesFirst].key;
+        if (!str::Eq(book->seriesKey, pickKey) || !str::Eq(book->series, pick) ||
+            !str::EqI(book->seriesSource, StrL("user"))) {
+            PostUserFieldEdit(book, InlineField::Series, pick, false, pickKey);
+            InvalidateRect(win->hwndCanvas, nullptr, FALSE);
+        }
+    } else if (cmd == kMenuRestoreAutoParent && len(rowKey) > 0) {
+        TempStr body = fmt("{\"row\":%s,\"parent\":\"\"}", JsonStrTemp(rowKey));
+        PostPartition("/series/parent", Str(body));
+    } else if (len(rowKey) > 0 && cmd >= kMenuRowParentFirst && cmd < kMenuRowParentFirst + gnRowParentPicks) {
+        Str dest = gRowParentPicks[cmd - kMenuRowParentFirst].key;
+        TempStr body = fmt("{\"row\":%s,\"parent\":%s}", JsonStrTemp(rowKey), JsonStrTemp(dest));
+        PostPartition("/series/parent", Str(body));
     } else if (cmd == kMenuRenameSeries && len(rowKey) > 0) {
         RunRenameSeries(win, rowKey);
     } else if (cmd > 0 && len(rowKey) > 0) {
         RunPartitionCommand(win, cmd, rowKey);
     }
+    FreeSeriesPicks();
+    FreeRowParentPicks();
     return true;
 }

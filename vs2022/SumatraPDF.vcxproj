@@ -1184,6 +1184,7 @@ cd ../out/rel64_prefast_asan &amp; if not exist InstallerData.dat ..\..\bin\Make
     <ClInclude Include="..\src\AvifReader.h" />
     <ClInclude Include="..\src\BookBlob.h" />
     <ClInclude Include="..\src\BookFingerprint.h" />
+    <ClInclude Include="..\src\BookOcr.h" />
     <ClInclude Include="..\src\BuildConfig.h" />
     <ClInclude Include="..\src\Canvas.h" />
     <ClInclude Include="..\src\CaptionGlyphs.h" />
@@ -1237,6 +1238,8 @@ cd ../out/rel64_prefast_asan &amp; if not exist InstallerData.dat ..\..\bin\Make
     <ClInclude Include="..\src\KeyboardHelp.h" />
     <ClInclude Include="..\src\LibraryData.h" />
     <ClInclude Include="..\src\LibraryPage.h" />
+    <ClInclude Include="..\src\LibraryRootsWindow.h" />
+    <ClInclude Include="..\src\LibraryImportWindow.h" />
     <ClInclude Include="..\src\LibraryScan.h" />
     <ClInclude Include="..\src\LibrarySidecar.h" />
     <ClInclude Include="..\src\LibraryStore.h" />
@@ -1405,6 +1408,7 @@ cd ../out/rel64_prefast_asan &amp; if not exist InstallerData.dat ..\..\bin\Make
     </ClCompile>
     <ClCompile Include="..\src\BookBlob.cpp" />
     <ClCompile Include="..\src\BookFingerprint.cpp" />
+    <ClCompile Include="..\src\BookOcr.cpp" />
     <ClCompile Include="..\src\Canvas.cpp" />
     <ClCompile Include="..\src\CanvasAboutUI.cpp" />
     <ClCompile Include="..\src\CaptionGlyphs.cpp" />
@@ -1475,6 +1479,8 @@ cd ../out/rel64_prefast_asan &amp; if not exist InstallerData.dat ..\..\bin\Make
     <ClCompile Include="..\src\KeyboardHelp.cpp" />
     <ClCompile Include="..\src\KeyboardHelp_win.cpp" />
     <ClCompile Include="..\src\LibraryPage.cpp" />
+    <ClCompile Include="..\src\LibraryRootsWindow.cpp" />
+    <ClCompile Include="..\src\LibraryImportWindow.cpp" />
     <ClCompile Include="..\src\LibraryScan.cpp" />
     <ClCompile Include="..\src\LibrarySidecar.cpp" />
     <ClCompile Include="..\src\LibraryStore.cpp" />

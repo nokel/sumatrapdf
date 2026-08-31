@@ -44,6 +44,7 @@ static UINT_PTR gNoDocWhitelist[] = {
     CmdSetInverseSearch,
     CmdAdvancedOptions,
     CmdAdvancedSettings,
+    CmdLibraryIndexing,
     CmdChangeLanguage,
     CmdChangeTheme,
     CmdCheckUpdate,

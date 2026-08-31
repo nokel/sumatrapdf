@@ -120,6 +120,9 @@
     <ClInclude Include="..\src\BookFingerprint.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\BookOcr.h">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\BuildConfig.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -277,6 +280,9 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\LibraryPage.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\LibraryRootsWindow.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="..\src\LibraryScan.h">
@@ -674,6 +680,9 @@
     <ClCompile Include="..\src\BookFingerprint.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\BookOcr.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\Canvas.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -882,6 +891,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\LibraryPage.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\LibraryRootsWindow.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\LibraryScan.cpp">

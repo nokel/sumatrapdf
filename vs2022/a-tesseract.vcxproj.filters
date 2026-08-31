@@ -1,0 +1,738 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="include">
+      <UniqueIdentifier>{89AF369E-F58E-B539-FEA6-40106A051C9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\tesseract">
+      <UniqueIdentifier>{06A8957C-72BE-9312-BB35-1F34278B649A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{2DAB880B-99B4-887C-2230-9F7C8E38947C}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\api">
+      <UniqueIdentifier>{F6EA2FA9-62CA-AE44-6BE2-391BD74015A6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\arch">
+      <UniqueIdentifier>{DA512DCF-C61E-88DA-EF37-7682DB63BD68}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ccmain">
+      <UniqueIdentifier>{077E6953-F335-ABA0-5C3D-84FC48144691}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ccstruct">
+      <UniqueIdentifier>{87FB1CE3-735E-AC87-1CE4-E43D0826780A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ccutil">
+      <UniqueIdentifier>{E0316E53-CCE9-AFA0-35F1-88FC21C84A91}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\classify">
+      <UniqueIdentifier>{3A84DA6D-26E7-6912-CF6C-A2C8BBAE3595}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\cutil">
+      <UniqueIdentifier>{1DACFDB4-8916-B22B-D254-63D13EFE8F80}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\dict">
+      <UniqueIdentifier>{C0D02ECF-AC9D-89DA-D5B6-7782C1E2BE68}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\lstm">
+      <UniqueIdentifier>{7C6033CF-682D-8EDA-9146-7C827D72C368}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\textord">
+      <UniqueIdentifier>{262CB3E2-92E1-2BD8-1BD6-25AF878A22DC}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\wordrec">
+      <UniqueIdentifier>{B22A80E0-1EE0-F8D5-A7D4-F2AC1389EFD9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\baseapi.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\capi.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\export.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\ltrresultiterator.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\ocrclass.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\osdetect.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\pageiterator.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\publictypes.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\renderer.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\resultiterator.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\unichar.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\a-tesseract\include\tesseract\version.h">
+      <Filter>include\tesseract</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\ext\a-tesseract\src\api\altorenderer.cpp">
+      <Filter>src\api</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\api\baseapi.cpp">
+      <Filter>src\api</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\api\capi.cpp">
+      <Filter>src\api</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\api\hocrrenderer.cpp">
+      <Filter>src\api</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\api\lstmboxrenderer.cpp">
+      <Filter>src\api</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\api\pdfrenderer.cpp">
+      <Filter>src\api</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\api\renderer.cpp">
+      <Filter>src\api</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\api\wordstrboxrenderer.cpp">
+      <Filter>src\api</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproduct.cpp">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproductavx.cpp">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproductavx512.cpp">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproductfma.cpp">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproductneon.cpp">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\arch\dotproductsse.cpp">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\arch\intsimdmatrix.cpp">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\arch\intsimdmatrixavx2.cpp">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\arch\intsimdmatrixneon.cpp">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\arch\intsimdmatrixsse.cpp">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\arch\simddetect.cpp">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\adaptions.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\applybox.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\control.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\docqual.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\equationdetect.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\fixspace.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\fixxht.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\linerec.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\ltrresultiterator.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\mutableiterator.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\osdetect.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\output.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\pageiterator.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\pagesegmain.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\pagewalk.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\par_control.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\paragraphs.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\paramsd.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\pgedit.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\recogtraining.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\reject.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\resultiterator.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\superscript.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\tessbox.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\tessedit.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\tesseractclass.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\tessvars.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\tfacepp.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\thresholder.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccmain\werdit.cpp">
+      <Filter>src\ccmain</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\blamer.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\blobbox.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\blobs.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\blread.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\boxread.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\boxword.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\ccstruct.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\coutln.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\detlinefit.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\dppoint.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\fontinfo.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\image.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\imagedata.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\linlsq.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\matrix.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\mod128.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\normalis.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\ocrblock.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\ocrpara.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\ocrrow.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\otsuthr.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\pageres.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\params_training_featdef.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\pdblock.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\points.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\polyaprx.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\polyblk.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\quadlsq.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\quspline.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\ratngs.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\rect.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\rejctmap.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\seam.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\split.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\statistc.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\stepblob.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccstruct\werd.cpp">
+      <Filter>src\ccstruct</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\ambigs.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\bitvector.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\ccutil.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\clst.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\elst.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\elst2.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\errcode.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\indexmapbidi.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\params.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\scanutils.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\serialis.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\tessdatamanager.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\tprintf.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\unichar.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\unicharcompress.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\unicharmap.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\ccutil\unicharset.cpp">
+      <Filter>src\ccutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\adaptive.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\adaptmatch.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\blobclass.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\classify.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\cluster.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\clusttool.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\cutoffs.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\featdefs.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\float2int.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\fpoint.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\intfeaturespace.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\intfx.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\intmatcher.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\intproto.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\kdtree.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\mf.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\mfoutline.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\mfx.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\normfeat.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\normmatch.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\ocrfeatures.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\outfeat.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\picofeat.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\protos.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\shapeclassifier.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\shapetable.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\tessclassifier.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\classify\trainingsample.cpp">
+      <Filter>src\classify</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\cutil\oldlist.cpp">
+      <Filter>src\cutil</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\dict\context.cpp">
+      <Filter>src\dict</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\dict\dawg.cpp">
+      <Filter>src\dict</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\dict\dawg_cache.cpp">
+      <Filter>src\dict</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\dict\dict.cpp">
+      <Filter>src\dict</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\dict\hyphen.cpp">
+      <Filter>src\dict</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\dict\permdawg.cpp">
+      <Filter>src\dict</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\dict\stopper.cpp">
+      <Filter>src\dict</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\dict\trie.cpp">
+      <Filter>src\dict</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\convolve.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\fullyconnected.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\functions.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\input.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\lstm.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\lstmrecognizer.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\maxpool.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\network.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\networkio.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\parallel.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\plumbing.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\recodebeam.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\reconfig.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\reversed.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\series.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\stridemap.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\tfnetwork.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\lstm\weightmatrix.cpp">
+      <Filter>src\lstm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\alignedblob.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\baselinedetect.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\bbgrid.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\blkocc.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\blobgrid.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\ccnontextdetect.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\cjkpitch.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\colfind.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\colpartition.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\colpartitiongrid.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\colpartitionset.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\devanagari_processing.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\drawtord.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\edgblob.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\edgloop.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\equationdetectbase.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\fpchop.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\gap_map.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\imagefind.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\linefind.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\makerow.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\oldbasel.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\pithsync.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\pitsync1.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\scanedg.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\sortflts.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\strokewidth.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tabfind.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tablefind.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tablerecog.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tabvector.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\textlineprojection.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\textord.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\topitch.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tordmain.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tospace.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\tovars.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\underlin.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\wordseg.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\textord\workingpartset.cpp">
+      <Filter>src\textord</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\associate.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\chop.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\chopper.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\drawfx.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\findseam.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\gradechop.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\language_model.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\lm_consistency.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\lm_pain_points.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\lm_state.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\outlines.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\params_model.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\pieces.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\plotedges.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\render.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\segsearch.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\tface.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\wordclass.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+    <ClCompile Include="..\ext\a-tesseract\src\wordrec\wordrec.cpp">
+      <Filter>src\wordrec</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

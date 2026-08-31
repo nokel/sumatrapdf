@@ -430,6 +430,8 @@ struct MainWindow {
 
     // home page thumbnail scrolling
     int homePageScrollY = 0;
+    int libScrollYBeforeDetail = 0;
+    bool libScrollYSaved = false;
     // keyboard-selected home page entry (index into the filtered list),
     // -1 when there's nothing to select. Enter opens it (issue #1136)
     int homePageSelIdx = 0;

@@ -356,6 +356,7 @@ TempStr GetLogFilePathTemp();
 void ShowErrorLoadingNotification(MainWindow* win, Str path, bool noSavePrefs, bool showWin = true);
 void SumatraOpenPathInDefaultFileManager(Str path);
 void SmartZoom(MainWindow* win, float factor, Point* pt, bool smartZoom);
+TempStr PickOneDocumentFileTemp(HWND parent);
 TempStr GetSumatraDataDirTemp();
 TempStr GetCrashInfoDirTemp();
 TempStr GetSumatraBuildSpecificDirTemp();
