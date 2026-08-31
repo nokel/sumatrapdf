@@ -82,3 +82,5 @@ __pycache__/
 *.removed
 # per-book sidecars written by the app while testing
 tests/*.sumatra
+# QA screenshots taken while checking the UI
+/qa-*.png
