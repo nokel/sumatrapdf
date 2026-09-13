@@ -328,6 +328,10 @@ const sumatraFiles: FileGroup[] = [
       "CoverModel.*",
       "CoverOnline.*",
       "CoverVision.*",
+      "BookOcr.*",
+      "LibraryImportWindow.*",
+      "LibraryRootsWindow.*",
+      "WebpWriter.*",
       "ExifDump.*",
       "FilterHighlightDraw.*",
       "FindBar.*",
@@ -798,6 +802,31 @@ const msdes: LibDef = {
   files: [{ dir: "ext/msdes", patterns: ["des.c"] }],
 };
 
+const libwebpWithEncoder: LibDef = {
+  ...libwebp,
+  files: [
+    ...libwebp.files,
+    { dir: "ext/libwebp/src/enc", patterns: ["*.c"] },
+    {
+      dir: "ext/libwebp/src/dsp",
+      patterns: [
+        "cost_neon.c",
+        "cost_sse2.c",
+        "enc.c",
+        "enc_neon.c",
+        "enc_sse2.c",
+        "enc_sse41.c",
+        "lossless_enc.c",
+        "lossless_enc_avx2.c",
+        "lossless_enc_neon.c",
+        "lossless_enc_sse2.c",
+        "lossless_enc_sse41.c",
+      ],
+    },
+    { dir: "ext/libwebp/sharpyuv", patterns: ["*.c"] },
+  ],
+};
+
 // Order: libraries that have no deps first, then dependents.
 // The link order for archives is: most-dependent first, least-dependent last.
 const ALL_LIBS: LibDef[] = [
@@ -807,7 +836,7 @@ const ALL_LIBS: LibDef[] = [
   chmdec,
   msdes,
   libarchive,
-  libwebp,
+  libwebpWithEncoder,
   dav1d,
   heicdec,
   jxldec,
