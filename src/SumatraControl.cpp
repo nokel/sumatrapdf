@@ -335,6 +335,10 @@ enum class ControlCmd : u16 {
     TestLibraryIndexing = 85,
     TestLibImportBook = 86,
     TestLibImportState = 87,
+    TestLibDeskState = 88,
+    TestLibDeskRendered = 89,
+    TestLibDeskActs = 90,
+    TestLibDeskActsReset = 91,
 };
 
 enum class ControlArgType : u16 {
@@ -1177,6 +1181,27 @@ static void ExecuteControlRequest(ControlRequest* req) {
 
         case ControlCmd::TestLibImportState: {
             AppendTestResult(req, 0, TestLibraryImportStateTemp());
+            break;
+        }
+
+        case ControlCmd::TestLibDeskState: {
+            AppendTestResult(req, 0, TestLibDeskStateTemp());
+            break;
+        }
+
+        case ControlCmd::TestLibDeskRendered: {
+            AppendTestResult(req, 0, TestLibDeskRenderedTemp());
+            break;
+        }
+
+        case ControlCmd::TestLibDeskActs: {
+            AppendTestResult(req, 0, TestLibDeskActsTemp());
+            break;
+        }
+
+        case ControlCmd::TestLibDeskActsReset: {
+            TestLibDeskActsReset();
+            AppendTestResult(req, 0, StrL("OK\n"));
             break;
         }
 

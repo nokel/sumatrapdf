@@ -285,6 +285,7 @@ struct Audiobook {
     // Documents/Downloads/Desktop, then a bounded scan of every fixed
     // drive
     Vec<LibraryRoot*>* libraryRoots;
+    bool libraryRootsConfigured;
     // port of the Chatterbox library service (audiobook\library)
     int libraryPort;
     // how the library start page orders the series list: "alpha" (A to Z),
@@ -1381,6 +1382,7 @@ static const FieldInfo gAudiobookFields[] = {
     {offsetof(Audiobook, sidebarDx), SettingType::Int, 0, true},
     {offsetof(Audiobook, libraryHome), SettingType::Bool, true},
     {offsetof(Audiobook, libraryRoots), SettingType::Array, (intptr_t)&gLibraryRootInfo},
+    {offsetof(Audiobook, libraryRootsConfigured), SettingType::Bool, false, true},
     {offsetof(Audiobook, libraryPort), SettingType::Int, 7863},
     {offsetof(Audiobook, librarySort), SettingType::String, (intptr_t)"alpha"},
     {offsetof(Audiobook, progressiveLibraryScan), SettingType::Bool, true},
@@ -1388,10 +1390,11 @@ static const FieldInfo gAudiobookFields[] = {
 };
 static const StructInfo gAudiobookInfo = {
     sizeof(Audiobook),
-    17,
+    18,
     gAudiobookFields,
     "UseChatterbox\0ChatterboxDir\0PythonExe\0TtsServerPort\0LmStudioUrl\0NarratorVoice\0LmModel\0LmUrls\0Analyzer\0Cha"
-    "rSort\0SidebarDx\0LibraryHome\0LibraryRoots\0LibraryPort\0LibrarySort\0ProgressiveLibraryScan\0LibraryIgnoreDays",
+    "rSort\0SidebarDx\0LibraryHome\0LibraryRoots\0LibraryRootsConfigured\0LibraryPort\0LibrarySort\0ProgressiveLibraryS"
+    "can\0LibraryIgnoreDays",
     "if true, the Read Aloud button reads the document with the Chatterbox audiobook engine (per-character voices and "
     "word highlighting) instead of the built-in Windows TTS\0folder of the Chatterbox-TTS-Extended install (contains "
     "tts_server.py and audiobook\\engine.py); found automatically, only set this if auto-detection fails\0python for "
@@ -1414,12 +1417,14 @@ static const StructInfo gAudiobookInfo = {
     "and TV adaptations. If false, the classic Frequently Read page is shown instead\0folders the Library looks for "
     "books in, edited in Settings -> Library Indexing. Empty means work them out on first use: the folders that "
     "already hold books in the Library, then Documents/Downloads/Desktop, then a bounded scan of every fixed "
-    "drive\0port of the Chatterbox library service (audiobook\\library)\0how the library start page orders the series "
-    "list: \"alpha\" (A to Z), \"genre\" (grouped under genre headings), \"most\" (most books first) or \"fewest\" "
-    "(fewest books first). Chosen on the page\0if true, show completed books while the Library scan continues\0how "
-    "many days a book taken out of the Library with Remove from library stays in Deskpan > Ignored. When the time is "
-    "up the file becomes a permanent Library exclusion that automatic scans skip, and only a manual import brings it "
-    "back. Edited in Settings -> SumatraPDF Options",
+    "drive\0set by the app once the Library roots have been worked out or edited, so an empty LibraryRoots afterwards "
+    "means the user removed them all rather than never having configured any\0port of the Chatterbox library service "
+    "(audiobook\\library)\0how the library start page orders the series list: \"alpha\" (A to Z), \"genre\" (grouped "
+    "under genre headings), \"most\" (most books first) or \"fewest\" (fewest books first). Chosen on the page\0if "
+    "true, show completed books while the Library scan continues\0how many days a book taken out of the Library with "
+    "Remove from library stays in Deskpan > Ignored. When the time is up the file becomes a permanent Library "
+    "exclusion that automatic scans skip, and only a manual import brings it back. Edited in Settings -> SumatraPDF "
+    "Options",
     false};
 
 static const FieldInfo gGrokBuildFields[] = {

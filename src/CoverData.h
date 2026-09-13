@@ -4,33 +4,22 @@
    License: Simplified BSD (see COPYING) */
 
 struct CoverExample {
-    //
     Vec<float>* features;
-    //
     bool good;
 };
 
 struct CoverChoice {
-    //
     Str bookId;
-    //
     Str kind;
-    //
     int page;
-    //
     Vec<float>* rect;
-    //
     Str fromPath;
 };
 
 struct CoverStore {
-    //
     int version;
-    //
     Vec<float>* weights;
-    //
     Vec<CoverExample*>* coverExamples;
-    //
     Vec<CoverChoice*>* coverChoices;
 };
 

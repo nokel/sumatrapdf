@@ -13,9 +13,12 @@
 #include "gui/VirtCtrl.h"
 #include "Commands.h"
 #include "base/Crypto.h"
+#include "base/Timer.h"
 #include "base/File.h"
 #include "base/GuessFileType.h"
 #include "BookBlob.h"
+#define XXH_INLINE_ALL
+#include "../ext/xxHash/xxhash.h"
 #include "BookFingerprint.h"
 #include "CoverOnline.h"
 #include "CoverVision.h"
@@ -26,6 +29,9 @@
 #include "MobiDoc.h"
 #include "PdfSidecar.h"
 #include "CoverSpotVectors.h"
+#include "Settings.h"
+#include "GlobalPrefs.h"
+#include "LibraryScan.h"
 
 #if defined(DEBUG)
 void TextSelection_UnitTests();
@@ -240,6 +246,116 @@ static void AppendHex(str::Builder& b, const u8* data, int n) {
         b.AppendChar(hex[data[i] >> 4]);
         b.AppendChar(hex[data[i] & 0xF]);
     }
+}
+
+struct SubstanceVector {
+    int len;
+    u64 digest;
+};
+
+static void FillUpstreamTestBuffer(u8* buffer, int len) {
+    u64 byteGen = 2654435761U;
+    for (int i = 0; i < len; i++) {
+        buffer[i] = (u8)(byteGen >> 56);
+        byteGen *= 11400714785074694797ULL;
+    }
+}
+
+static void BookSubstanceHash_UnitTests() {
+    logf("BookSubstanceHash: %s\n", BookSubstanceHashInfo());
+
+    static const SubstanceVector vectors[] = {
+        {0, 0x2D06800538D394C2ULL},
+        {1, 0xC44BDFF4074EECDBULL},
+        {6, 0x27B56A84CD2D7325ULL},
+        {12, 0xA713DAF0DFBB77E7ULL},
+        {24, 0xA3FE70BF9D3510EBULL},
+        {48, 0x397DA259ECBA1F11ULL},
+        {80, 0xBCDEFBBB2C47C90AULL},
+        {195, 0xCD94217EE362EC3AULL},
+        {403, 0xCDEB804D65C6DEA4ULL},
+        {512, 0x617E49599013CB6BULL},
+        {2048, 0xDD59E2C3A5F038E0ULL},
+        {2240, 0x6E73A90539CF2948ULL},
+        {2367, 0xCB37AEB9E5D361EDULL},
+    };
+
+    int biggest = 0;
+    for (const SubstanceVector& v : vectors) {
+        if (v.len > biggest) {
+            biggest = v.len;
+        }
+    }
+    u8* buffer = AllocArray<u8>((size_t)biggest + 1);
+    FillUpstreamTestBuffer(buffer, biggest);
+
+    int checked = 0;
+    for (const SubstanceVector& v : vectors) {
+        char got[17];
+        BookSubstanceIdentity(Str((char*)buffer, v.len), got);
+        TempStr want = str::FormatTemp("%016llx", v.digest);
+        if (!str::Eq(Str(got), want)) {
+            logf("BookSubstanceHash: len=%d want %s got %s\n", v.len, want, Str(got));
+        }
+        utassert(str::Eq(Str(got), want));
+        utassert(len(Str(got)) == 16);
+        checked++;
+    }
+    logf("BookSubstanceHash: %d upstream XXH3_64bits vectors matched\n", checked);
+
+    char first[17];
+    BookSubstanceIdentity(Str((char*)buffer, 2367), first);
+    for (int i = 0; i < 1000; i++) {
+        char again[17];
+        BookSubstanceIdentity(Str((char*)buffer, 2367), again);
+        utassert(str::Eq(Str(again), Str(first)));
+    }
+    logf("BookSubstanceHash: 1000 repeats of one input gave %s\n", Str(first));
+
+    buffer[1200] = (u8)(buffer[1200] ^ 0x01);
+    char changed[17];
+    BookSubstanceIdentity(Str((char*)buffer, 2367), changed);
+    utassert(!str::Eq(Str(changed), Str(first)));
+    logf("BookSubstanceHash: one changed byte gave %s\n", Str(changed));
+    free(buffer);
+
+    TempStr benchFile = EnvVarTemp("SUMATRA_HASH_BENCH_FILE");
+    if (!benchFile) {
+        return;
+    }
+    BookFingerprint fp;
+    if (!BookFingerprintOfFile(benchFile, fp, 0, true, false)) {
+        logf("BookSubstanceHash: could not read %s\n", benchFile);
+        return;
+    }
+    Str payload = fp.identityText;
+    int rounds = 200;
+    double bytes = (double)payload.len * rounds;
+    u8 digest[16];
+    TimeStamp started = TimeGet();
+    for (int i = 0; i < rounds; i++) {
+        CalcMD5Digest(payload, digest);
+    }
+    double md5Ms = TimeSinceInMs(started);
+    char hex[17];
+    started = TimeGet();
+    for (int i = 0; i < rounds; i++) {
+        BookSubstanceIdentity(payload, hex);
+    }
+    double xxh64Ms = TimeSinceInMs(started);
+    XXH128_hash_t wide{};
+    started = TimeGet();
+    for (int i = 0; i < rounds; i++) {
+        wide = XXH3_128bits(payload.s, (size_t)payload.len);
+    }
+    double xxh128Ms = TimeSinceInMs(started);
+    logf("BookSubstanceHash: bench file=%s payload=%d rounds=%d\n", benchFile, (int)payload.len, rounds);
+    logf("BookSubstanceHash: md5 %.3f ms (%.1f MB/s), xxh3-128 %.3f ms (%.1f MB/s), xxh3-64 %.3f ms (%.1f MB/s), "
+         "fingerprint %s\n",
+         md5Ms, bytes / (md5Ms / 1000.0) / (1024 * 1024), xxh128Ms, bytes / (xxh128Ms / 1000.0) / (1024 * 1024),
+         xxh64Ms, bytes / (xxh64Ms / 1000.0) / (1024 * 1024), fp.fingerprint);
+    logf("BookSubstanceHash: bench xxh3-128 sink %llx\n", (unsigned long long)wide.low64);
+    BookFingerprintFree(fp);
 }
 
 static void BookFingerprint_UnitTests() {
@@ -1300,16 +1416,70 @@ static void InteropBook_UnitTests() {
     str::Free(err);
 }
 
+static void LibraryRootsPersistence_UnitTests() {
+    GlobalPrefs* saved = gGlobalPrefs;
+    Str neverConfiguredText = StrL("RememberOpenedFiles = true\r\n");
+    Str oneRootText = StrL(
+        "RememberOpenedFiles = true\r\n"
+        "Audiobook [\r\n"
+        "\tLibraryRoots [\r\n"
+        "\t\t[\r\n"
+        "\t\t\tPath = C:\\library-root-unit-test\r\n"
+        "\t\t\tEnabled = true\r\n"
+        "\t\t]\r\n"
+        "\t]\r\n"
+        "]\r\n");
+
+    GlobalPrefs* neverConfigured = NewGlobalPrefs(neverConfiguredText);
+    gGlobalPrefs = neverConfigured;
+    utassert(neverConfigured->audiobook.libraryRoots && len(*neverConfigured->audiobook.libraryRoots) == 0);
+    Str seedable = SerializeGlobalPrefs(neverConfigured, {});
+
+    GlobalPrefs* configured = NewGlobalPrefs(oneRootText);
+    gGlobalPrefs = configured;
+    utassert(configured->audiobook.libraryRoots && len(*configured->audiobook.libraryRoots) == 1);
+    utassert(LibraryRootsRemove(StrL("C:\\library-root-unit-test")));
+    utassert(len(*configured->audiobook.libraryRoots) == 0);
+    Str emptied = SerializeGlobalPrefs(configured, {});
+
+    utassert(!str::Eq(seedable, emptied));
+
+    GlobalPrefs* seedableBack = NewGlobalPrefs(seedable);
+    gGlobalPrefs = seedableBack;
+    Str seedableAgain = SerializeGlobalPrefs(seedableBack, {});
+    GlobalPrefs* emptiedBack = NewGlobalPrefs(emptied);
+    gGlobalPrefs = emptiedBack;
+    Str emptiedAgain = SerializeGlobalPrefs(emptiedBack, {});
+
+    utassert(str::Eq(seedable, seedableAgain));
+    utassert(str::Eq(emptied, emptiedAgain));
+    utassert(!str::Eq(seedableAgain, emptiedAgain));
+    utassert(seedableBack->audiobook.libraryRoots && len(*seedableBack->audiobook.libraryRoots) == 0);
+    utassert(emptiedBack->audiobook.libraryRoots && len(*emptiedBack->audiobook.libraryRoots) == 0);
+
+    str::Free(seedable);
+    str::Free(emptied);
+    str::Free(seedableAgain);
+    str::Free(emptiedAgain);
+    gGlobalPrefs = saved;
+    DeleteGlobalPrefs(neverConfigured);
+    DeleteGlobalPrefs(configured);
+    DeleteGlobalPrefs(seedableBack);
+    DeleteGlobalPrefs(emptiedBack);
+}
+
 int RunAppUnitTests() {
     ParseTip_UnitTests();
     BookBlob_UnitTests();
     CoverSpot_UnitTests();
     BookRecordCheck_UnitTests();
     LibrarySidecar_UnitTests();
+    LibraryRootsPersistence_UnitTests();
     BookBlobLifetime_UnitTests();
     RoamingBook_UnitTests();
     SidecarDump_UnitTests();
     InteropBook_UnitTests();
+    BookSubstanceHash_UnitTests();
     BookFingerprint_UnitTests();
     MobiCover_UnitTests();
     NativeCover_UnitTests();

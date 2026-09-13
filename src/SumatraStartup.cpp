@@ -2844,6 +2844,9 @@ ContinueOpenWindow:
 
     exitCode = RunMessageLoop();
     StopUiHangDetector();
+    if (!LibraryShutdownAndJoin()) {
+        ::ExitProcess((UINT)exitCode);
+    }
     SafeCloseHandle(&hMutex);
     CleanUpThumbnailCache();
 

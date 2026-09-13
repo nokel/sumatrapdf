@@ -676,6 +676,12 @@ const audiobook: Field[] = [
       "the Library, then Documents/Downloads/Desktop, then a bounded scan of every " +
       "fixed drive",
   ),
+  field("LibraryRootsConfigured", Bool, false, "")
+    .internal()
+    .doc(
+      "set by the app once the Library roots have been worked out or edited, so an empty LibraryRoots " +
+        "afterwards means the user removed them all rather than never having configured any",
+    ),
   field("LibraryPort", Int, 7863, "port of the Chatterbox library service (audiobook\\library)"),
   field(
     "LibrarySort",
@@ -1971,8 +1977,10 @@ function buildStruct(struc: Field, built: Record<string, number>): string {
   const fields = struc.Default as Field[];
   for (const field of fields) {
     if (isComment(field)) continue;
-    const comments = formatComment(field.Comment, "\t//");
-    lines.push(...comments);
+    if (field.Comment !== "") {
+      const comments = formatComment(field.Comment, "\t//");
+      lines.push(...comments);
+    }
     if (field.Type.name === "Color") {
       // a color setting is its text plus the parse of it; see ParsedColor
       lines.push(`\tParsedColor ${field.CName};`);

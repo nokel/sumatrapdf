@@ -10,6 +10,9 @@ extern "C" {
 #include <mupdf/pdf.h>
 }
 
+#define XXH_INLINE_ALL
+#include "../ext/xxHash/xxhash.h"
+
 #include "BookBlob.h"
 #include "BookOcr.h"
 #include "PdfSidecar.h"
@@ -480,6 +483,60 @@ bool BookPageHashesLookAlike(const Vec<u64>& a, const Vec<u64>& b, int perPage) 
     return true;
 }
 
+bool BookFingerprintVersionIsKnown(Str fingerprint) {
+    for (const char* version : {kBookFingerprintVersion, kBookFingerprintVersionXxh128, kBookFingerprintVersionMd5}) {
+        TempStr prefix = str::FormatTemp("%s:", Str(version));
+        if (str::StartsWith(fingerprint, prefix)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int BookFingerprintIdentityHexLen(Str fingerprint) {
+    if (str::StartsWith(fingerprint, str::FormatTemp("%s:", Str(kBookFingerprintVersion)))) {
+        return 16;
+    }
+    if (str::StartsWith(fingerprint, str::FormatTemp("%s:", Str(kBookFingerprintVersionXxh128)))) {
+        return 32;
+    }
+    if (str::StartsWith(fingerprint, str::FormatTemp("%s:", Str(kBookFingerprintVersionMd5)))) {
+        return 32;
+    }
+    return 0;
+}
+
+void BookSubstanceIdentity(Str data, char hexOut[17]) {
+    static const char* hex = "0123456789abcdef";
+    XXH64_hash_t hash = XXH3_64bits(data.s, (size_t)data.len);
+    XXH64_canonical_t canonical;
+    XXH64_canonicalFromHash(&canonical, hash);
+    for (int i = 0; i < 8; i++) {
+        hexOut[i * 2] = hex[canonical.digest[i] >> 4];
+        hexOut[i * 2 + 1] = hex[canonical.digest[i] & 0xF];
+    }
+    hexOut[16] = 0;
+}
+
+TempStr BookSubstanceHashInfo() {
+    const char* vector = "scalar";
+    switch (XXH_VECTOR) {
+        case XXH_SSE2:
+            vector = "SSE2";
+            break;
+        case XXH_AVX2:
+            vector = "AVX2";
+            break;
+        case XXH_AVX512:
+            vector = "AVX512";
+            break;
+        default:
+            break;
+    }
+    return str::FormatTemp("XXH3_64bits xxHash %d.%d.%d XXH_VECTOR=%d (%s)", XXH_VERSION_MAJOR, XXH_VERSION_MINOR,
+                           XXH_VERSION_RELEASE, (int)XXH_VECTOR, Str(vector));
+}
+
 static void HexDigest(const u8 digest[16], char out[33]) {
     static const char* hex = "0123456789abcdef";
     for (int i = 0; i < 16; i++) {
@@ -890,10 +947,8 @@ bool BookFingerprintOfFile(Str path, BookFingerprint& out, int wantPageHashes, b
 
     bool usableIdentity = identity.len > 0 && (!needOcr || out.ocrState == kBookOcrSuccess);
     if (usableIdentity) {
-        u8 identityDigest[16];
-        CalcMD5Digest(identity, identityDigest);
-        char identityHex[33];
-        HexDigest(identityDigest, identityHex);
+        char identityHex[17];
+        BookSubstanceIdentity(identity, identityHex);
         out.fingerprint =
             str::Dup(str::FormatTemp("%s:%s:%s", Str(kBookFingerprintVersion), Str(identityHex), Str(shape)));
     }
@@ -1034,8 +1089,7 @@ TempStr BookFingerprintOfPath(Str path) {
 }
 
 static Str ShapePartOf(Str fingerprint) {
-    TempStr prefix = str::FormatTemp("%s:", Str(kBookFingerprintVersion));
-    if (!str::StartsWith(fingerprint, prefix)) {
+    if (!BookFingerprintVersionIsKnown(fingerprint)) {
         return {};
     }
     int at = -1;

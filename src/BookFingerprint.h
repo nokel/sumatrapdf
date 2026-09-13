@@ -1,7 +1,9 @@
 /* Copyright 2026 the SumatraPDF project authors (see AUTHORS file).
    License: Simplified BSD (see COPYING.BSD) */
 
-constexpr const char* kBookFingerprintVersion = "fp3";
+constexpr const char* kBookFingerprintVersion = "fp5";
+constexpr const char* kBookFingerprintVersionXxh128 = "fp4";
+constexpr const char* kBookFingerprintVersionMd5 = "fp3";
 constexpr int kBookIdentityTokenLimit = 32768;
 constexpr double kBookRunningLineShare = 0.25;
 constexpr int kBookRunningLineMinPages = 4;
@@ -37,6 +39,11 @@ struct BookFingerprint {
 typedef void (*BookFingerprintProgressCb)(int done, int total, void* ctx);
 
 void BookFingerprintFree(BookFingerprint& fp);
+
+bool BookFingerprintVersionIsKnown(Str fingerprint);
+void BookSubstanceIdentity(Str data, char hexOut[17]);
+int BookFingerprintIdentityHexLen(Str fingerprint);
+TempStr BookSubstanceHashInfo();
 
 bool BookFingerprintOfFile(Str path, BookFingerprint& out, int wantPageHashes = -1, bool keepIdentityText = false,
                             bool runOcr = true, BookFingerprintProgressCb progressCb = nullptr,

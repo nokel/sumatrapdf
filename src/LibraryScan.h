@@ -42,9 +42,12 @@ StrVec LibraryStartingRoots();
 StrVec LibraryWholeDeviceRoots();
 bool LibraryHasExplicitRoots();
 StrVec LibraryDiscoveredRoots();
+Str LibraryRootCanonicalPath(Str path);
 bool LibraryRootIsCovered(Str path);
+bool LibraryRootIsCoveredByAncestor(Str path);
 bool LibraryRootsSeedIfEmpty();
 int LibraryRootsAdd(Str path);
+bool LibraryRootsRemove(Str path);
 
 Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, bool wholeDevice, LibraryScanNotifyCb cb,
                       void* ctx, volatile LONG* cancel, LibraryScanSnapshotCb snapshotCb = nullptr,

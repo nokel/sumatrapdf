@@ -114,6 +114,9 @@ uintptr_t LibraryRootsModel::GetUserData(TreeItem ti) {
     return row ? row->userData : 0;
 }
 
+constexpr UINT kMsgReloadRoots = WM_APP + 17;
+constexpr UINT kMsgSyncChecks = WM_APP + 18;
+
 struct LibraryRootsWnd : WindowBase {
     ~LibraryRootsWnd() override;
 
@@ -124,15 +127,29 @@ struct LibraryRootsWnd : WindowBase {
     VirtButton* btnAdd = nullptr;
     VirtButton* btnClose = nullptr;
     Str lastTooltip;
+    ControlBase::WndProcHandler treeWndProc;
+    TreeItem hoverItem = TreeModel::kNullItem;
+    bool hoverRemove = false;
+    bool trackingMouse = false;
 
     bool Create(MainWindow* win);
     void Reload();
     void ApplyChecks();
     void Save();
+    void EffectivePaths(StrVec& out);
+    bool ShowsEffectivePaths();
+    Rect RemoveRect(TreeItem ti);
+    TreeItem ItemAtPoint(int x, int y);
+    void InvalidateRow(TreeItem ti);
+    void SetHover(TreeItem ti, bool onRemove);
+    void OnRemove(TreeItem ti);
     void OnAddFolder(VirtMouseEvent* ev = nullptr);
     void OnCloseButton(VirtMouseEvent* ev = nullptr);
     void OnTreeClick(TreeView::ClickEvent* ev);
     void OnGetTooltip(TreeView::GetTooltipEvent* ev);
+    void OnTreeWndProc(ControlBase::WndProcEvent* ev);
+    void OnTreeCustomDraw(TreeView::CustomDrawEvent* ev);
+    void OnSelfWndProc(WindowBase::WndProcEvent* ev);
 };
 
 static LibraryRootsWnd* gLibraryRootsWnd = nullptr;
@@ -175,27 +192,238 @@ static void FillLabels(Vec<RootRow*>& rows) {
     }
 }
 
+void LibraryRootsWnd::EffectivePaths(StrVec& out) {
+    Vec<LibraryRoot*>* prefRows = gGlobalPrefs ? gGlobalPrefs->audiobook.libraryRoots : nullptr;
+    if (!prefRows) {
+        return;
+    }
+    for (LibraryRoot* pr : *prefRows) {
+        if (!pr || pr->path.len == 0) {
+            continue;
+        }
+        if (LibraryRootIsCoveredByAncestor(pr->path)) {
+            continue;
+        }
+        Str real = LibraryRootCanonicalPath(pr->path);
+        if (out.FindI(real) < 0) {
+            out.Append(real);
+        }
+        str::Free(real);
+    }
+}
+
+bool LibraryRootsWnd::ShowsEffectivePaths() {
+    StrVec want;
+    EffectivePaths(want);
+    if (!model || want.size != len(model->rows)) {
+        return false;
+    }
+    for (int i = 0; i < want.size; i++) {
+        if (!str::EqI(want.At(i), model->rows[i]->path)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void LibraryRootsWnd::Reload() {
     auto* m = new LibraryRootsModel();
+    StrVec paths;
+    EffectivePaths(paths);
     Vec<LibraryRoot*>* prefRows = gGlobalPrefs->audiobook.libraryRoots;
-    if (prefRows) {
-        for (LibraryRoot* pr : *prefRows) {
-            if (!pr || pr->path.len == 0) {
-                continue;
+    for (Str path : paths) {
+        bool enabled = false;
+        if (prefRows) {
+            for (LibraryRoot* pr : *prefRows) {
+                if (!pr) {
+                    continue;
+                }
+                Str real = LibraryRootCanonicalPath(pr->path);
+                bool same = str::EqI(real, path);
+                str::Free(real);
+                if (same && pr->enabled) {
+                    enabled = true;
+                    break;
+                }
             }
-            auto* row = new RootRow();
-            row->path = str::Dup(pr->path);
-            row->enabled = pr->enabled;
-            m->rows.Append(row);
         }
+        auto* row = new RootRow();
+        row->path = str::Dup(path);
+        row->enabled = enabled;
+        m->rows.Append(row);
     }
     FillLabels(m->rows);
     delete model;
     model = m;
+    hoverItem = TreeModel::kNullItem;
+    hoverRemove = false;
     tree->SetTreeModel(model);
     for (int i = 0; i < len(model->rows); i++) {
         tree->SetState((TreeItem)(i + 1), model->rows[i]->enabled);
     }
+}
+
+Rect LibraryRootsWnd::RemoveRect(TreeItem ti) {
+    Rect out;
+    Rect row;
+    if (!tree || !IsWindow(tree->hwnd) || ti == TreeModel::kNullItem) {
+        return out;
+    }
+    if (!tree->GetItemRect(ti, false, row) || row.dy <= 0) {
+        return out;
+    }
+    int size = row.dy;
+    int width = HwndClientRect(tree->hwnd).dx;
+    out = {width - size - DpiScale(4), row.y, size, row.dy};
+    return out;
+}
+
+TreeItem LibraryRootsWnd::ItemAtPoint(int x, int y) {
+    if (!tree || !model || !IsWindow(tree->hwnd)) {
+        return TreeModel::kNullItem;
+    }
+    int width = HwndClientRect(tree->hwnd).dx;
+    for (int i = 0; i < len(model->rows); i++) {
+        auto ti = (TreeItem)(i + 1);
+        Rect row;
+        if (!tree->GetItemRect(ti, false, row)) {
+            continue;
+        }
+        row.x = 0;
+        row.dx = width;
+        if (row.Contains(x, y)) {
+            return ti;
+        }
+    }
+    return TreeModel::kNullItem;
+}
+
+void LibraryRootsWnd::InvalidateRow(TreeItem ti) {
+    if (ti == TreeModel::kNullItem || !tree || !IsWindow(tree->hwnd)) {
+        return;
+    }
+    Rect row;
+    if (!tree->GetItemRect(ti, false, row)) {
+        return;
+    }
+    row.x = 0;
+    row.dx = HwndClientRect(tree->hwnd).dx;
+    RECT rc = ToRECT(row);
+    InvalidateRect(tree->hwnd, &rc, TRUE);
+}
+
+void LibraryRootsWnd::SetHover(TreeItem ti, bool onRemove) {
+    if (hoverItem == ti && hoverRemove == onRemove) {
+        return;
+    }
+    TreeItem was = hoverItem;
+    hoverItem = ti;
+    hoverRemove = onRemove;
+    InvalidateRow(was);
+    InvalidateRow(ti);
+}
+
+void LibraryRootsWnd::OnRemove(TreeItem ti) {
+    RootRow* row = model ? model->RowAt(ti) : nullptr;
+    if (!row) {
+        return;
+    }
+    ApplyChecks();
+    if (!LibraryRootsRemove(row->path)) {
+        return;
+    }
+    SaveSettings();
+    SetHover(TreeModel::kNullItem, false);
+    PostMessageW(hwnd, kMsgReloadRoots, 0, 0);
+}
+
+void LibraryRootsWnd::OnTreeWndProc(ControlBase::WndProcEvent* ev) {
+    UINT msg = ev->msg;
+    if (msg == WM_MOUSEMOVE) {
+        int x = GET_X_LPARAM(ev->lparam);
+        int y = GET_Y_LPARAM(ev->lparam);
+        TreeItem ti = ItemAtPoint(x, y);
+        Rect box = RemoveRect(ti);
+        SetHover(ti, box.dx > 0 && box.Contains(x, y));
+        if (!trackingMouse) {
+            TRACKMOUSEEVENT tme{sizeof(TRACKMOUSEEVENT), TME_LEAVE, tree->hwnd, 0};
+            trackingMouse = TrackMouseEvent(&tme) != 0;
+        }
+    } else if (msg == WM_MOUSELEAVE) {
+        trackingMouse = false;
+        SetHover(TreeModel::kNullItem, false);
+    } else if (msg == WM_LBUTTONDOWN) {
+        int x = GET_X_LPARAM(ev->lparam);
+        int y = GET_Y_LPARAM(ev->lparam);
+        TreeItem ti = ItemAtPoint(x, y);
+        Rect box = RemoveRect(ti);
+        if (box.dx > 0 && box.Contains(x, y)) {
+            ev->result = 0;
+            ev->didHandle = true;
+            OnRemove(ti);
+            return;
+        }
+    }
+    if (treeWndProc.IsValid()) {
+        treeWndProc.Call(ev);
+    }
+}
+
+void LibraryRootsWnd::OnTreeCustomDraw(TreeView::CustomDrawEvent* ev) {
+    ev->result = CDRF_DODEFAULT;
+    NMCUSTOMDRAW* cd = &ev->nm->nmcd;
+    if (cd->dwDrawStage == CDDS_PREPAINT) {
+        ev->result = CDRF_NOTIFYITEMDRAW;
+        return;
+    }
+    if (cd->dwDrawStage == CDDS_ITEMPREPAINT) {
+        if (ev->treeItem == hoverItem) {
+            ev->result = CDRF_NOTIFYPOSTPAINT;
+        }
+        return;
+    }
+    if (cd->dwDrawStage != CDDS_ITEMPOSTPAINT || ev->treeItem != hoverItem) {
+        return;
+    }
+    Rect box = RemoveRect(ev->treeItem);
+    if (box.dx <= 0) {
+        return;
+    }
+    Color txt = tree->textColor;
+    if (txt == kColorUnset || IsSpecialColor(txt)) {
+        txt = ThemeWindowTextColor();
+    }
+    GfxHdc gfx(cd->hdc);
+    if (hoverRemove) {
+        gfx.FillRect(box, ThemeHotBackgroundColor());
+    }
+    Rect glyph = box;
+    glyph.Inflate(-DpiScale(5), -DpiScale(5));
+    if (glyph.dx <= 1 || glyph.dy <= 1) {
+        return;
+    }
+    int right = glyph.x + glyph.dx;
+    int bottom = glyph.y + glyph.dy;
+    gfx.DrawLineAA({glyph.x, glyph.y}, {right, bottom}, txt, 1.4f);
+    gfx.DrawLineAA({right, glyph.y}, {glyph.x, bottom}, txt, 1.4f);
+}
+
+void LibraryRootsWnd::OnSelfWndProc(WindowBase::WndProcEvent* ev) {
+    if (ev->msg == kMsgSyncChecks) {
+        Save();
+        if (!ShowsEffectivePaths()) {
+            Reload();
+        }
+        ev->result = 0;
+        ev->didHandle = true;
+        return;
+    }
+    if (ev->msg != kMsgReloadRoots) {
+        return;
+    }
+    Reload();
+    ev->result = 0;
+    ev->didHandle = true;
 }
 
 void LibraryRootsWnd::ApplyChecks() {
@@ -210,10 +438,14 @@ void LibraryRootsWnd::ApplyChecks() {
         RootRow* row = model->rows[i];
         row->enabled = tree->GetState((TreeItem)(i + 1));
         for (LibraryRoot* pr : *prefRows) {
-            if (pr && str::EqI(pr->path, row->path)) {
-                pr->enabled = row->enabled;
-                break;
+            if (!pr) {
+                continue;
             }
+            Str real = LibraryRootCanonicalPath(pr->path);
+            if (str::EqI(real, row->path)) {
+                pr->enabled = row->enabled;
+            }
+            str::Free(real);
         }
     }
 }
@@ -264,12 +496,14 @@ void LibraryRootsWnd::OnAddFolder(VirtMouseEvent*) {
     }
     SaveSettings();
     Reload();
+    Str pickedReal = LibraryRootCanonicalPath(Str(picked));
     for (int i = 0; i < len(model->rows); i++) {
-        if (str::EqI(model->rows[i]->path, Str(picked))) {
+        if (str::EqI(model->rows[i]->path, pickedReal)) {
             tree->SelectItem((TreeItem)(i + 1));
             break;
         }
     }
+    str::Free(pickedReal);
     HwndSetFocus(tree->hwnd);
 }
 
@@ -279,7 +513,7 @@ void LibraryRootsWnd::OnCloseButton(VirtMouseEvent*) {
 }
 
 void LibraryRootsWnd::OnTreeClick(TreeView::ClickEvent*) {
-    Save();
+    PostMessageW(hwnd, kMsgSyncChecks, 0, 0);
 }
 
 void LibraryRootsWnd::OnGetTooltip(TreeView::GetTooltipEvent* ev) {
@@ -299,11 +533,16 @@ TempStr TestLibraryIndexingStatusTemp() {
         return ToStrTemp(b);
     }
     int n = len(w->model->rows);
-    b.Append(fmt("OK open=1 rows=%d tooltip=%s\n", n, w->lastTooltip));
+    int hover = w->hoverItem == TreeModel::kNullItem ? -1 : (int)w->hoverItem - 1;
+    b.Append(fmt("OK open=1 rows=%d tooltip=%s hover=%d onRemove=%d\n", n, w->lastTooltip, hover,
+                 w->hoverRemove ? 1 : 0));
     for (int i = 0; i < n; i++) {
         RootRow* row = w->model->rows[i];
-        bool checked = w->tree->GetState((TreeItem)(i + 1));
-        b.Append(fmt("row %d checked=%d label=%s path=%s\n", i, checked ? 1 : 0, row->label, row->path));
+        auto ti = (TreeItem)(i + 1);
+        bool checked = w->tree->GetState(ti);
+        Rect box = w->RemoveRect(ti);
+        b.Append(fmt("row %d checked=%d remove=%d,%d,%d,%d shown=%d label=%s path=%s\n", i, checked ? 1 : 0, box.x,
+                     box.y, box.dx, box.dy, ti == w->hoverItem ? 1 : 0, row->label, row->path));
     }
     return ToStrTemp(b);
 }
@@ -377,6 +616,10 @@ bool LibraryRootsWnd::Create(MainWindow* mainWin) {
         c->idealSize = {DpiScale(440), DpiScale(300)};
         c->onGetTooltip = MkMethod1<LibraryRootsWnd, TreeView::GetTooltipEvent*, &LibraryRootsWnd::OnGetTooltip>(this);
         c->onClick = MkMethod1<LibraryRootsWnd, TreeView::ClickEvent*, &LibraryRootsWnd::OnTreeClick>(this);
+        c->onCustomDraw =
+            MkMethod1<LibraryRootsWnd, TreeView::CustomDrawEvent*, &LibraryRootsWnd::OnTreeCustomDraw>(this);
+        treeWndProc = c->onWndProc;
+        c->onWndProc = MkMethod1<LibraryRootsWnd, ControlBase::WndProcEvent*, &LibraryRootsWnd::OnTreeWndProc>(this);
         tree = c;
         vbox->AddChild(c);
     }
@@ -432,6 +675,7 @@ void ShowLibraryIndexingWindow(MainWindow* win) {
     wnd->onClose = MkFunc1Void<WindowBase::CloseEvent*>(OnWndClose);
     wnd->onDestroy = MkFunc1Void<WindowBase::DestroyEvent*>(OnWndDestroy);
     wnd->SetFont(GetAppFont());
+    wnd->onWndProc = MkMethod1<LibraryRootsWnd, WindowBase::WndProcEvent*, &LibraryRootsWnd::OnSelfWndProc>(wnd);
     bool ok = wnd->Create(win);
     if (!ok) {
         delete wnd;

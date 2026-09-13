@@ -294,7 +294,7 @@ static void WantPageLocked(int pageNo, int dx, int dy) {
     job->pageNo = pageNo;
     job->dx = dx;
     job->dy = dy;
-    RunAsync(MkFunc0<CoverEditJob>(RenderThread, job), "coverRender");
+    LibraryTrackWorker(MkFunc0<CoverEditJob>(RenderThread, job), "coverRender");
 }
 
 static void AddEditLink(MainWindow* win, Rect r, Str target, Str tip = {}) {
@@ -803,7 +803,7 @@ static void RunAction(int what, Str path = {}) {
     auto* job = new CoverActionJob();
     job->what = what;
     job->path = str::Dup(path);
-    RunAsync(MkFunc0<CoverActionJob>(ActionThread, job), "coverAction");
+    LibraryTrackWorker(MkFunc0<CoverActionJob>(ActionThread, job), "coverAction");
 }
 
 bool CoverEditorOnLink(MainWindow* win, Str url) {

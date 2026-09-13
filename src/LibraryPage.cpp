@@ -121,6 +121,7 @@ constexpr const char* kDeskCoverKey = "desk:";
 constexpr int kMaxChapters = 512;
 constexpr int kMaxKnowers = 40;
 constexpr int kMaxDeskFiles = 4096;
+constexpr int kMaxDeskActs = 512;
 constexpr int kMaxRoamed = 4096;
 
 constexpr int kMenuOpenResume = 1;
@@ -310,11 +311,40 @@ struct LibDesk {
     int nFiles = 0;
     int total = 0;
     bool showIgnored = false;
+    bool filesPile = false;
+    int gen = 0;
     bool loaded = false;
     bool loading = false;
     bool working = false;
     bool selecting = false;
     int anchor = -1;
+};
+
+struct LibDeskDrawnTile {
+    Rect r;
+    int idx = -1;
+    int gen = -1;
+    int pile = -1;
+    Str path;
+};
+
+struct LibDeskAct {
+    int seq = 0;
+    int button = 0;
+    int hitGen = -1;
+    int hitPile = -1;
+    int hitIdx = -1;
+    int curGen = -1;
+    int drawnGen = -1;
+    int drawnPile = -1;
+    int drawnFilesPile = -1;
+    int pile = 0;
+    int filesPile = 0;
+    int ready = 0;
+    int dispatched = 0;
+    Str path;
+    Str hitPath;
+    Str renderedPath;
 };
 
 static bool gNativeScanning = false;
@@ -420,6 +450,104 @@ struct InlineEdit {
 static InlineEdit gInlineEdit;
 static LibDesk gDesk;
 static bool gDeskOpen = false;
+static LibDeskDrawnTile gDeskDrawn[kMaxDeskFiles];
+static int gnDeskDrawn = 0;
+static int gDeskDrawnGen = -1;
+static int gDeskDrawnPile = -1;
+static int gDeskDrawnFilesPile = -1;
+static Rect gDeskPill[2];
+static Rect gDeskRailRow;
+static LibDeskAct gDeskActs[kMaxDeskActs];
+static int gnDeskActs = 0;
+static int gDeskActSeq = 0;
+static int gDeskStaleActs = 0;
+static int gDeskGenMismatch = 0;
+static int gDeskGenMismatchDispatch = 0;
+static int gDeskPileMismatchDispatch = 0;
+
+static bool DeskReady() {
+    return gDesk.loaded && gDesk.filesPile == gDesk.showIgnored;
+}
+
+static void DeskParseHit(Str tail, int* gen, int* pile, int* idx) {
+    *gen = -1;
+    *pile = -1;
+    *idx = -1;
+    if (len(tail) == 0) {
+        return;
+    }
+    const char* dot = strchr(tail.s, '.');
+    if (dot == nullptr) {
+        return;
+    }
+    const char* dot2 = strchr(dot + 1, '.');
+    if (dot2 == nullptr) {
+        return;
+    }
+    *gen = atoi(tail.s);
+    *pile = atoi(dot + 1);
+    *idx = atoi(dot2 + 1);
+}
+
+static Str DeskDrawnPathAt(int gen, int idx) {
+    for (int i = 0; i < gnDeskDrawn; i++) {
+        if (gDeskDrawn[i].idx == idx && gDeskDrawn[i].gen == gen) {
+            return gDeskDrawn[i].path;
+        }
+    }
+    return Str{};
+}
+
+static void DeskRecordAct(int button, int hitGen, int hitPile, int hitIdx, Str path, bool dispatched) {
+    bool ready = DeskReady();
+    bool fresh = ready && hitGen == gDesk.gen;
+    int pile = gDesk.showIgnored ? 1 : 0;
+    int filesPile = gDesk.filesPile ? 1 : 0;
+    if (!fresh) {
+        gDeskGenMismatch++;
+    }
+    if (dispatched && !fresh) {
+        gDeskStaleActs++;
+    }
+    if (dispatched && hitGen != gDesk.gen) {
+        gDeskGenMismatchDispatch++;
+    }
+    if (dispatched && (pile != filesPile || pile != hitPile || pile != gDeskDrawnPile ||
+                       pile != gDeskDrawnFilesPile)) {
+        gDeskPileMismatchDispatch++;
+    }
+    int slot = gnDeskActs;
+    if (slot >= kMaxDeskActs) {
+        slot = kMaxDeskActs - 1;
+        str::Free(gDeskActs[0].path);
+        str::Free(gDeskActs[0].hitPath);
+        str::Free(gDeskActs[0].renderedPath);
+        for (int i = 0; i < slot; i++) {
+            gDeskActs[i] = gDeskActs[i + 1];
+        }
+        gDeskActs[slot] = LibDeskAct{};
+    } else {
+        gnDeskActs++;
+    }
+    LibDeskAct& a = gDeskActs[slot];
+    a.seq = ++gDeskActSeq;
+    a.button = button;
+    a.hitGen = hitGen;
+    a.hitPile = hitPile;
+    a.hitIdx = hitIdx;
+    a.curGen = gDesk.gen;
+    a.drawnGen = gDeskDrawnGen;
+    a.drawnPile = gDeskDrawnPile;
+    a.drawnFilesPile = gDeskDrawnFilesPile;
+    a.pile = pile;
+    a.filesPile = filesPile;
+    a.ready = ready ? 1 : 0;
+    a.dispatched = dispatched ? 1 : 0;
+    a.path = str::Dup(path);
+    a.hitPath = str::Dup(hitIdx >= 0 && hitIdx < gDesk.nFiles ? gDesk.files[hitIdx].path : Str{});
+    a.renderedPath = str::Dup(DeskDrawnPathAt(hitGen, hitIdx));
+}
+
 static LibPartition gPartitions[kMaxPartitions];
 static int gNPartitions = 0;
 static CoverSlot gCovers[kMaxCovers];
@@ -598,6 +726,10 @@ void SetLibraryHomeEnabled(bool enabled) {
 
 bool LibraryHasBooks() {
     return gModel.loaded && gModel.nBooks > 0;
+}
+
+static bool ModelHasContent() {
+    return gModel.nBooks > 0 || gModel.documents > 0 || gModel.ignored > 0;
 }
 
 int LibraryServicePort() {
@@ -830,14 +962,6 @@ struct LibraryParser : JsonVisitor {
             m->documents = atoi(value.s);
         } else if (str::Eq(path, StrL("/status/ignored"))) {
             m->ignored = atoi(value.s);
-        } else if (gNativeScanning) {
-            return true;
-        } else if (str::Eq(path, StrL("/status/scanning"))) {
-            m->scanning = IsTrue(value);
-        } else if (str::Eq(path, StrL("/status/scan_done"))) {
-            m->scanDone = atoi(value.s);
-        } else if (str::Eq(path, StrL("/status/scan_total"))) {
-            m->scanTotal = atoi(value.s);
         }
         return true;
     }
@@ -1670,6 +1794,7 @@ static void FreeDesk(LibDesk* d) {
     d->nFiles = 0;
     d->total = 0;
     d->anchor = -1;
+    d->gen++;
 }
 
 static void FreeDetail(LibDetail* d) {
@@ -1799,6 +1924,56 @@ static void FreeJob(LibJob* j) {
     str::Free(j->b);
     str::Free(j->c);
     delete j;
+}
+
+static volatile LONG gLibShutdown = 0;
+static Vec<ThreadHandle> gLibThreads;
+constexpr DWORD kLibJoinTimeoutMs = 60 * 1000;
+
+static void ReapFinishedLibThreads() {
+    for (int i = gLibThreads.len - 1; i >= 0; i--) {
+        ThreadHandle h = gLibThreads[i];
+        if (WaitForSingleObject(h, 0) == WAIT_OBJECT_0) {
+            gLibThreads.RemoveAtFast(i);
+            SafeCloseThreadHandle(&h);
+        }
+    }
+}
+
+static ThreadHandle StartTrackedLocked(const Func0& fn, Str threadName, bool* tracked) {
+    ReapFinishedLibThreads();
+    ThreadHandle h = StartThread(fn, threadName);
+    *tracked = h ? gLibThreads.Append(h) : false;
+    return h;
+}
+
+void LibraryTrackWorker(const Func0& fn, Str threadName) {
+    bool tracked = false;
+    EnterLib();
+    ThreadHandle h = StartTrackedLocked(fn, threadName, &tracked);
+    LeaveLib();
+    if (h && !tracked) {
+        WaitForSingleObject(h, kLibJoinTimeoutMs);
+        SafeCloseThreadHandle(&h);
+    }
+}
+
+static void RunLibJob(void (*fn)(LibJob*), LibJob* job, Str threadName) {
+    bool tracked = false;
+    ThreadHandle h = nullptr;
+    EnterLib();
+    if (!gLibShutdown) {
+        h = StartTrackedLocked(MkFunc0<LibJob>(fn, job), threadName, &tracked);
+    }
+    LeaveLib();
+    if (!h) {
+        FreeJob(job);
+        return;
+    }
+    if (!tracked) {
+        WaitForSingleObject(h, kLibJoinTimeoutMs);
+        SafeCloseThreadHandle(&h);
+    }
 }
 
 static Str LibrarySortOrder() {
@@ -2151,8 +2326,28 @@ static void SaveModelToStore(const LibModel* m) {
 
 static void RescanThread(LibJob* job);
 
+struct ScanPhaseTimes {
+    u64 knownMs = 0;
+    u64 scanMs = 0;
+    u64 indexPostMs = 0;
+    u64 modelMs = 0;
+    u64 totalMs = 0;
+    u64 storeMs = 0;
+    u64 libraryFetchMs = 0;
+    u64 partitionsFetchMs = 0;
+    u64 parseMs = 0;
+    u64 loadLockMs = 0;
+    int loadQueued = 0;
+    int knownFiles = 0;
+};
+
+static ScanPhaseTimes gScanPhase;
+
 static void LoadModelThread(LibJob* job) {
+    u64 lockStarted = GetTickCount64();
     ScopedMutex loadLock(&gLoadModelMutex);
+    gScanPhase.loadLockMs = GetTickCount64() - lockStarted;
+    gScanPhase.loadQueued++;
     LoadMode loadMode = job ? job->loadMode : LoadMode::Full;
     bool isCatalogueOnly = (loadMode == LoadMode::CatalogueOnly);
     FreeJob(job);
@@ -2190,6 +2385,7 @@ static void LoadModelThread(LibJob* job) {
     // lock; previously this whole sequence held gLock for 10+ seconds on a
     // 128-book library, blocking the UI thread from painting.
     bool showStored = false;
+    u64 storeStarted = GetTickCount64();
     {
         LibraryStore* store = LibraryStoreLoad(LibraryStorePathTemp());
         if (store) {
@@ -2233,12 +2429,18 @@ static void LoadModelThread(LibJob* job) {
         Repaint();
     }
 
+    gScanPhase.storeMs = GetTickCount64() - storeStarted;
     LibraryEnsureService();
     str::Builder path;
     path.Append("/library?limit=4096&sort=");
     path.Append(UrlEncodeTemp(LibrarySortOrder()));
+    u64 fetchStarted = GetTickCount64();
     TempStr body = ServiceGetTextTemp(ToStr(path));
+    gScanPhase.libraryFetchMs = GetTickCount64() - fetchStarted;
+    fetchStarted = GetTickCount64();
     TempStr parts = ServiceGetTextTemp("/partitions");
+    gScanPhase.partitionsFetchMs = GetTickCount64() - fetchStarted;
+    u64 parseStarted = GetTickCount64();
     bool catalogueLoaded = len(body) > 0;
 
     // chunk 31R: CatalogueOnly mode is used by hierarchy changes
@@ -2319,6 +2521,7 @@ static void LoadModelThread(LibJob* job) {
                                                  "Use Library > Rescan library to try again."));
     }
     gModel.loading = false;
+    gScanPhase.parseMs = GetTickCount64() - parseStarted;
     bool sweepDevice = (!gModel.scopeCurrent || gModel.resumePending) && !gNativeScanning && !gAutoSweepStarted;
     if (sweepDevice) {
         gAutoSweepStarted = true;
@@ -2360,7 +2563,7 @@ static void LoadModelThread(LibJob* job) {
                 n = gModel.nBooks;
                 LeaveLib();
             }
-            for (int i = 0; i < n; i++) {
+            for (int i = 0; i < n && !gLibShutdown; i++) {
                 Str bookPath;
                 {
                     EnterLib();
@@ -2443,7 +2646,7 @@ static void LoadModelThread(LibJob* job) {
     // bug we are trying to prevent, and a fresh cache costs the same as
     // building one on every load.
     if (sweepDevice) {
-        RunAsync(MkFunc0<LibJob>(RescanThread, NewJob({})), "libRescan");
+        RunLibJob(RescanThread, NewJob({}), "libRescan");
     }
     {
         EnterLib();
@@ -2482,11 +2685,14 @@ static void LoadModelThread(LibJob* job) {
 }
 
 static void EnsureModel() {
+    if (gLibShutdown) {
+        return;
+    }
     if (gModel.loaded || gModel.loading || gModel.loadFailed) {
         return;
     }
     gModel.loading = true;
-    RunAsync(MkFunc0<LibJob>(LoadModelThread, NewJob({})), "libModel");
+    RunLibJob(LoadModelThread, NewJob({}), "libModel");
 }
 
 static void LoadDeskThread(LibJob* job) {
@@ -2503,6 +2709,7 @@ static void LoadDeskThread(LibJob* job) {
     TempStr body = ServiceGetTextTemp(ToStr(path));
     EnterLib();
     FreeDesk(&gDesk);
+    gDesk.filesPile = wantIgnored;
     if (len(body) > 0) {
         DeskParser p(&gDesk);
         JsonParseWithVisitor(Str(body), &p);
@@ -2514,11 +2721,14 @@ static void LoadDeskThread(LibJob* job) {
 }
 
 static void EnsureDesk() {
-    if (gDesk.loaded || gDesk.loading) {
+    if (gLibShutdown) {
+        return;
+    }
+    if (DeskReady() || gDesk.loading) {
         return;
     }
     gDesk.loading = true;
-    RunAsync(MkFunc0<LibJob>(LoadDeskThread, NewJob({})), "libDesk");
+    RunLibJob(LoadDeskThread, NewJob({}), "libDesk");
 }
 
 static void ReloadDesk() {
@@ -2663,17 +2873,23 @@ static void RunOneScan(const StrVec& roots, const Vec<LibraryKnownFile>& known, 
     ScanCallCtx ctx;
     ctx.roots = roots;
     ctx.wholeDevice = wholeDevice;
+    u64 scanStarted = GetTickCount64();
     Str body = LibraryScanToJson(roots, known, wholeDevice, OnScanProgress, nullptr, &gScanCancel, OnScanSnapshot,
                                   &ctx, OnScanManifest, &ctx);
+    gScanPhase.scanMs = GetTickCount64() - scanStarted;
+    u64 postStarted = GetTickCount64();
     if (!gScanCancel) {
         ServicePost("/index", body);
     }
+    gScanPhase.indexPostMs = GetTickCount64() - postStarted;
     str::Free(body);
     EnterLib();
     gModel.loaded = false;
     gModel.loadFailed = false;
     LeaveLib();
+    u64 modelStarted = GetTickCount64();
     EnsureModel();
+    gScanPhase.modelMs = GetTickCount64() - modelStarted;
 }
 
 static void RescanThread(LibJob* job) {
@@ -2727,11 +2943,16 @@ static void RescanThread(LibJob* job) {
     if (wholeDevice) {
         roots = LibraryWholeDeviceRoots();
     }
+    u64 rescanStarted = GetTickCount64();
     Vec<LibraryKnownFile> known;
+    u64 knownStarted = GetTickCount64();
     ReadKnownFiles(known, roots, wholeDevice);
+    gScanPhase.knownMs = GetTickCount64() - knownStarted;
+    gScanPhase.knownFiles = known.len;
     if (roots.size > 0 && !gScanCancel) {
         RunOneScan(roots, known, wholeDevice);
     }
+    gScanPhase.totalMs = GetTickCount64() - rescanStarted;
     FreeKnownFiles(known);
 
     EnterLib();
@@ -2803,13 +3024,19 @@ static void ResumeScanThread(LibJob* job) {
 }
 
 void LibraryResumeInterruptedScan() {
-    RunAsync(MkFunc0<LibJob>(ResumeScanThread, NewJob({})), "libResume");
+    if (gLibShutdown) {
+        return;
+    }
+    RunLibJob(ResumeScanThread, NewJob({}), "libResume");
 }
 
 void LibraryRefresh(MainWindow* win, bool rescan) {
+    if (gLibShutdown) {
+        return;
+    }
     gNotifyHwnd = win ? win->hwndCanvas : gNotifyHwnd;
     if (rescan) {
-        RunAsync(MkFunc0<LibJob>(RescanThread, NewJob({})), "libRescan");
+        RunLibJob(RescanThread, NewJob({}), "libRescan");
     }
     EnterLib();
     gModel.loaded = false;
@@ -3216,7 +3443,7 @@ static void OpenDetail(Str id) {
     gDetail.tab = LibTab::Overview;
     LeaveLib();
     gDetailOpen = true;
-    RunAsync(MkFunc0<LibJob>(LoadDetailThread, NewJob(id)), "libDetail");
+    RunLibJob(LoadDetailThread, NewJob(id), "libDetail");
 }
 
 static void EnsureScreen() {
@@ -3224,7 +3451,7 @@ static void EnsureScreen() {
         return;
     }
     gDetail.screenLoading = true;
-    RunAsync(MkFunc0<LibJob>(LoadScreenThread, NewJob(gDetail.id)), "libScreen");
+    RunLibJob(LoadScreenThread, NewJob(gDetail.id), "libScreen");
 }
 
 static void EnsureChapters() {
@@ -3232,7 +3459,7 @@ static void EnsureChapters() {
         return;
     }
     gDetail.chaptersLoading = true;
-    RunAsync(MkFunc0<LibJob>(LoadChaptersThread, NewJob(gDetail.id)), "libChapters");
+    RunLibJob(LoadChaptersThread, NewJob(gDetail.id), "libChapters");
 }
 
 static void EnsureInfo() {
@@ -3240,7 +3467,7 @@ static void EnsureInfo() {
         return;
     }
     gDetail.infoWorking = true;
-    RunAsync(MkFunc0<LibJob>(LoadInfoThread, NewJob(gDetail.id, gDetail.path)), "libInfo");
+    RunLibJob(LoadInfoThread, NewJob(gDetail.id, gDetail.path), "libInfo");
 }
 
 static void OpenTopic(Str what) {
@@ -3257,7 +3484,7 @@ static void OpenTopic(Str what) {
     gDetail.topicLoaded = false;
     str::ReplaceWithCopy(&gDetail.topic, what);
     LeaveLib();
-    RunAsync(MkFunc0<LibJob>(LoadTopicThread, NewJob(gDetail.wiki, what)), "libTopic");
+    RunLibJob(LoadTopicThread, NewJob(gDetail.wiki, what), "libTopic");
 }
 
 static void OpenPerson(Str who) {
@@ -3279,7 +3506,7 @@ static void OpenPerson(Str who) {
     gDetail.personBooks = 0;
     gDetail.personLoaded = false;
     LeaveLib();
-    RunAsync(MkFunc0<LibJob>(LoadPersonThread, NewJob(gDetail.wiki, who)), "libPerson");
+    RunLibJob(LoadPersonThread, NewJob(gDetail.wiki, who), "libPerson");
 }
 
 static Str AfterPrefix(Str url, const char* prefix) {
@@ -3395,7 +3622,7 @@ static void SyncEmbeddedRecords(LoadRecordCache* recordCache) {
     u64 startMs = GetTickCount64();
     int adoptedHits = 0;
     int writes = 0;
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < count && !gLibShutdown; i++) {
         Str id;
         EnterLib();
         if (i < gModel.nBooks) {
@@ -3678,7 +3905,7 @@ static void CoverWorker(LibJob* job) {
 static void WakeCoverWorkers() {
     while (gWorkers < kCoverWorkers) {
         gWorkers++;
-        RunAsync(MkFunc0<LibJob>(CoverWorker, NewJob({})), "libCover");
+        RunLibJob(CoverWorker, NewJob({}), "libCover");
     }
 }
 
@@ -3822,7 +4049,7 @@ static void PartitionThread(LibJob* job) {
 }
 
 static void PostPartition(const char* path, Str body) {
-    RunAsync(MkFunc0<LibJob>(PartitionThread, NewJob(Str(path), body)), "libPartition");
+    RunLibJob(PartitionThread, NewJob(Str(path), body), "libPartition");
 }
 
 // chunk 31R: regression-test observation helpers. They go through
@@ -4111,7 +4338,7 @@ static void MetadataEditThread(LibJob* job) {
 // find the changed book among the rest of the library.
 static void PostBookEdit(const char* path, Str body, Str bookId, int reverted) {
     logf("PostBookEdit: path=%s bookId=%s bodyLen=%d reverted=%d\n", StrL(path), bookId, len(body), reverted);
-    RunAsync(MkFunc0<LibJob>(MetadataEditThread, NewJob3(Str(path), body, bookId, reverted)), "libBookEdit");
+    RunLibJob(MetadataEditThread, NewJob3(Str(path), body, bookId, reverted), "libBookEdit");
 }
 
 static void KindThread(LibJob* job) {
@@ -4140,7 +4367,7 @@ static void PostKind(Str body) {
     EnterLib();
     gDesk.working = true;
     LeaveLib();
-    RunAsync(MkFunc0<LibJob>(KindThread, NewJob(body)), "libKind");
+    RunLibJob(KindThread, NewJob(body), "libKind");
 }
 
 static int DeskChosenCount() {
@@ -4270,7 +4497,7 @@ struct ImportPreviewParser : JsonVisitor {
 };
 
 static void AppendImportField(str::Builder& b, const char* name, const LibraryImportField& f, bool& first) {
-    if (len(f.value) == 0) {
+    if (!f.overridden && len(f.value) == 0) {
         return;
     }
     Str source = f.overridden ? StrL("user") : f.source;
@@ -4283,18 +4510,6 @@ static void AppendImportField(str::Builder& b, const char* name, const LibraryIm
     first = false;
     b.Append(fmt("%s:{\"value\":%s,\"source\":%s}", JsonStrTemp(Str(name)), JsonStrTemp(f.value),
                  JsonStrTemp(source)));
-}
-
-static void AppendImportCorrection(str::Builder& b, const char* name, const LibraryImportField& f, bool& first) {
-    if (!f.overridden) {
-        return;
-    }
-    if (!first) {
-        b.Append(",");
-    }
-    first = false;
-    b.Append(fmt("%s:{\"from\":%s,\"to\":%s}", JsonStrTemp(Str(name)), JsonStrTemp(f.original),
-                 JsonStrTemp(f.value)));
 }
 
 static void ImportCommitThread(LibJob* job) {
@@ -4336,15 +4551,14 @@ static void LibraryImportCommit(MainWindow* win, LibraryImportData* d) {
     AppendImportField(body, "title", d->title, first);
     AppendImportField(body, "author", d->author, first);
     AppendImportField(body, "series", d->series, first);
+    AppendImportField(body, "series_index", d->seriesIndex, first);
     AppendImportField(body, "year", d->year, first);
-    body.Append("},\"corrections\":{");
-    first = true;
-    AppendImportCorrection(body, "title", d->title, first);
-    AppendImportCorrection(body, "author", d->author, first);
+    AppendImportField(body, "genre", d->genre, first);
+    AppendImportField(body, "subgenre", d->subgenre, first);
     body.Append("}}");
     Str payload = body.TakeStr();
     logf("LibraryImport: committing %s as %s\n", d->path, d->chosenKind);
-    RunAsync(MkFunc0<LibJob>(ImportCommitThread, NewJob(payload)), "libImportCommit");
+    RunLibJob(ImportCommitThread, NewJob(payload), "libImportCommit");
     str::Free(payload);
 }
 
@@ -4421,7 +4635,7 @@ void LibraryImportBook(MainWindow* win) {
         return;
     }
     logf("LibraryImport: picked %s\n", picked);
-    RunAsync(MkFunc0<LibJob>(ImportPreviewThread, NewJob(Str(picked))), "libImportPreview");
+    RunLibJob(ImportPreviewThread, NewJob(Str(picked)), "libImportPreview");
 }
 
 int LibraryIgnoreDays() {
@@ -4475,16 +4689,34 @@ void LibraryRequestScanCancel() {
     InterlockedExchange(&gScanCancel, 1);
 }
 
-void LibraryRequestScanCancelAndWait() {
+bool LibraryShutdownAndJoin() {
+    EnterLib();
+    InterlockedExchange(&gLibShutdown, 1);
+    LeaveLib();
     InterlockedExchange(&gScanCancel, 1);
-    int spinCount = 0;
-    while (gNativeScanning) {
-        SleepInMs(10);
-        spinCount++;
-        if (spinCount > 600) {
+    u64 startMs = GetTickCount64();
+    for (;;) {
+        ThreadHandle h = nullptr;
+        EnterLib();
+        if (gLibThreads.len > 0) {
+            h = gLibThreads.Pop();
+        }
+        LeaveLib();
+        if (!h) {
             break;
         }
+        u64 spentMs = GetTickCount64() - startMs;
+        DWORD leftMs = spentMs >= kLibJoinTimeoutMs ? 0 : (DWORD)(kLibJoinTimeoutMs - spentMs);
+        DWORD res = WaitForSingleObject(h, leftMs);
+        if (res != WAIT_OBJECT_0) {
+            logf("LibraryShutdownAndJoin: a library worker is still alive after %d ms\n",
+                 (int)(GetTickCount64() - startMs));
+            return false;
+        }
+        SafeCloseThreadHandle(&h);
     }
+    logf("LibraryShutdownAndJoin: joined every library worker in %d ms\n", (int)(GetTickCount64() - startMs));
+    return true;
 }
 
 void LibraryFreeCache() {
@@ -4875,6 +5107,7 @@ static void DrawRail(HDC hdc, MainWindow* win, Rect rail, HFONT fontRow, HFONT f
         TempStr desk = fmt("Deskpan  (%d)", gModel.documents);
         DrawTextIn(hdc, label, Str(desk), DT_LEFT | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX | DT_END_ELLIPSIS, text);
         AddLink(win, row, Str(kLinkDeskpan), StrL("Files that are not books: manuals, invoices, forms"));
+        gDeskRailRow = row;
         y += rowDy + DpiScale(4);
     }
 
@@ -5244,7 +5477,15 @@ static void DrawDeskTile(HDC hdc, MainWindow* win, Rect tile, LibDeskFile& f, in
     DrawTextIn(hdc, rcSub, DeskSubtitleTemp(f), DT_LEFT | DT_SINGLELINE | DT_PATH_ELLIPSIS | DT_NOPREFIX, dim);
 
     Str tip = gDesk.selecting ? StrL("Tick to add this file to the selection") : StrL("Open this file");
-    AddLink(win, tile, fmt("%s%d", Str(kLinkDeskPick), idx), tip);
+    AddLink(win, tile, fmt("%s%d.%d.%d", Str(kLinkDeskPick), gDesk.gen, gDesk.filesPile ? 1 : 0, idx), tip);
+    if (gnDeskDrawn < kMaxDeskFiles) {
+        gDeskDrawn[gnDeskDrawn].r = tile;
+        gDeskDrawn[gnDeskDrawn].idx = idx;
+        gDeskDrawn[gnDeskDrawn].gen = gDesk.gen;
+        gDeskDrawn[gnDeskDrawn].pile = gDesk.filesPile ? 1 : 0;
+        gDeskDrawn[gnDeskDrawn].path = str::Dup(f.path);
+        gnDeskDrawn++;
+    }
 }
 
 static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT fontTitle, HFONT fontSub,
@@ -5254,6 +5495,14 @@ static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT 
     COLORREF dim = Mix(text, bg, 45);
 
     EnsureDesk();
+    for (int i = 0; i < gnDeskDrawn; i++) {
+        str::Free(gDeskDrawn[i].path);
+        gDeskDrawn[i].path = Str{};
+    }
+    gnDeskDrawn = 0;
+    gDeskDrawnGen = gDesk.gen;
+    gDeskDrawnPile = gDesk.showIgnored ? 1 : 0;
+    gDeskDrawnFilesPile = gDesk.filesPile ? 1 : 0;
 
     int pad = DpiScale(20);
     int avail = main.dx - 2 * pad;
@@ -5268,7 +5517,7 @@ static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT 
     int chosen = DeskChosenCount();
     Str what = gDesk.showIgnored ? StrL("ignored") : StrL("documents");
     Str line = Str(fmt("%d %s \xc2\xb7 %d chosen", gDesk.nFiles, what, chosen));
-    if (!gDesk.loaded) {
+    if (!DeskReady()) {
         line = StrL("reading the desk...");
     } else if (gDesk.working) {
         line = StrL("moving files...");
@@ -5293,6 +5542,7 @@ static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT 
             DrawTextIn(hdc, one, label, DT_CENTER | DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX,
                        active ? text : ThemeWindowLinkColor());
             AddLink(win, one, fmt("%s%d", Str(kLinkDeskShow), i), StrL("Choose which pile to show"));
+            gDeskPill[i] = one;
             x += one.dx + DpiScale(4);
         }
     }
@@ -5316,7 +5566,8 @@ static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT 
     int top = main.y + headDy - scrollY;
     int col = 0;
     int row = 0;
-    for (int i = 0; i < gDesk.nFiles; i++) {
+    int shown = DeskReady() ? gDesk.nFiles : 0;
+    for (int i = 0; i < shown; i++) {
         int x = main.x + pad + col * (tileDx + gapX);
         int y = top + row * (tileDy + gapY);
         if (y + tileDy >= main.y && y <= main.y + main.dy) {
@@ -5328,14 +5579,14 @@ static void DrawDeskpan(HDC hdc, MainWindow* win, Rect main, int scrollY, HFONT 
             row++;
         }
     }
-    if (gDesk.loaded && gDesk.nFiles == 0) {
+    if (DeskReady() && gDesk.nFiles == 0) {
         SelectObject(hdc, fontSub);
         Rect empty(main.x + pad, main.y + headDy, avail, DpiScale(40));
         Str msg = gDesk.showIgnored ? StrL("Nothing is being ignored.")
                                     : StrL("Every file the scan found looks like a book.");
         DrawTextIn(hdc, empty, msg, DT_LEFT | DT_WORDBREAK | DT_NOPREFIX, dim);
     }
-    int rows = (gDesk.nFiles + perRow - 1) / perRow;
+    int rows = (shown + perRow - 1) / perRow;
     gContentDy = headDy + rows * (tileDy + gapY) + DpiScale(20);
 }
 
@@ -6065,7 +6316,7 @@ void DrawLibraryPage(MainWindow* win, HDC hdc) {
     Rect main(rc.x + railDx, rc.y, rc.dx - railDx, rc.dy);
 
     EnterLib();
-    if (!gModel.loaded) {
+    if (!gModel.loaded && !ModelHasContent()) {
         SelectObject(hdc, fontBody);
         Str msg = len(gModel.error) > 0 ? gModel.error : StrL("Opening the library...");
         Rect r(rc.x + DpiScale(40), rc.y + rc.dy / 2 - DpiScale(20), rc.dx - DpiScale(80), DpiScale(60));
@@ -6433,15 +6684,20 @@ bool LibraryOnLinkClicked(MainWindow* win, Str url) {
         return true;
     }
     if (str::StartsWith(url, Str(kLinkDeskPick))) {
-        int i = atoi(AfterPrefix(url, kLinkDeskPick).s);
+        int hitGen = -1;
+        int hitPile = -1;
+        int i = -1;
+        DeskParseHit(AfterPrefix(url, kLinkDeskPick), &hitGen, &hitPile, &i);
         EnterLib();
+        bool ok = DeskReady() && hitGen == gDesk.gen && i >= 0 && i < gDesk.nFiles;
         bool selecting = gDesk.selecting;
-        TempStr path = str::DupTemp(i >= 0 && i < gDesk.nFiles ? gDesk.files[i].path : Str{});
-        if (selecting) {
+        TempStr path = str::DupTemp(ok ? gDesk.files[i].path : Str{});
+        if (ok && selecting) {
             DeskToggle(i);
         }
+        DeskRecordAct(1, hitGen, hitPile, i, path, ok);
         LeaveLib();
-        if (!selecting && len(path) > 0) {
+        if (ok && !selecting && len(path) > 0) {
             LibraryOpenBook(win, path, 0);
             return true;
         }
@@ -7089,7 +7345,12 @@ TempStr TestLibScanStatus() {
         itemAction = 5;
     }
     int visible = gModel.nBooks;
+    int loaded = gModel.loaded ? 1 : 0;
+    int loading = gModel.loading ? 1 : 0;
+    int failed = gModel.loadFailed ? 1 : 0;
     int progressive = gGlobalPrefs && gGlobalPrefs->audiobook.progressiveLibraryScan ? 1 : 0;
+    int docs = gModel.documents;
+    int ignoredCount = gModel.ignored;
     LeaveLib();
     int full = 0;
     int shape = 0;
@@ -7102,7 +7363,17 @@ TempStr TestLibScanStatus() {
         "visible=%d progressive=%d sweep=%d",
         scanning, scanning_, done, total, itemDone, itemTotal, itemIndeterminate, itemAction, traversals, discovered,
         processed, visible, progressive, ocr_sweep);
-    return str::FormatTemp("%s full=%d shape=%d ocr=%d\n", scan, full, shape, ocr);
+    TempStr model = str::FormatTemp("loaded=%d loading=%d failed=%d docs=%d ignored=%d", loaded, loading, failed, docs,
+                                    ignoredCount);
+    TempStr phase = str::FormatTemp(
+        "knownMs=%d knownFiles=%d nativeScanMs=%d indexPostMs=%d modelMs=%d rescanMs=%d loadStarts=%d loadDone=%d "
+        "adoptMs=%d storeMs=%d libFetchMs=%d partFetchMs=%d parseMs=%d loadLockMs=%d loadQueued=%d",
+        (int)gScanPhase.knownMs, gScanPhase.knownFiles, (int)gScanPhase.scanMs, (int)gScanPhase.indexPostMs,
+        (int)gScanPhase.modelMs, (int)gScanPhase.totalMs, LoadModelThreadStartCount(), LoadModelThreadCompleteCount(),
+        (int)gLastCompletedLoadAdoptMs, (int)gScanPhase.storeMs, (int)gScanPhase.libraryFetchMs,
+        (int)gScanPhase.partitionsFetchMs, (int)gScanPhase.parseMs, (int)gScanPhase.loadLockMs,
+        gScanPhase.loadQueued);
+    return str::FormatTemp("%s %s full=%d shape=%d ocr=%d %s\n", scan, model, full, shape, ocr, phase);
 }
 
 void TestLibToggleProgressive() {
@@ -7110,6 +7381,117 @@ void TestLibToggleProgressive() {
         return;
     }
     LibraryOnLinkClicked(gWindows[0], Str(kLinkProgressiveScan));
+}
+
+TempStr TestLibDeskStateTemp() {
+    EnterLib();
+    str::Builder b;
+    b.Append(fmt("{\"gen\":%d,\"pile\":%d,\"filesPile\":%d,\"loaded\":%d,\"ready\":%d,\"loading\":%d,",
+                 gDesk.gen, gDesk.showIgnored ? 1 : 0, gDesk.filesPile ? 1 : 0, gDesk.loaded ? 1 : 0,
+                 DeskReady() ? 1 : 0, gDesk.loading ? 1 : 0));
+    b.Append(fmt("\"nFiles\":%d,\"total\":%d,\"selecting\":%d,\"chosen\":%d,\"deskOpen\":%d,",
+                 gDesk.nFiles, gDesk.total, gDesk.selecting ? 1 : 0, DeskChosenCount(), gDeskOpen ? 1 : 0));
+    b.Append(fmt("\"staleActs\":%d,\"genMismatch\":%d,\"genMismatchDispatch\":%d,"
+                 "\"pileMismatchDispatch\":%d,\"files\":[",
+                 gDeskStaleActs, gDeskGenMismatch, gDeskGenMismatchDispatch, gDeskPileMismatchDispatch));
+    for (int i = 0; i < gDesk.nFiles; i++) {
+        if (i > 0) {
+            b.AppendChar(',');
+        }
+        b.Append(JsonStrTemp(gDesk.files[i].path));
+    }
+    b.Append("],\"chosenAt\":[");
+    int nChosen = 0;
+    for (int i = 0; i < gDesk.nFiles; i++) {
+        if (!gDesk.files[i].chosen) {
+            continue;
+        }
+        if (nChosen > 0) {
+            b.AppendChar(',');
+        }
+        b.Append(fmt("%d", i));
+        nChosen++;
+    }
+    b.Append("]}");
+    LeaveLib();
+    Str out = b.TakeStr();
+    TempStr res = str::DupTemp(out);
+    str::Free(out);
+    return res;
+}
+
+TempStr TestLibDeskRenderedTemp() {
+    EnterLib();
+    str::Builder b;
+    b.Append(fmt("{\"drawnGen\":%d,\"drawnPile\":%d,\"drawnFilesPile\":%d,\"scrollY\":%d,",
+                 gDeskDrawnGen, gDeskDrawnPile, gDeskDrawnFilesPile,
+                 len(gWindows) > 0 ? gWindows[0]->homePageScrollY : -1));
+    b.Append(fmt("\"rail\":[%d,%d,%d,%d],",
+                 gDeskRailRow.x, gDeskRailRow.y, gDeskRailRow.dx, gDeskRailRow.dy));
+    b.Append(fmt("\"pills\":[[%d,%d,%d,%d],[%d,%d,%d,%d]],\"tiles\":[",
+                 gDeskPill[0].x, gDeskPill[0].y, gDeskPill[0].dx, gDeskPill[0].dy,
+                 gDeskPill[1].x, gDeskPill[1].y, gDeskPill[1].dx, gDeskPill[1].dy));
+    for (int i = 0; i < gnDeskDrawn; i++) {
+        if (i > 0) {
+            b.AppendChar(',');
+        }
+        const LibDeskDrawnTile& t = gDeskDrawn[i];
+        b.Append(fmt("{\"idx\":%d,\"x\":%d,\"y\":%d,\"dx\":%d,\"dy\":%d,\"gen\":%d,\"pile\":%d,"
+                     "\"path\":%s}",
+                     t.idx, t.r.x, t.r.y, t.r.dx, t.r.dy, t.gen, t.pile, JsonStrTemp(t.path)));
+    }
+    b.Append("]}");
+    LeaveLib();
+    Str out = b.TakeStr();
+    TempStr res = str::DupTemp(out);
+    str::Free(out);
+    return res;
+}
+
+TempStr TestLibDeskActsTemp() {
+    EnterLib();
+    str::Builder b;
+    b.Append(fmt("{\"staleActs\":%d,\"genMismatch\":%d,\"genMismatchDispatch\":%d,"
+                 "\"pileMismatchDispatch\":%d,\"acts\":[",
+                 gDeskStaleActs, gDeskGenMismatch, gDeskGenMismatchDispatch, gDeskPileMismatchDispatch));
+    for (int i = 0; i < gnDeskActs; i++) {
+        if (i > 0) {
+            b.AppendChar(',');
+        }
+        const LibDeskAct& a = gDeskActs[i];
+        b.Append(fmt("{\"seq\":%d,\"button\":%d,\"hitGen\":%d,\"hitPile\":%d,\"hitIdx\":%d,"
+                     "\"curGen\":%d,",
+                     a.seq, a.button, a.hitGen, a.hitPile, a.hitIdx, a.curGen));
+        b.Append(fmt("\"drawnGen\":%d,\"drawnPile\":%d,\"drawnFilesPile\":%d,\"pile\":%d,"
+                     "\"filesPile\":%d,",
+                     a.drawnGen, a.drawnPile, a.drawnFilesPile, a.pile, a.filesPile));
+        b.Append(fmt("\"ready\":%d,\"dispatched\":%d,\"path\":%s,\"hitPath\":%s,\"renderedPath\":%s}",
+                     a.ready, a.dispatched, JsonStrTemp(a.path), JsonStrTemp(a.hitPath),
+                     JsonStrTemp(a.renderedPath)));
+    }
+    b.Append("]}");
+    LeaveLib();
+    Str out = b.TakeStr();
+    TempStr res = str::DupTemp(out);
+    str::Free(out);
+    return res;
+}
+
+void TestLibDeskActsReset() {
+    EnterLib();
+    for (int i = 0; i < gnDeskActs; i++) {
+        str::Free(gDeskActs[i].path);
+        str::Free(gDeskActs[i].hitPath);
+        str::Free(gDeskActs[i].renderedPath);
+        gDeskActs[i] = LibDeskAct{};
+    }
+    gnDeskActs = 0;
+    gDeskActSeq = 0;
+    gDeskStaleActs = 0;
+    gDeskGenMismatch = 0;
+    gDeskGenMismatchDispatch = 0;
+    gDeskPileMismatchDispatch = 0;
+    LeaveLib();
 }
 
 void TestLibClickAllBooks() {
@@ -7411,21 +7793,29 @@ static void RunRenameSeries(MainWindow* win, Str rowKey) {
     str::Free(newName);
 }
 
-static int DeskRowAt(MainWindow* win, int x, int y) {
+static int DeskRowAt(MainWindow* win, int x, int y, int* hitGen, int* hitPile) {
+    *hitGen = -1;
+    *hitPile = -1;
     TempStr url = GetStaticLinkAtTemp(win->staticLinks, x, y, nullptr);
     if (len(url) == 0) {
         return -1;
     }
     if (str::StartsWith(url, Str(kLinkDeskPick))) {
-        return atoi(AfterPrefix(url, kLinkDeskPick).s);
+        int idx = -1;
+        DeskParseHit(AfterPrefix(url, kLinkDeskPick), hitGen, hitPile, &idx);
+        return idx;
     }
     return -1;
 }
 
 static bool DeskRightClick(MainWindow* win, int x, int y) {
     EnterLib();
-    int row = DeskRowAt(win, x, y);
-    if (row < 0 || row >= gDesk.nFiles) {
+    int hitGen = -1;
+    int hitPile = -1;
+    int row = DeskRowAt(win, x, y, &hitGen, &hitPile);
+    bool ok = DeskReady() && hitGen == gDesk.gen && row >= 0 && row < gDesk.nFiles;
+    if (!ok) {
+        DeskRecordAct(2, hitGen, hitPile, row, Str{}, false);
         LeaveLib();
         return false;
     }
@@ -7433,6 +7823,7 @@ static bool DeskRightClick(MainWindow* win, int x, int y) {
     int chosen = DeskChosenCount();
     TempStr path = str::DupTemp(gDesk.files[row].path);
     bool ignoredView = gDesk.showIgnored;
+    DeskRecordAct(2, hitGen, hitPile, row, path, true);
     LeaveLib();
 
     HMENU popup = CreatePopupMenu();

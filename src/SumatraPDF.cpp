@@ -4805,8 +4805,6 @@ static void OnMenuExit() {
         return;
     }
 
-    LibraryRequestScanCancelAndWait();
-
     for (MainWindow* win : gWindows) {
         if (!CanCloseWindow(win)) {
             return;
@@ -10458,6 +10456,7 @@ static void AudiobookStart(MainWindow* win, WindowTab* tab, bool fromStart, Str 
 // The Characters panel calls this: it needs the cast and the TTS model, not a
 // word spoken. Returns false only if there's no book or no Chatterbox install.
 static HANDLE gLibraryProc = nullptr;
+static Mutex gLibraryProcMutex;
 
 static bool LibraryServiceAnswers() {
     HttpRsp rsp;
@@ -10466,6 +10465,7 @@ static bool LibraryServiceAnswers() {
 }
 
 bool LibraryEnsureService() {
+    ScopedMutex procLock(&gLibraryProcMutex);
     if (gLibraryProc && WaitForSingleObject(gLibraryProc, 0) == WAIT_TIMEOUT) {
         return true;
     }

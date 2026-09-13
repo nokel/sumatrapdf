@@ -227,11 +227,17 @@ static bool RecordIsBranded(const BookBlobRecord& rec) {
         return false;
     }
     Str fingerprint(rec.identity.fingerprint);
-    TempStr prefix = str::FormatTemp("%s:", Str(kBookFingerprintVersion));
-    if (!str::StartsWith(fingerprint, prefix)) {
+    if (!BookFingerprintVersionIsKnown(fingerprint)) {
         return false;
     }
-    Str rest(fingerprint.s + prefix.len, fingerprint.len - prefix.len);
+    int versionEnd = -1;
+    for (int i = 0; i < fingerprint.len; i++) {
+        if (fingerprint.s[i] == ':') {
+            versionEnd = i;
+            break;
+        }
+    }
+    Str rest(fingerprint.s + versionEnd + 1, fingerprint.len - versionEnd - 1);
     int at = -1;
     for (int i = 0; i < rest.len; i++) {
         if (rest.s[i] == ':') {
@@ -244,14 +250,16 @@ static bool RecordIsBranded(const BookBlobRecord& rec) {
     }
     Str text(rest.s, at);
     Str shape(rest.s + at + 1, rest.len - at - 1);
-    return IsLowerHex(text, 32) && !str::Eq(text, StrL("d41d8cd98f00b204e9800998ecf8427e")) && IsLowerHex(shape, 32);
+    int wantHex = BookFingerprintIdentityHexLen(fingerprint);
+    return wantHex > 0 && IsLowerHex(text, wantHex) &&
+           !str::Eq(text, StrL("d41d8cd98f00b204e9800998ecf8427e")) && IsLowerHex(shape, 32);
 }
 
 static bool RecordHasEmptyTextBrand(const BookBlobRecord& rec) {
     if (!rec.hasIdentity || !rec.identity.fingerprint) {
         return false;
     }
-    TempStr prefix = str::FormatTemp("%s:d41d8cd98f00b204e9800998ecf8427e:", Str(kBookFingerprintVersion));
+    TempStr prefix = str::FormatTemp("%s:d41d8cd98f00b204e9800998ecf8427e:", Str(kBookFingerprintVersionMd5));
     return str::StartsWith(Str(rec.identity.fingerprint), prefix);
 }
 

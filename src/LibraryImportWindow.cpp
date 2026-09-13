@@ -245,8 +245,8 @@ bool LibraryImportWnd::Create(MainWindow* mainWin) {
     editSeries = MakeEdit(hwnd, GetFont(), isRtl, data->series.value, true);
     editIndex = MakeEdit(hwnd, GetFont(), isRtl, data->seriesIndex.value, true);
     editYear = MakeEdit(hwnd, GetFont(), isRtl, data->year.value, true);
-    editGenre = MakeEdit(hwnd, GetFont(), isRtl, data->genre.value, false);
-    editSubgenre = MakeEdit(hwnd, GetFont(), isRtl, data->subgenre.value, false);
+    editGenre = MakeEdit(hwnd, GetFont(), isRtl, data->genre.value, true);
+    editSubgenre = MakeEdit(hwnd, GetFont(), isRtl, data->subgenre.value, true);
     dropKind = MakeDropDown(hwnd, GetFont(), isRtl);
     dropPartition = MakeDropDown(hwnd, GetFont(), isRtl);
 
@@ -292,15 +292,6 @@ bool LibraryImportWnd::Create(MainWindow* mainWin) {
     }
     vbox->AddChild(table);
 
-    {
-        auto* c = NewVirtText({
-            .s = StrL("Genre and subgenre are worked out by the Library and cannot be typed here."),
-            .font = font,
-            .isRtl = isRtl,
-            .padding = DpiScaledInsets(6, 0, 0, 0),
-        });
-        vbox->AddChild(c);
-    }
 
     {
         auto* hbox = new HBox();
@@ -351,6 +342,8 @@ void LibraryImportWnd::ReadFields() {
     TakeField(editSeries, data->series);
     TakeField(editIndex, data->seriesIndex);
     TakeField(editYear, data->year);
+    TakeField(editGenre, data->genre);
+    TakeField(editSubgenre, data->subgenre);
     int kind = dropKind ? dropKind->GetCurrentSelection() : 0;
     str::ReplaceWithCopy(&data->chosenKind, kind == 1 ? StrL("document") : StrL("book"));
     str::ReplaceWithCopy(&data->partitionKey, Str());

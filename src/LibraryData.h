@@ -21,17 +21,13 @@ struct LibraryBook {
     Str author;
     // display name of the series the book belongs to
     Str series;
-    //
     Str seriesParent;
     // key of that series, matching one in Series
     Str seriesKey;
     // keys of every collection the book is in, separated by ;
     Str keys;
-    //
     Str genre;
-    //
     Str subgenre;
-    //
     Str tags;
     // full path of the document
     Str path;
@@ -74,7 +70,6 @@ struct LibrarySeries {
     Str author;
     // key of the enclosing series, empty at the top level
     Str parent;
-    //
     Str parentSource;
     // key of the lore wiki entry for the series, empty if none
     Str wiki;
@@ -101,13 +96,9 @@ struct LibrarySeries {
 };
 
 struct LibraryRoamed {
-    //
     Str mark;
-    //
     i64 lastReadAt;
-    //
     i64 timeSpentMs;
-    //
     i64 openCount;
 };
 
@@ -127,7 +118,6 @@ struct LibraryStore {
     Vec<LibraryBook*>* libraryBooks;
     // every series and collection they group into
     Vec<LibrarySeries*>* librarySeries;
-    //
     Vec<LibraryRoamed*>* libraryRoamed;
 };
 

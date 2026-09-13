@@ -638,6 +638,11 @@ Audiobook [
       ]
     ]
 
+    ; set by the app once the Library roots have been worked out or edited, so
+    ; an empty LibraryRoots afterwards means the user removed them all rather
+    ; than never having configured any
+    LibraryRootsConfigured = false
+
     ; port of the Chatterbox library service (audiobook\library)
     LibraryPort = 7863
 

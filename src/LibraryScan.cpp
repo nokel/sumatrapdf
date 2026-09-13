@@ -248,7 +248,7 @@ struct FindPattern {
     ~FindPattern() { p->Rewind(mark); }
 };
 
-static Str RealPath(Str path) {
+Str LibraryRootCanonicalPath(Str path) {
     WStr wide = ToWStrTemp(path);
     HANDLE h = CreateFileW(wide.s, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
                            FILE_FLAG_BACKUP_SEMANTICS, nullptr);
@@ -302,7 +302,7 @@ static void TakeRoot(StrVec& out, Str path) {
     if (path.len == 0) {
         return;
     }
-    Str real = RealPath(path);
+    Str real = LibraryRootCanonicalPath(path);
     if (IsDirPath(real) && out.FindI(real) < 0) {
         out.Append(real);
     }
@@ -511,10 +511,33 @@ bool LibraryRootIsCovered(Str path) {
     if (!rows) {
         return false;
     }
-    Str real = RealPath(path);
+    Str real = LibraryRootCanonicalPath(path);
     bool covered = false;
     for (LibraryRoot* row : *rows) {
         if (!row || !row->enabled) {
+            continue;
+        }
+        if (SameOrUnder(real, row->path)) {
+            covered = true;
+            break;
+        }
+    }
+    str::Free(real);
+    return covered;
+}
+
+bool LibraryRootIsCoveredByAncestor(Str path) {
+    Vec<LibraryRoot*>* rows = ConfiguredRootRows();
+    if (!rows) {
+        return false;
+    }
+    Str real = LibraryRootCanonicalPath(path);
+    bool covered = false;
+    for (LibraryRoot* row : *rows) {
+        if (!row || !row->enabled) {
+            continue;
+        }
+        if (row->path.len >= real.len) {
             continue;
         }
         if (SameOrUnder(real, row->path)) {
@@ -537,6 +560,9 @@ bool LibraryRootsSeedIfEmpty() {
     if (!gGlobalPrefs) {
         return false;
     }
+    if (gGlobalPrefs->audiobook.libraryRootsConfigured) {
+        return false;
+    }
     if (!gGlobalPrefs->audiobook.libraryRoots) {
         gGlobalPrefs->audiobook.libraryRoots = new Vec<LibraryRoot*>();
     }
@@ -548,7 +574,11 @@ bool LibraryRootsSeedIfEmpty() {
     for (Str one : found) {
         AppendRootRow(rows, one);
     }
-    return len(*rows) > 0;
+    if (len(*rows) == 0) {
+        return false;
+    }
+    gGlobalPrefs->audiobook.libraryRootsConfigured = true;
+    return true;
 }
 
 int LibraryRootsAdd(Str path) {
@@ -559,11 +589,12 @@ int LibraryRootsAdd(Str path) {
         gGlobalPrefs->audiobook.libraryRoots = new Vec<LibraryRoot*>();
     }
     Vec<LibraryRoot*>* rows = gGlobalPrefs->audiobook.libraryRoots;
-    Str real = RealPath(path);
+    Str real = LibraryRootCanonicalPath(path);
     if (!IsDirPath(real)) {
         str::Free(real);
         return kLibraryRootAddFailed;
     }
+    gGlobalPrefs->audiobook.libraryRootsConfigured = true;
     for (LibraryRoot* row : *rows) {
         if (row && str::EqI(row->path, real)) {
             bool wasOff = !row->enabled;
@@ -586,6 +617,34 @@ int LibraryRootsAdd(Str path) {
     }
     str::Free(real);
     return kLibraryRootAdded;
+}
+
+bool LibraryRootsRemove(Str path) {
+    Vec<LibraryRoot*>* rows = ConfiguredRootRows();
+    if (!rows || path.len == 0) {
+        return false;
+    }
+    Str real = LibraryRootCanonicalPath(path);
+    bool removed = false;
+    for (int i = len(*rows) - 1; i >= 0; i--) {
+        LibraryRoot* row = (*rows)[i];
+        if (!row) {
+            continue;
+        }
+        Str rowReal = LibraryRootCanonicalPath(row->path);
+        bool same = str::EqI(row->path, path) || str::EqI(rowReal, real);
+        str::Free(rowReal);
+        if (same) {
+            FreeStruct(&gLibraryRootInfo, row);
+            rows->RemoveAt(i);
+            removed = true;
+        }
+    }
+    str::Free(real);
+    if (removed) {
+        gGlobalPrefs->audiobook.libraryRootsConfigured = true;
+    }
+    return removed;
 }
 
 StrVec LibraryWholeDeviceRoots() {
@@ -766,7 +825,32 @@ static const KnownEntry* FindKnown(const Vec<KnownEntry>& sorted, Str path) {
     return nullptr;
 }
 
-static const KnownEntry* FindCompleted(const Vec<KnownEntry>& sorted, Str path, i64 size, double mtime) {
+static bool CompletedWantedOcr(Str scanJson) {
+    return str::Contains(scanJson, StrL("\"ocr_pending\":true"));
+}
+
+static bool CompletedStillValid(const KnownEntry& done, Str path, i64 size, double mtime) {
+    if (done.size != size) {
+        return false;
+    }
+    double dt = done.mtime - mtime;
+    if (dt < 0) {
+        dt = -dt;
+    }
+    if (dt >= 1.0) {
+        return false;
+    }
+    if (!CompletedWantedOcr(done.scanJson)) {
+        return true;
+    }
+    int ocrState = kBookOcrNotAttempted;
+    bool branded = false;
+    LibrarySidecarReadOcrState(path, &ocrState, &branded);
+    return ocrState == kBookOcrNotAttempted && !branded;
+}
+
+static const KnownEntry* FindCompleted(const Vec<KnownEntry>& sorted, Str path, i64 size, double mtime,
+                                       int* staleOut) {
     if (sorted.len == 0) {
         return nullptr;
     }
@@ -777,11 +861,16 @@ static const KnownEntry* FindCompleted(const Vec<KnownEntry>& sorted, Str path, 
         int mid = lo + (hi - lo) / 2;
         const KnownEntry& got = sorted[mid];
         if (got.hash == want) {
-            double dt = got.mtime - mtime;
-            if (dt < 0) {
-                dt = -dt;
+            if (!got.completed || len(got.scanJson) == 0) {
+                return nullptr;
             }
-            return got.completed && len(got.scanJson) > 0 ? &got : nullptr;
+            if (CompletedStillValid(got, path, size, mtime)) {
+                return &got;
+            }
+            if (staleOut) {
+                (*staleOut)++;
+            }
+            return nullptr;
         }
         if (got.hash < want) {
             lo = mid + 1;
@@ -1169,6 +1258,40 @@ static bool LooksLikeBook(Str path, const DocLook& look) {
     return score >= kBookScore;
 }
 
+static bool IsWritingCodePoint(u32 cp) {
+    if (cp <= ' ' || cp == 0x7F) {
+        return false;
+    }
+    if (cp == 0xA0 || cp == 0xFFFD || cp == 0xFEFF || cp == 0x3000) {
+        return false;
+    }
+    if (cp >= 0x2000 && cp <= 0x200B) {
+        return false;
+    }
+    return true;
+}
+
+static bool HasWriting(Str s) {
+    int i = 0;
+    while (i < s.len) {
+        int n = 0;
+        u32 cp = Utf8CodePointAt(s, i, &n);
+        if (n == 0) {
+            i++;
+            continue;
+        }
+        i += n;
+        if (IsWritingCodePoint(cp)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool HasUsableWriting(const DocLook& look) {
+    return HasWriting(look.sample) || HasWriting(look.front);
+}
+
 static void ReadPageLook(EngineBase* engine, DocLook& look) {
     int nPages = engine->PageCount();
     if (nPages <= 0) {
@@ -1429,6 +1552,8 @@ static void AppendBookJson(str::Builder& bookJson, Str path, i64 size, double mt
         }
         bookJson.Append(StrL(",\"toc\":"));
         JsonNum(bookJson, look.toc, 0);
+        bookJson.Append(StrL(",\"writing\":"));
+        bookJson.Append(HasUsableWriting(look) ? StrL("true") : StrL("false"));
         bookJson.Append(StrL(",\"kind\":"));
         JsonStr(bookJson, look.book ? StrL("book") : StrL("document"));
         bookJson.Append(StrL(",\"sample\":"));
@@ -1471,6 +1596,13 @@ Str LibraryScanOneFileToJson(Str path) {
 Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, bool wholeDevice, LibraryScanNotifyCb cb,
                       void* ctx, volatile LONG* cancel, LibraryScanSnapshotCb snapshotCb, void* snapshotCtx,
                       LibraryScanManifestCb manifestCb, void* manifestCtx) {
+    u64 knownPrepStarted = GetTickCount64();
+    u64 knownPrepMs = 0;
+    u64 knownMatchMs = 0;
+    u64 portableMs = 0;
+    u64 progressMs = 0;
+    u64 jsonMs = 0;
+    int portableCalls = 0;
     Vec<KnownEntry> sorted;
     for (const LibraryKnownFile& k : known) {
         KnownEntry e;
@@ -1486,6 +1618,7 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
     if (sorted.len > 1) {
         qsort(sorted.LendData(), (size_t)sorted.len, sizeof(KnownEntry), CmpKnown);
     }
+    knownPrepMs = GetTickCount64() - knownPrepStarted;
 
     Vec<FoundBook> files;
     LibraryScanProgress progress;
@@ -1500,6 +1633,8 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
     int pageCountCalls = 0;
     int fingerprintCalls = 0;
     int knownUnchanged = 0;
+    int resumeReused = 0;
+    int resumeStale = 0;
     int newFiles = 0;
     int changedFiles = 0;
     int admissions = 0;
@@ -1514,6 +1649,7 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
     w.progress = &progress;
 
     SetScanAction(progress, StrL("Finding books"), 0, 0, cb, ctx);
+    bool explicitRoots = LibraryHasExplicitRoots();
     bool resuming = false;
     for (const LibraryKnownFile& k : known) {
         if (k.resumeCandidate) {
@@ -1536,7 +1672,7 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
     int preCompleted = 0;
     if (resuming) {
         for (int i = 0; i < files.len; i++) {
-            if (FindCompleted(sorted, files[i].path, files[i].size, files[i].mtime)) {
+            if (FindCompleted(sorted, files[i].path, files[i].size, files[i].mtime, nullptr)) {
                 preCompleted++;
             }
         }
@@ -1609,7 +1745,13 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
         }
         FoundBook& f = files[i];
         u64 itemStarted = GetTickCount64();
-        if (const KnownEntry* done = FindCompleted(sorted, f.path, f.size, f.mtime)) {
+        u64 matchStarted = GetTickCount64();
+        int staleBefore = resumeStale;
+        const KnownEntry* doneEntry = FindCompleted(sorted, f.path, f.size, f.mtime, &resumeStale);
+        bool staleCompleted = resumeStale > staleBefore;
+        knownMatchMs += GetTickCount64() - matchStarted;
+        if (const KnownEntry* done = doneEntry) {
+            resumeReused++;
             if (!first) {
                 b.AppendChar(',');
             }
@@ -1623,22 +1765,52 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
         }
         progress.done = preCompleted + processed;
         progress.where = f.path;
+        i64 foundSize = f.size;
+        double foundMtime = f.mtime;
+        matchStarted = GetTickCount64();
+        const KnownEntry* prior = FindKnown(sorted, f.path);
+        knownMatchMs += GetTickCount64() - matchStarted;
+        bool detailsDeferred = IsEbookContainer(f.path);
+        bool sameFile = !staleCompleted && SameFile(prior, foundSize, foundMtime, detailsDeferred);
+        if (sameFile && !f.placeholder) {
+            knownUnchanged++;
+            u64 jsonOnlyStarted = GetTickCount64();
+            DocLook seen;
+            str::Builder confirmJson(128);
+            AppendBookJson(confirmJson, f.path, foundSize, foundMtime, false, {}, false, false, true, seen);
+            if (!first) {
+                b.AppendChar(',');
+            }
+            first = false;
+            b.Append(Str(confirmJson.els, confirmJson.len));
+            jsonMs += GetTickCount64() - jsonOnlyStarted;
+            processed++;
+            progress.done = preCompleted + processed;
+            u64 confirmProgressStarted = GetTickCount64();
+            if (cb) {
+                cb(progress, ctx);
+            }
+            progressMs += GetTickCount64() - confirmProgressStarted;
+            continue;
+        }
         Str scanItem = str::Dup(path::GetBaseNameTemp(f.path));
         progress.item = scanItem;
         Str openingAction =
             GuessFileTypeFromName(f.path) == FileType::Epub ? StrL("Processing EPUB") : StrL("Opening file");
+        u64 progressStarted = GetTickCount64();
         SetScanAction(progress, openingAction, 0, 0, cb, ctx);
+        progressMs += GetTickCount64() - progressStarted;
 
-        i64 foundSize = f.size;
-        double foundMtime = f.mtime;
         Str fingerprint;
+        u64 portableStarted = GetTickCount64();
         if (!f.placeholder && LibrarySidecarReadFingerprint(f.path, &fingerprint)) {
             f.size = file::GetSize(f.path);
             f.mtime = FileTimeToUnix(file::GetModificationTime(f.path));
         }
-        const KnownEntry* prior = FindKnown(sorted, f.path);
-        bool detailsDeferred = IsEbookContainer(f.path);
-        bool sameFile = SameFile(prior, foundSize, foundMtime, detailsDeferred);
+        if (!f.placeholder) {
+            portableCalls++;
+        }
+        portableMs += GetTickCount64() - portableStarted;
         if (!prior) {
             newFiles++;
         } else if (sameFile) {
@@ -1659,8 +1831,9 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
         bool looked = false;
         bool ocrPending = false;
         bool detailsPending = false;
+        bool rootAuthority = explicitRoots && LibraryRootIsCovered(f.path);
         if (!reuse) {
-            detailsPending = detailsDeferred;
+            detailsPending = detailsDeferred && rootAuthority;
             if (!detailsPending) {
                 u64 readStarted = GetTickCount64();
                 ReadDocLook(f.path, look);
@@ -1708,16 +1881,24 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
             }
             ocrPending = looked && look.book && look.sample.len == 0 && len(fingerprint) == 0 &&
                          ocrState == kBookOcrNotAttempted && GuessFileTypeFromName(f.path) == FileType::PDF;
+            bool writing = HasUsableWriting(look);
+            if (look.book && !rootAuthority && !writing && ocrState != kBookOcrSuccess) {
+                look.book = false;
+            }
             if (progress.itemTotal <= 0 && look.pages > 0) {
                 progress.itemDone = look.pages;
                 progress.itemTotal = look.pages;
                 progress.itemIndeterminate = false;
             }
         }
+        progressStarted = GetTickCount64();
         SetScanAction(progress, StrL("Publishing item"), 0, 0, cb, ctx);
+        progressMs += GetTickCount64() - progressStarted;
+        u64 jsonStarted = GetTickCount64();
         str::Builder bookJson(512);
         AppendBookJson(bookJson, f.path, f.size, f.mtime, f.placeholder, fingerprint, ocrPending, detailsPending, reuse,
                        look);
+        jsonMs += GetTickCount64() - jsonStarted;
         str::Free(fingerprint);
 
         if (CancelSignaled(cancel)) {
@@ -1750,9 +1931,11 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
             str::ReplaceWithCopy(&slowestItem, f.path);
         }
         progress.done = preCompleted + processed;
+        progressStarted = GetTickCount64();
         if (cb) {
             cb(progress, ctx);
         }
+        progressMs += GetTickCount64() - progressStarted;
         str::Free(scanItem);
         progress.item = {};
     }
@@ -1762,6 +1945,10 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
     JsonNum(b, (double)files.len, 0);
     b.Append(StrL(",\"known_unchanged\":"));
     JsonNum(b, (double)knownUnchanged, 0);
+    b.Append(StrL(",\"resume_reused\":"));
+    JsonNum(b, (double)resumeReused, 0);
+    b.Append(StrL(",\"resume_stale\":"));
+    JsonNum(b, (double)resumeStale, 0);
     b.Append(StrL(",\"new_files\":"));
     JsonNum(b, (double)newFiles, 0);
     b.Append(StrL(",\"changed_files\":"));
@@ -1786,6 +1973,18 @@ Str LibraryScanToJson(const StrVec& roots, const Vec<LibraryKnownFile>& known, b
     JsonNum(b, (double)slowestMs, 0);
     b.Append(StrL(",\"slowest_item\":"));
     JsonStr(b, slowestItem);
+    b.Append(StrL(",\"known_prep_ms\":"));
+    JsonNum(b, (double)knownPrepMs, 0);
+    b.Append(StrL(",\"known_match_ms\":"));
+    JsonNum(b, (double)knownMatchMs, 0);
+    b.Append(StrL(",\"portable_calls\":"));
+    JsonNum(b, (double)portableCalls, 0);
+    b.Append(StrL(",\"portable_ms\":"));
+    JsonNum(b, (double)portableMs, 0);
+    b.Append(StrL(",\"progress_ms\":"));
+    JsonNum(b, (double)progressMs, 0);
+    b.Append(StrL(",\"json_ms\":"));
+    JsonNum(b, (double)jsonMs, 0);
     b.Append(StrL(",\"scan_ms\":"));
     JsonNum(b, (double)(GetTickCount64() - scanStarted), 0);
     b.Append(StrL("}}"));
