@@ -1,7 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-const SRC = join("ext", "build", "ocr-install", "share", "tessdata", "eng.traineddata");
+const SRC = join("ext", "a-tesseract", "tessdata", "eng.traineddata");
 
 const targets = [
   join("out", "dbg64"),

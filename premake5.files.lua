@@ -1459,61 +1459,6 @@ function bench_image_files()
   }
 end
 
-function bench_library_files()
-  files_in_dir("src/base", {
-    "AppendStore.*",
-    "Arena.*",
-    "Base.h",
-    "Base.cpp",
-    "Base_win.cpp",
-    "BitManip.*",
-    "ByteReaderWriter.*",
-    "CmdLineArgsIter.*",
-    "Color.*",
-    "Crypto.*",
-    "CssParser.*",
-    "Dict.*",
-    "DirScan.*",
-    "File.*",
-    "FileWatcher.*",
-    "Geom.*",
-    "GuessFileType.*",
-    "HtmlTags.*",
-    "JsonParser.*",
-    "Log.h",
-    "Pixmap.*",
-    "Scoped.*",
-    "SettingsUtil.*",
-    "Str.*",
-    "StrFormatParse.*",
-    "StrQueue.*",
-    "StrUtf8.*",
-    "StrVec.*",
-    "Strconv.*",
-    "Thread.*",
-    "Vec.*",
-    "Win.*",
-    "WinDynCalls.*",
-    "Zip.*",
-    "Archive.*",
-  })
-  files_in_dir("src", {
-    "BookBlob.*",
-    "BookFingerprint.*",
-    "BookOcr.*",
-    "LibraryData.h",
-    "LibraryStore.*",
-    "LibrarySidecar.*",
-    "PdfSidecar.*",
-    "CrashHandlerNoOp.cpp",
-    "SumatraConfig.*",
-    "SumatraLog.*",
-  })
-  files {
-    "src/tools/bench_library.cpp",
-  }
-end
-
 function preview_test_files()
   files {
     "src/tools/preview_test.cpp",

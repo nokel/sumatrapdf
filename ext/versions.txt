@@ -9,6 +9,18 @@ xxHash          0.8.3      2024-12-30
   https://github.com/Cyan4973/xxHash/releases/tag/v0.8.3
   only xxhash.h is vendored, compiled with XXH_INLINE_ALL into BookFingerprint.cpp
 
+leptonica       1.84.0     2023-12-24
+  https://github.com/DanBloomberg/leptonica/releases/tag/1.84.0
+  only src/*.c, src/*.h and the license are vendored; config_auto.h and
+  endianness.h are the files its CMake build generates on Windows
+
+tesseract       5.3.4      2024-01-18
+  https://github.com/tesseract-ocr/tesseract/releases/tag/5.3.4
+  only the library sources, public headers and license are vendored;
+  config_auto.h and include/tesseract/version.h are the files its CMake build generates
+  tessdata/eng.traineddata is eng from https://github.com/tesseract-ocr/tessdata_fast
+  (4.00.00alpha:eng:synth20170629, sha256 7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2)
+
 libarchive     3.8.8      2026-06-23
   https://github.com/libarchive/libarchive
   https://github.com/libarchive/libarchive/releases/tag/v3.8.8

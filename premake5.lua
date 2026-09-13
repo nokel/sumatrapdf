@@ -838,6 +838,76 @@ workspace "SumatraPDF"
       "ext/a-extract/extract/*.h", "ext/a-extract/version.txt",
     }
 
+  project "a-leptonica"
+    static_intermediate_dirs()
+    kind "StaticLib"
+    language "C"
+    characterset "ASCII"
+    optimized_conf()
+    optimize "Speed"
+    defines { "_CRT_SECURE_NO_WARNINGS", "HAVE_CONFIG_H" }
+    disablewarnings {
+      "4005", "4013", "4018", "4057", "4100", "4115", "4130", "4133", "4146", "4200", "4204", "4210",
+      "4244", "4245", "4267", "4305", "4311", "4312", "4389", "4456", "4457", "4459", "4701", "4703",
+      "4706", "4819", "4996",
+    }
+    includedirs { "ext/a-leptonica/src" }
+    files { "ext/a-leptonica/src/*.c", "ext/a-leptonica/src/*.h", "ext/a-leptonica/leptonica-license.txt" }
+
+  project "a-tesseract"
+    static_intermediate_dirs()
+    kind "StaticLib"
+    language "C++"
+    characterset "ASCII"
+    cppdialect "C++20"
+    optimized_conf()
+    optimize "Speed"
+    exceptionhandling "On"
+    rtti "On"
+    buildoptions { "/bigobj" }
+    defines {
+      "_CRT_SECURE_NO_WARNINGS", "_CRT_NONSTDC_NO_DEPRECATE", "HAVE_CONFIG_H", "CMAKE_BUILD",
+      "OPENMP_SIMD", "_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS=1",
+    }
+    filter "platforms:x86 or x64 or x64_asan"
+      defines { "HAVE_AVX", "HAVE_AVX2", "HAVE_AVX512F", "HAVE_FMA", "HAVE_SSE4_1" }
+    filter "platforms:arm64"
+      defines { "HAVE_NEON" }
+    filter {}
+    disablewarnings {
+      "4005", "4018", "4100", "4127", "4146", "4189", "4244", "4245", "4267", "4305", "4389", "4456",
+      "4457", "4458", "4459", "4701", "4702", "4703", "4706", "4819", "4996", "5033",
+    }
+    includedirs {
+      "ext/a-tesseract/include", "ext/a-tesseract/src", "ext/a-tesseract/src/api",
+      "ext/a-tesseract/src/arch", "ext/a-tesseract/src/ccmain", "ext/a-tesseract/src/ccstruct",
+      "ext/a-tesseract/src/ccutil", "ext/a-tesseract/src/classify", "ext/a-tesseract/src/cutil",
+      "ext/a-tesseract/src/dict", "ext/a-tesseract/src/lstm", "ext/a-tesseract/src/opencl",
+      "ext/a-tesseract/src/textord", "ext/a-tesseract/src/viewer", "ext/a-tesseract/src/wordrec",
+      "ext/a-leptonica/src",
+    }
+    files {
+      "ext/a-tesseract/include/tesseract/*.h", "ext/a-tesseract/src/*.h", "ext/a-tesseract/src/**.cpp",
+      "ext/a-tesseract/src/**.h", "ext/a-tesseract/LICENSE", "ext/a-tesseract/AUTHORS",
+    }
+    filter "files:ext/a-tesseract/src/arch/dotproduct.cpp"
+      buildoptions { "/openmp:experimental", "/fp:fast" }
+    filter "files:ext/a-tesseract/src/arch/dotproductavx.cpp"
+      vectorextensions "AVX"
+    filter "files:ext/a-tesseract/src/arch/intsimdmatrixavx2.cpp"
+      vectorextensions "AVX2"
+    filter "files:ext/a-tesseract/src/arch/dotproductavx512.cpp"
+      buildoptions { "/arch:AVX512" }
+    filter "files:ext/a-tesseract/src/arch/dotproductfma.cpp"
+      defines { "__FMA__" }
+    filter "files:ext/a-tesseract/src/arch/dotproductsse.cpp or ext/a-tesseract/src/arch/intsimdmatrixsse.cpp"
+      defines { "__SSE4_1__" }
+    filter { "platforms:arm64", "files:ext/a-tesseract/src/arch/*avx* or ext/a-tesseract/src/arch/*fma* or ext/a-tesseract/src/arch/*sse*" }
+      excludefrombuild "On"
+    filter { "platforms:not arm64", "files:ext/a-tesseract/src/arch/*neon*" }
+      excludefrombuild "On"
+    filter {}
+
   function fonts()
     files {
 
@@ -965,8 +1035,7 @@ workspace "SumatraPDF"
       "ext/a-jbig2dec",
       "ext/libjpeg-turbo/src",
       "ext/a-openjpeg",
-      "ext/build/ocr-install/include",
-      "ext/build/ocr-install/include/leptonica",
+      "ext/a-tesseract/include",
       "ext/a-leptonica/src",
       "ext/mupdf/scripts/freetype",
       "ext/freetype/include",
@@ -1001,13 +1070,8 @@ workspace "SumatraPDF"
     links {
       "cmark-gfm", "a-mujs", "a-extract", "harfbuzz", "freetype", "brotli",
       "lcms2", "a-openjpeg", "a-jbig2dec", "libjpeg-turbo", "libarchive", "a-gumbo",
+      "a-tesseract", "a-leptonica",
     }
-    -- Tesseract and Leptonica are built externally via CMake and linked as static libs.
-    -- mupdf uses Release runtime in all configs, so always link the Release libs.
-    filter { "platforms:x64 or x64_asan" }
-      libdirs { "ext/build/ocr-install/lib" }
-      links { "tesseract53", "leptonica-1.84.0" }
-    filter {}
 
     -- mupdf
     -- this fixes "NAN" is not a constant in some version of msvc
@@ -1180,30 +1244,6 @@ workspace "SumatraPDF"
     links {
       "gdiplus", "gdi32", "user32", "comctl32", "shlwapi", "Version",
       "ole32", "oleAut32", "windowscodecs", "shcore", "wininet",
-    }
-
-  -- SyncEmbeddedRecords perf bench: replays the BookBlob / PdfSidecar /
-  -- LibrarySidecar hot path that SyncEmbeddedRecords in src/LibraryPage.cpp
-  -- walks on every SumatraPDF startup when LibraryHome is enabled.
-  project "bench_library"
-    static_app_objdir()
-    static_linker_intermediates()
-    kind "ConsoleApp"
-    language "C++"
-    cppdialect "C++latest"
-    mixed_dbg_rel_conf()
-    disablewarnings { "4100", "4838" }
-    defines { "LIBARCHIVE_STATIC" }
-    includedirs { "src", "ext/mupdf/include", "ext/lzma/C", "ext/djvudec", "ext/libarchive", "ext/a-zlib", "ext/libwebp/src" }
-    bench_library_files()
-    setup_base_pch()
-    -- libarchive, unrar, libwebp, windowscodecs are pulled in by Archive.cpp
-    -- and mupdf's webp/jxr loaders
-    links { "base", "mupdf", "libarchive", "unrar", "libwebp", "a-zlib", "brotli" }
-    links {
-      "gdiplus", "gdi32", "user32", "comctl32", "shlwapi", "Version",
-      "wininet", "shcore", "wintrust", "crypt32", "shell32", "ole32",
-      "oleAut32", "windowscodecs",
     }
 
   -- small console app that loads PdfPreview.dll and saves a thumbnail as PNG

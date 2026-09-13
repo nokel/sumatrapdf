@@ -1,0 +1,14 @@
+/* Define to 1 if you have the `feenableexcept' function. */
+/* #undef HAVE_FEENABLEEXCEPT */
+
+
+/* Version number */
+#define PACKAGE_VERSION "5.3.4"
+/* #undef GRAPHICS_DISABLED */
+#define FAST_FLOAT ON
+/* #undef DISABLED_LEGACY_ENGINE */
+/* #undef HAVE_TIFFIO_H */
+/* #undef HAVE_NEON */
+/* #undef HAVE_LIBARCHIVE */
+/* #undef HAVE_LIBCURL */
+/* #undef USE_OPENCL */

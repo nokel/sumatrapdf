@@ -97,3 +97,4 @@ __pycache__/
 tests/*.sumatra
 # QA screenshots taken while checking the UI
 /qa-*.png
+/src/tools/bench_library.cpp

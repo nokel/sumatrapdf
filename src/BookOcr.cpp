@@ -27,8 +27,8 @@ static TempStr GetTessdataSubdirInRepoExt() {
     TempStr dir = GetSelfExeDirTemp();
     TempStr cur = str::DupTemp(dir);
     for (int i = 0; i < 6; i++) {
-        TempStr tryPath = path::JoinTemp(cur, Str("ext/build/ocr-install/share/tessdata"));
-        if (file::Exists(tryPath)) {
+        TempStr tryPath = path::JoinTemp(cur, Str("ext/a-tesseract/tessdata"));
+        if (dir::Exists(tryPath)) {
             return tryPath;
         }
         TempStr parent = path::GetDirTemp(cur);

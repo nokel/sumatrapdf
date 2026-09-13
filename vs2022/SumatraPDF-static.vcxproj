@@ -1209,9 +1209,9 @@
     <ClInclude Include="..\src\JxlReader.h" />
     <ClInclude Include="..\src\KeyboardHelp.h" />
     <ClInclude Include="..\src\LibraryData.h" />
+    <ClInclude Include="..\src\LibraryImportWindow.h" />
     <ClInclude Include="..\src\LibraryPage.h" />
     <ClInclude Include="..\src\LibraryRootsWindow.h" />
-    <ClInclude Include="..\src\LibraryImportWindow.h" />
     <ClInclude Include="..\src\LibraryScan.h" />
     <ClInclude Include="..\src\LibrarySidecar.h" />
     <ClInclude Include="..\src\LibraryStore.h" />
@@ -1450,9 +1450,9 @@
     <ClCompile Include="..\src\JxlReader.cpp" />
     <ClCompile Include="..\src\KeyboardHelp.cpp" />
     <ClCompile Include="..\src\KeyboardHelp_win.cpp" />
+    <ClCompile Include="..\src\LibraryImportWindow.cpp" />
     <ClCompile Include="..\src\LibraryPage.cpp" />
     <ClCompile Include="..\src\LibraryRootsWindow.cpp" />
-    <ClCompile Include="..\src\LibraryImportWindow.cpp" />
     <ClCompile Include="..\src\LibraryScan.cpp" />
     <ClCompile Include="..\src\LibrarySidecar.cpp" />
     <ClCompile Include="..\src\LibraryStore.cpp" />
