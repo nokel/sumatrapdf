@@ -18,8 +18,8 @@ Two additions to SumatraPDF. The start page becomes a **library** of your books
 instead of a list of recently opened files, and Read Aloud gains a second engine
 that reads in **per-character voices**.
 
-`master` is the whole thing: upstream SumatraPDF as of 17 Aug 2026
-(`7a281242`) with both additions merged on top. Upstream reorganised its UI
+`master` is the whole thing: upstream SumatraPDF as of 18 Aug 2026
+(`e6073b26`) with both additions merged on top. Upstream reorganised its UI
 layer shortly before that — `src/wingui/` became `src/gui/`, and `Wnd`,
 `Splitter` and `LabelWithCloseWnd` gave way to `VirtCtrl`, `VirtSplitter` and
 `NewLabelWithClose` — so the fork's own windows are written against those newer
@@ -29,45 +29,83 @@ lands on `master`.
 ### The library start page
 
 **View ▸ Library start page** (`CmdToggleLibraryHome`) replaces the Frequently
-Read list with a wall of cover art — taken from the file itself, or fetched
-online when the file hasn't got any — and a sidebar of the series it found.
-Point it at your books with the `Audiobook.LibraryRoots` setting; left empty it
-works them out itself (folders already analysed, then Documents, Downloads and
-Desktop, then a bounded scan of every fixed drive). **Rescan the library**
-(`CmdLibraryRescan`) picks up newly added books.
+Read list with a wall of cover art and a sidebar of the series, collections and
+partitions in your library. The links at the bottom of the sidebar rescan,
+choose whether finished books appear while a scan is still running
+(`Audiobook.ProgressiveLibraryScan`), add a single book by hand, and switch back
+to the classic Frequently Read page.
 
-Folders are a hint, not the rule: a folder holding one series becomes that
-series, a folder that merely holds other series (`Books`, `manga`, `ebooks`) is
-skipped, and books sitting loose on disk are grouped by the wording they
-actually carry. Sort the list A–Z, by genre, most books first or fewest — the
-choice is remembered in `Audiobook.LibrarySort`.
+**Where it looks.** **Settings ▸ Library Indexing…** lists the folders the
+Library searches, with *Add folder…* and remove. The list is
+`Audiobook.LibraryRoots`. Until you edit it, the Library works it out on first
+use: folders that already hold books in the library, then Documents, Downloads
+and Desktop, then a bounded scan of every fixed drive. Removing every folder is
+remembered as your choice, not treated as "never set up".
 
-You can also make your own **partitions**. Right-click any series, book or cover
-for *Move to partition*, and pick an existing one or make a new one. Once two
-things are in a partition it works out what they have in common — a distinctive
-word in the titles, or the author, subjects, shelf and page make-up — and files
-the rest of the matching books there on its own. Hovering a row it filed says
-what it went on, *Take out of…* puts a book back and it stays out, and
-partitions survive a rescan.
+**The scan runs inside SumatraPDF.** **Rescan the library**
+(`CmdLibraryRescan`) walks those folders, skipping system and program folders,
+and opens every PDF, EPUB, MOBI, AZW3, FB2, CBZ and XPS it finds. Each file is
+judged a book or a document from its page count, how much of it is pictures, the
+folder it sits in and the wording on its front pages. Books go into the library.
+Everything else (manuals, invoices, forms) goes on the **Deskpan**.
 
-Click a cover to open the book where you left off, or its title for the book's
-own page: author, year, page count, blurb, subjects, chapter list, the
-characters, families and places BookNLP found in it, and the films and TV series
-adapted from it. Right-click a cover for *Open book from last page read*, *Open
-book from beginning* and *Play as Audio Book*.
+**A book carries its own identity.** The scan fingerprints every book from its
+text layer. It skips OCR to stay fast, and the built-in Tesseract OCR reads
+scanned books that have no text layer. The fingerprint and the book's library
+record (shelf, series, partitions, cover, chapters, characters, reading stats)
+are written into the book file itself:
 
-**Your library is kept on this machine, next to the settings file.** The books
-and series live in `SumatraLibrary.txt` and the cover art in
-`SumatraLibraryThumbs.txt` / `.dat`, both written by SumatraPDF itself. The page
-reads them before it asks anything else, so it opens on your books straight away
-instead of filling in tile by tile — and it still shows them when nothing else
-is running. Deleting the files is safe; a rescan rebuilds them.
+* PDF: the document's private `PieceInfo` data
+* EPUB, CBZ, zipped FB2 and XPS: a `META-INF/sumatra.book` entry in the archive
+* other formats: a `<book>.sumatra` file beside it
 
-Working out *what* is in your library — the metadata, the online cover lookups,
-the series and genres — is still done by a small local service
-(`audiobook/library`) that SumatraPDF starts on demand, on
-`Audiobook.LibraryPort` (7863). It refreshes the two files above; it is not what
-the page reads.
+Once a book has a fingerprint it keeps that identity. Moving, renaming or
+re-tagging the file, or losing the local caches, does not make it a new book.
+
+**Organising.** Series and collections are worked out from the books
+themselves. Folders are a hint, not the rule. Sort the list A–Z, by genre, most
+books first or fewest (`Audiobook.LibrarySort`). Right-click a book or series
+for *Move to* a series or one of your own **partitions** (*New partition…*,
+*Rename partition…*, *Delete partition*). Once a partition has members it files
+matching books into it on its own. *Take out of …* removes a book, and the book
+stays out. *Rename series…* and *Restore automatic series* / *Restore automatic
+parent* undo manual moves.
+
+**A book's page.** Click a cover to open the book where you left off, or its
+title for the book's own page: *Edit metadata…* for title, author, series and
+position in series, plus the chapter list, the characters and families and the
+lore wiki (who knows about what) that the BookNLP analyser builds when the book
+is read aloud, any films and TV series adapted from it, and when you last read
+it, for how long and how often. *Change the cover* takes a picture file or a
+region you drag out on one of the book's pages; when no cover can be found in
+the book, one is looked up on Open Library. Right-click a cover for *Open book
+from last page read*, *Open book from beginning* and *Play as Audio Book*.
+
+**The Deskpan** has two piles, *Documents* and *Ignored*. Select files and *Move
+to library* if the scan got one wrong, or *Ignore file*. *Remove from library*
+on a book sends it to *Ignored*, and *Put back on the desk* undoes that. A file
+left in *Ignored* longer than **Settings ▸ Options… ▸ Keep removed Library items
+in Ignored for** (`Audiobook.LibraryIgnoreDays`, 30 days) becomes a permanent
+exclusion. Automatic scans skip it, and only a manual add brings it back.
+
+**Adding one book by hand.** *Manually add book to library…* picks a single
+file, shows what the Library made of it, lets you add it as a book or a
+document, and adds it.
+
+**Your library is kept on this machine, next to the settings file.** The index
+of books and series is `SumatraLibrary.txt`, the cover art is
+`SumatraLibraryThumbs.txt` / `.dat`, and known fingerprints are
+`SumatraLibraryFingerprints.txt` / `.dat`. SumatraPDF writes all of them. The
+page reads them before anything else, so it opens straight onto your books and
+still shows them when nothing else is running. Deleting these files is safe:
+the records inside the books survive, and a rescan rebuilds the index.
+
+**What still needs the Chatterbox install.** The series, genre and partition
+grouping, the Deskpan piles and the single-book import are still worked out by
+a small local service in the Chatterbox install (`audiobook/library`).
+SumatraPDF starts it on demand on `Audiobook.LibraryPort` (7863) and sends it
+what the scan found. Without it, the page still draws your library from the
+files above, but the automatic rescan at startup is skipped.
 
 ### The Chatterbox audiobook engine
 
@@ -111,7 +149,7 @@ models run to gigabytes and get put on a real disk, never in OneDrive.
 
 If it can't find one, it says so in the window, and you can set the folder
 yourself in **Settings ▸ Advanced Settings…**. Type `audiobook` in the filter
-box to narrow the list to these fourteen:
+box to narrow the list to these sixteen:
 
 | setting | meaning |
 |---|---|
@@ -126,12 +164,15 @@ box to narrow the list to these fourteen:
 | `Audiobook.Analyzer` | who works out the speakers: `llm` or `booknlp` |
 | `Audiobook.CharSort` | how the Characters panel orders the cast |
 | `Audiobook.LibraryHome` | same switch as the View menu's Library start page |
-| `Audiobook.LibraryRoots` | folders to look for books in, separated by `;` |
+| `Audiobook.LibraryRoots` | folders to look for books in; edited in Settings ▸ Library Indexing… |
 | `Audiobook.LibraryPort` | port of the library service (7863) |
 | `Audiobook.LibrarySort` | how the library orders the series list |
+| `Audiobook.ProgressiveLibraryScan` | show finished books while a scan is still running |
+| `Audiobook.LibraryIgnoreDays` | days a removed file stays in Deskpan ▸ Ignored before it is excluded for good (30) |
 
-(`Audiobook.SidebarDx`, the width of the Characters panel, is remembered for you
-and is not shown in the dialog.)
+(`Audiobook.SidebarDx`, the width of the Characters panel, and
+`Audiobook.LibraryRootsConfigured`, which records that the folder list has been
+set up, are kept for you and are not shown in the dialog.)
 
 All are optional; `ChatterboxDir` fills itself in once the install is found.
 Double-click a setting to edit it (a bool toggles, Enter confirms, Esc cancels),
@@ -154,6 +195,10 @@ Without a Chatterbox install, or with the box unticked, this is just SumatraPDF.
 * [bun](https://bun.sh), for the build and code-generation scripts.
 
 Everything else — MakeLZSA, premake, nasm and the rest — is checked into `bin/`.
+The OCR libraries are vendored too: Leptonica and Tesseract are built from
+`ext/a-leptonica` and `ext/a-tesseract` as ordinary projects in the solution, and
+`ext/a-tesseract/tessdata/eng.traineddata` is the English model. There is no
+separate CMake step.
 
 **The normal build**
 
@@ -162,7 +207,9 @@ bun ./cmd/build.ts
 ```
 
 This produces `out/dbg64/SumatraPDF.exe`. That is the binary to run and test; it
-loads `libsumatrapdf.dll`, which the build puts beside it. (Through 3.6 that DLL
+loads `libsumatrapdf.dll`, which the build puts beside it, and `build.ts` copies
+`tessdata/eng.traineddata` beside it for OCR. A build made with msbuild alone
+finds the model in `ext/a-tesseract/tessdata` instead. (Through 3.6 that DLL
 was called `libmupdf.dll`; a stale copy under the old name may still be sitting
 in `out/`, and is not used.) The statically linked target is a *different* one
 called `SumatraPDF-static`
@@ -223,16 +270,15 @@ is stored with the same SquareTree code. One run emits both, so check
 `git diff src/Settings.h docs/md/Advanced-options-settings.md` after touching the
 library structs.
 
-New source files must be registered in `premake5.files.lua`,
-`vs2022/SumatraPDF.vcxproj`, `vs2022/SumatraPDF-static.vcxproj` and both of
-their `.vcxproj.filters`. `vs2022/SumatraPDF-dll.vcxproj` no longer exists.
-Anything under `src/` also has to be listed in `cmd/helper/mingw-build.ts` — the
-Linux/Wine cross-compile keeps its own source list — or excluded there
-deliberately. `bun tests/lint-mingw-sources.ts` checks this; it runs in
-`run-almost-all` and in the Linux CI job, so a forgotten file reddens both.
-
-See `agents.md` for the rest of the house style (the `Str` type, `fmt()`,
-include order, tests).
+The project files in `vs2022/` are generated. New source files are registered in
+`premake5.files.lua` (or `premake5.lua` for a whole new project), and
+`bun cmd/premake.ts` regenerates the `.sln`, `.vcxproj` and `.vcxproj.filters`
+files; don't edit those by hand. `vs2022/SumatraPDF-dll.vcxproj` no longer
+exists. Anything under `src/` also has to be listed in
+`cmd/helper/mingw-build.ts` — the Linux/Wine cross-compile keeps its own source
+list — or excluded there deliberately. `bun tests/lint-mingw-sources.ts` checks
+this; it runs in `run-almost-all` and in the Linux CI job, so a forgotten file
+reddens both.
 
 ## Building the installer
 
