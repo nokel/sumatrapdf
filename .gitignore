@@ -64,15 +64,28 @@ android/local.properties
 tests/bench-*.ts
 tests/verify-*.ts
 
-# OCR deps: upstream checkouts (leptonica 1.84, tesseract 5.3.4) cloned into ext/,
-# plus the cmake build tree and install prefix they produce
-ext/a-leptonica/
-ext/a-tesseract/
+# the old cmake build tree and install prefix of the OCR deps, now built from ext/a-leptonica and ext/a-tesseract
 ext/build/
-# OCR smoke-test binaries and the generated test pdf
+# OCR smoke tests, fixture generators and their output
 ext/*.exe
 ext/*.obj
+ext/*.bat
+ext/*.py
+ext/*.cpp
+ext/*.cmake
 ext/ocr-test.pdf
+# test suites, probes and fixtures written for this fork; upstream's own tests/ files stay tracked
+/tests/
+/build-check/
+# agent notes and dumps, not part of the program
+/.agents/
+/docs/AI-*.md
+/docs/LIBRARY-NOTES.md
+/docs/book-record.md
+/menu-dump.txt
+# extracted driver installers
+/$extract/
+/$extractDir/
 # scratch build/run logs
 tmp*.log
 # python bytecode from the test scripts
