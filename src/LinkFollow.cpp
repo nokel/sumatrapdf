@@ -34,6 +34,8 @@ Kind kNotifLinkFollow = "notifLinkFollow";
 // on screen 1..9 and the matching digit follows one, so links can be reached
 // without the mouse (issue #2629).
 
+constexpr int kLinkFollowEnterRetries = 10;
+
 // only formats whose pages can carry links. image collections (comic books,
 // image folders, single images) never do, and the browser-backed controllers
 // (CHM, markdown) have their own hyperlink handling and no DisplayModel.
@@ -84,16 +86,17 @@ static int CmpTargetsInReadingOrder(const ScreenTarget* a, const ScreenTarget* b
     return 0;
 }
 
-void KeyboardLinkFollowingRecompute(MainWindow* win) {
+bool KeyboardLinkFollowingRecompute(MainWindow* win) {
     win->linkFollowTargets.Reset();
     if (!KeyboardLinkFollowingActive(win) || !CanFollowLinksWithKeyboard(win)) {
-        return;
+        return true;
     }
     DisplayModel* dm = win->AsFixed();
     EngineBase* engine = dm->GetEngine();
     Rect viewPort(Point(), dm->GetViewPort().Size());
 
     Vec<ScreenTarget> found;
+    bool readEveryPage = true;
     int nPages = dm->PageCount();
     for (int pageNo = 1; pageNo <= nPages; pageNo++) {
         PageInfo* pi = dm->GetPageInfo(pageNo);
@@ -104,6 +107,7 @@ void KeyboardLinkFollowingRecompute(MainWindow* win) {
         // the UI here; a page we miss is picked up by the next recompute
         Vec<IPageElement*> els;
         if (!engine->TryGetElements(pageNo, &els)) {
+            readEveryPage = false;
             continue;
         }
         for (IPageElement* el : els) {
@@ -128,6 +132,7 @@ void KeyboardLinkFollowingRecompute(MainWindow* win) {
     for (int i = 0; i < n; i++) {
         win->linkFollowTargets.Append(found[i].target);
     }
+    return readEveryPage;
 }
 
 // returns true if the mode was on (and is now off), so callers can tell whether
@@ -137,10 +142,36 @@ bool StopKeyboardLinkFollowing(MainWindow* win) {
         return false;
     }
     win->linkFollowActive = false;
+    win->linkFollowRetriesLeft = 0;
     win->linkFollowTargets.Reset();
     KillTimer(win->hwndCanvas, kLinkFollowTimerID);
     ScheduleRepaint(win, 0);
     return true;
+}
+
+// nothing to follow: don't leave the user in a mode with no feedback
+static void GiveUpKeyboardLinkFollowing(MainWindow* win) {
+    win->linkFollowActive = false;
+    win->linkFollowRetriesLeft = 0;
+    win->linkFollowTargets.Reset();
+    NotificationCreateArgs args;
+    args.hwndParent = win->hwndCanvas;
+    args.msg = _TRA("No links on this page");
+    args.timeoutMs = 2000;
+    args.groupId = kNotifLinkFollow;
+    ShowNotification(args);
+    ScheduleRepaint(win, 0);
+}
+
+// A page whose elements couldn't be read (a render thread holds pagesLock, or
+// it isn't fully loaded yet) is not a page without links, so an empty result
+// only means "no links here" once every visible page was actually read. Until
+// then keep the mode on and retry on the recompute timer, or Shift + F during
+// a render would answer "No links on this page" and refuse to open.
+static void RetryEnteringKeyboardLinkFollowing(MainWindow* win) {
+    win->linkFollowRetriesLeft = kLinkFollowEnterRetries;
+    SetTimer(win->hwndCanvas, kLinkFollowTimerID, kLinkFollowRecomputeDelayInMs, nullptr);
+    ScheduleRepaint(win, 0);
 }
 
 void ToggleKeyboardLinkFollowing(MainWindow* win) {
@@ -151,19 +182,37 @@ void ToggleKeyboardLinkFollowing(MainWindow* win) {
         return;
     }
     win->linkFollowActive = true;
-    KeyboardLinkFollowingRecompute(win);
+    win->linkFollowRetriesLeft = 0;
+    bool readEveryPage = KeyboardLinkFollowingRecompute(win);
     if (len(win->linkFollowTargets) == 0) {
-        // nothing to follow: don't leave the user in a mode with no feedback
-        win->linkFollowActive = false;
-        NotificationCreateArgs args;
-        args.hwndParent = win->hwndCanvas;
-        args.msg = _TRA("No links on this page");
-        args.timeoutMs = 2000;
-        args.groupId = kNotifLinkFollow;
-        ShowNotification(args);
+        if (!readEveryPage) {
+            RetryEnteringKeyboardLinkFollowing(win);
+            return;
+        }
+        GiveUpKeyboardLinkFollowing(win);
         return;
     }
     ScheduleRepaint(win, 0);
+}
+
+// the recompute timer fired: either scrolling settled, or we are still trying
+// to enter the mode on pages that weren't readable yet
+void KeyboardLinkFollowingRecomputeSettled(MainWindow* win) {
+    bool entering = win->linkFollowRetriesLeft > 0;
+    bool readEveryPage = KeyboardLinkFollowingRecompute(win);
+    if (!entering) {
+        return;
+    }
+    if (len(win->linkFollowTargets) > 0) {
+        win->linkFollowRetriesLeft = 0;
+        return;
+    }
+    win->linkFollowRetriesLeft--;
+    if (readEveryPage || win->linkFollowRetriesLeft <= 0) {
+        GiveUpKeyboardLinkFollowing(win);
+        return;
+    }
+    SetTimer(win->hwndCanvas, kLinkFollowTimerID, kLinkFollowRecomputeDelayInMs, nullptr);
 }
 
 // Recomputing on every scroll step would re-enumerate every visible page's

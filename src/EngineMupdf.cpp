@@ -5706,15 +5706,17 @@ bool EngineMupdf::TryGetElements(int pageNo, Vec<IPageElement*>* out) {
         return false;
     }
     ReportIf(pageNo < 1 || pageNo > pageCount);
+    bool read = false;
     if (pageNo >= 1 && pageNo <= pageCount) {
         FzPageInfo* pageInfo = pages[pageNo - 1];
         if (pageInfo && pageInfo->page && pageInfo->fullyLoaded) {
             BuildElementsInfo(pageInfo);
             *out = pageInfo->allElements;
+            read = true;
         }
     }
     pagesLock.Unlock();
-    return true;
+    return read;
 }
 
 static void HandleLinkMupdf(EngineMupdf* e, IPageDestination* dest, ILinkHandler* linkHandler) {

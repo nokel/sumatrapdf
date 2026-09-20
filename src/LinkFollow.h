@@ -14,7 +14,8 @@ bool KeyboardLinkFollowingActive(MainWindow*);
 bool StopKeyboardLinkFollowing(MainWindow*);
 bool KeyboardLinkFollowingOnChar(MainWindow*, WPARAM key);
 void KeyboardLinkFollowingViewportChanged(MainWindow*);
-void KeyboardLinkFollowingRecompute(MainWindow*);
+bool KeyboardLinkFollowingRecompute(MainWindow*);
+void KeyboardLinkFollowingRecomputeSettled(MainWindow*);
 void PaintKeyboardLinkTargets(MainWindow*, Gfx*);
 
 TempStr KeyboardLinkFollowResultTemp(int* exitCodeOut);

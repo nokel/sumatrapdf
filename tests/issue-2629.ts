@@ -162,13 +162,12 @@ async function testLinkedPdf(): Promise<void> {
         fail(`expected the Shift + F shortcut, got '${state.accel}'`, dump);
       }
 
-      // turn the mode on
+      // turn the mode on. The numbering can lag the mode by a recompute when a
+      // page isn't readable yet (a render thread holds the engine's pagesLock),
+      // so wait for the count rather than assert on the first state that comes
+      // back: 3 links are near the top of page 1, the 4th is far below the fold
       sendCommandSync(frame, cmdId("CmdToggleKeyboardLinkFollowing"));
-      ({ state, dump } = await waitForState(client, (s) => s.active));
-      // 3 links are near the top of page 1; the 4th is far below the fold
-      if (state.count !== 3) {
-        fail(`expected 3 numbered links at the top of page 1, got ${state.count}`, dump);
-      }
+      ({ state, dump } = await waitForState(client, (s) => s.active && s.count === 3));
 
       // the command toggles: a second one leaves the mode
       sendCommandSync(frame, cmdId("CmdToggleKeyboardLinkFollowing"));

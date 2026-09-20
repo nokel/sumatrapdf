@@ -577,6 +577,7 @@ struct MainWindow {
     // keyboard link following: when on, visible links are numbered 1..9 and
     // pressing a digit follows that link (see LinkFollow.cpp)
     bool linkFollowActive = false;
+    int linkFollowRetriesLeft = 0;
     Vec<KeyboardLinkTarget> linkFollowTargets;
 
     // keyboard text selection: a caret you move with the arrow keys to select
