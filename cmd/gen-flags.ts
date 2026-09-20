@@ -90,6 +90,7 @@ const args = [
     "DumpChm", "dump-chm",
     "Control", "dbg-control",
     "UnitTests", "unit-tests",
+    "PagesAlike", "pages-alike",
 ];
 
 function generateCode(): string {

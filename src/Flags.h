@@ -104,6 +104,7 @@ struct Flags {
     bool dumpExif = false;   // -dump-exif
     bool dumpChm = false;    // -dump-chm
     bool unitTests = false;  // -unit-tests (debug builds only)
+    bool pagesAlike = false;
     bool showPrintersDialog = false;
 
     bool crashOnOpen = false;

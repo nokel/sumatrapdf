@@ -75,6 +75,7 @@ void TestTriggerBookEdit(Str body, Str bookId);
 void TestTriggerUserFieldEdit(Str bookId, Str field, Str value, Str exactKey);
 TempStr TestLibDeskStateTemp();
 TempStr TestLibDeskRenderedTemp();
+TempStr TestLibRenderedTemp();
 TempStr TestLibDeskActsTemp();
 void TestLibDeskActsReset();
 int CurrentLibScrollY();

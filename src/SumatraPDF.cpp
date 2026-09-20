@@ -10490,8 +10490,9 @@ bool LibraryEnsureService() {
     if (!file::Exists(python) || !file::Exists(module)) {
         return false;
     }
-    TempStr cmdLine = fmt("\"%s\" -m audiobook.library --port %d --parent-pid %d --ignore-days %d", python,
-                          LibraryServicePort(), (int)GetCurrentProcessId(), LibraryIgnoreDays());
+    TempStr cmdLine =
+        fmt("\"%s\" -m audiobook.library --port %d --parent-pid %d --ignore-days %d --sumatra-exe \"%s\"", python,
+            LibraryServicePort(), (int)GetCurrentProcessId(), LibraryIgnoreDays(), GetSelfExePathTemp());
     Vec<LibraryRoot*>* rootRows = gGlobalPrefs->audiobook.libraryRoots;
     if (rootRows) {
         for (LibraryRoot* row : *rootRows) {

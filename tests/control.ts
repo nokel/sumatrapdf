@@ -52,6 +52,11 @@ export enum ControlCommand {
   TestLibraryIndexing = 85,
   TestLibImportBook = 86,
   TestLibImportState = 87,
+  TestLibDeskState = 88,
+  TestLibDeskRendered = 89,
+  TestLibDeskActs = 90,
+  TestLibDeskActsReset = 91,
+  TestLibRendered = 92,
   TestPageComments = 45,
   TestAdvSettingsRows = 46,
   TestDestZoomNav = 47,
@@ -324,6 +329,14 @@ function cleanEnv(env: Record<string, string | undefined> | undefined): Record<s
   return res;
 }
 
+// a control command whose response never arrived: the application is alive but
+// not answering, which is a test failure rather than something to wait out
+export class ControlTimeoutError extends Error {
+  constructor(readonly cmd: number, readonly timeoutMs: number) {
+    super(`control command ${cmd} did not complete within ${timeoutMs}ms`);
+  }
+}
+
 export class ControlClient {
   private nextId = 1;
 
@@ -345,13 +358,32 @@ export class ControlClient {
     throw new Error(`failed to connect to Sumatra control pipe ${path}: ${lastErr}`);
   }
 
-  async request(cmd: ControlCommand, args: ControlArg[] = []): Promise<ControlArg[]> {
+  // every request carries a hard deadline: a live-but-frozen application must
+  // fail the waiting stage with the command that hung, never block the harness
+  async request(cmd: ControlCommand, args: ControlArg[] = [],
+                timeoutMs = 30_000): Promise<ControlArg[]> {
     if (this.socket.destroyed) {
       throw new Error("control pipe closed");
     }
     const id = this.nextId++ & 0xffff;
     this.socket.write(encodeRequest(cmd, id, args));
 
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        this.readResponse(id),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new ControlTimeoutError(cmd, timeoutMs)), timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  private async readResponse(id: number): Promise<ControlArg[]> {
     const sizeBuf = await readExactly(this.socket, 4);
     const size = sizeBuf.readUInt32LE(0);
     const payload = await readExactly(this.socket, size);
@@ -380,7 +412,8 @@ export class ControlClient {
   // timeoutMs is forwarded to the app (default 15s there too).
   async waitForRenderIdle(timeoutMs = 15000): Promise<string> {
     // scaled, so a test that asks for "30s" gets 30s of debug-build rendering
-    const res = await this.request(ControlCommand.WaitRenderIdle, [timeoutMs * SLOW_BUILD_FACTOR]);
+    const appTimeout = timeoutMs * SLOW_BUILD_FACTOR;
+    const res = await this.request(ControlCommand.WaitRenderIdle, [appTimeout], appTimeout + 20_000);
     const code = typeof res[0] === "number" ? res[0] : -1;
     const info = String(res[1] ?? "");
     if (code !== 0) {
@@ -474,19 +507,46 @@ export async function withControlledSumatra<T>(
     cwd: options.cwd,
     env: cleanEnv(options.env),
   });
+  // drain stderr continuously: a piped stderr nobody reads fills its OS buffer
+  // (~64KB) and then blocks the application on its next write
+  const stderrChunks: Uint8Array[] = [];
+  const stderrDrain: Promise<void> = proc.stderr
+    ? (async () => {
+        const reader = proc.stderr.getReader();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          stderrChunks.push(value);
+        }
+      })().catch(() => {})
+    : Promise.resolve();
   let client: ControlClient | undefined;
   let killed = false;
   let result: T | undefined;
   let fnErr: unknown;
   let fnOk = false;
   try {
-    client = await ControlClient.connect(pipeName, options.connectTimeoutMs ?? 10000);
+    const { waitGuarded } = await import("./gui-watchdog.ts");
+    await waitGuarded({ pid: proc.pid, label: "startup-" + proc.pid,
+      out: "scratchpad/gui-watchdog", step: "application observation connection opens",
+      timeoutMs: options.connectTimeoutMs ?? 10000,
+      ready: async () => {
+        client = await ControlClient.connect(pipeName, options.connectTimeoutMs ?? 10000);
+        return 1;
+      } });
     result = await fn(client, proc);
     fnOk = true;
   } catch (e) {
     fnErr = e;
   } finally {
-    if (client) {
+    if (proc.exitCode !== null) {
+      // the test already closed the application through its own visible UI
+      if (client) {
+        client.close();
+      }
+    } else if (client) {
       try {
         await client.quit();
       } catch {
@@ -513,7 +573,11 @@ export async function withControlledSumatra<T>(
     await killAndWait(proc);
     throw new Error("SumatraPDF did not exit within 30s of Quit");
   }
-  const stderrText = proc.stderr ? (await new Response(proc.stderr).text()).trim() : "";
+  await Promise.race([stderrDrain, new Promise((r) => setTimeout(r, 5_000))]);
+  const stderrText = stderrChunks
+    .map((c) => new TextDecoder().decode(c))
+    .join("")
+    .trim();
   if (!fnOk) {
     if (stderrText) {
       console.error(stderrText);

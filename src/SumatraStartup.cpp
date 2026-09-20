@@ -74,6 +74,19 @@
 #include "LibraryPage.h"
 #include "SumatraControl.h"
 #include "SumatraLog.h"
+#include "BookFingerprint.h"
+
+static int RunPagesAlike(const Flags& flags) {
+    if (flags.fileNames.size != 2 || !file::Exists(flags.fileNames.At(0)) || !file::Exists(flags.fileNames.At(1))) {
+        return 2;
+    }
+    Vec<u64> one;
+    Vec<u64> other;
+    if (!BookPageHashesOfFile(flags.fileNames.At(0), one) || !BookPageHashesOfFile(flags.fileNames.At(1), other)) {
+        return 2;
+    }
+    return BookPageHashesLookAlike(one, other) ? 0 : 1;
+}
 
 // return false if failed in a way that should abort the app
 static NO_INLINE bool MaybeMakePluginWindow(MainWindow* win, HWND hwndParent) {
@@ -2349,7 +2362,7 @@ int APIENTRY WinMain(_In_ HINSTANCE /*hInstance*/, _In_opt_ HINSTANCE /*hPrevIns
     // when not a single self-contained exe, a missing sibling libsumatrapdf.dll means
     // we're really the installer; run it (matches pre-single-exe behavior)
     if (!gSingleExe && ForceRunningAsInstaller() && !flags.dumpExif && !flags.dumpChm && !flags.engineDump &&
-        !flags.unitTests) {
+        !flags.unitTests && !flags.pagesAlike) {
         logf("forcing running as an installer\n");
         exitCode = RunInstaller();
         // exit immediately. for some reason exit handlers try to
@@ -2422,6 +2435,10 @@ int APIENTRY WinMain(_In_ HINSTANCE /*hInstance*/, _In_opt_ HINSTANCE /*hPrevIns
         gLogToConsole = false;
         DumpExif(flags);
         return 0;
+    }
+
+    if (flags.pagesAlike) {
+        return RunPagesAlike(flags);
     }
 
     if (flags.appdataDir) {

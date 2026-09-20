@@ -471,16 +471,30 @@ int BookPageHashDistance(u64 a, u64 b) {
     return n;
 }
 
-bool BookPageHashesLookAlike(const Vec<u64>& a, const Vec<u64>& b, int perPage) {
-    if (a.len == 0 || b.len == 0 || a.len != b.len) {
-        return false;
-    }
-    for (int i = 0; i < a.len; i++) {
-        if (BookPageHashDistance(a[i], b[i]) > perPage) {
-            return false;
+static void InkedPageHashes(const Vec<u64>& all, Vec<u64>& out) {
+    out.Reset();
+    for (int i = 0; i < all.len; i++) {
+        if (all[i] != 0) {
+            out.Append(all[i]);
         }
     }
-    return true;
+}
+
+bool BookPageHashesLookAlike(const Vec<u64>& a, const Vec<u64>& b, int perPage) {
+    Vec<u64> inkedA;
+    Vec<u64> inkedB;
+    InkedPageHashes(a, inkedA);
+    InkedPageHashes(b, inkedB);
+    if (inkedA.len < kBookPageHashAlikeMinPages || inkedA.len != inkedB.len) {
+        return false;
+    }
+    int close = 0;
+    for (int i = 0; i < inkedA.len; i++) {
+        if (BookPageHashDistance(inkedA[i], inkedB[i]) <= perPage) {
+            close++;
+        }
+    }
+    return close >= kBookPageHashAlikeShare * inkedA.len;
 }
 
 bool BookFingerprintVersionIsKnown(Str fingerprint) {
@@ -972,6 +986,48 @@ bool BookFingerprintOfFile(Str path, BookFingerprint& out, int wantPageHashes, b
     fz_drop_document(ctx, doc);
     fz_drop_context(ctx);
     return true;
+}
+
+bool BookPageHashesOfFile(Str path, Vec<u64>& out) {
+    out.Reset();
+    if (!file::Exists(path)) {
+        return false;
+    }
+    fz_context* ctx = fz_new_context(nullptr, nullptr, FZ_STORE_UNLIMITED);
+    if (!ctx) {
+        return false;
+    }
+    fz_register_document_handlers(ctx);
+    fz_document* doc = nullptr;
+    fz_var(doc);
+    fz_try(ctx) {
+        doc = fz_open_document(ctx, CStrTemp(path));
+    }
+    fz_catch(ctx) {
+        fz_report_error(ctx);
+        doc = nullptr;
+    }
+    if (!doc) {
+        fz_drop_context(ctx);
+        return false;
+    }
+    if (fz_needs_password(ctx, doc)) {
+        fz_drop_document(ctx, doc);
+        fz_drop_context(ctx);
+        return false;
+    }
+    int nPages = 0;
+    fz_try(ctx) {
+        nPages = fz_count_pages(ctx, doc);
+    }
+    fz_catch(ctx) {
+        fz_report_error(ctx);
+        nPages = 0;
+    }
+    PageHashes(ctx, doc, nPages, out);
+    fz_drop_document(ctx, doc);
+    fz_drop_context(ctx);
+    return nPages > 0;
 }
 
 bool BookShapeOfFile(Str path, char shapeOut[33], int* pagesOut) {

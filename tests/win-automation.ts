@@ -42,6 +42,7 @@ import {
   getClientRect,
   clientToScreen,
   getPopupMenuHandle,
+  isWindow,
   readMenuTree,
   getWindowText,
   getFocusedHwnd,
@@ -318,6 +319,10 @@ export function vScrollbarColorCount(canvas: number): number {
 
 // Open hwnd's context menu at the center of its client area and read the whole
 // menu tree (submenus included), then dismiss it. Returns [] if none appeared.
+// The post-ESC wait polls for the popup window to disappear instead of using
+// a fixed sleep: the popup is the application owning this process's menu pump,
+// so it dispatches the WM_KEYDOWN the moment we post it; the wait is purely
+// for the OS to actually destroy the popup window.
 export async function readContextMenuTree(hwnd: number): Promise<MenuItem[]> {
   const cr = getClientRect(hwnd);
   const s = clientToScreen(hwnd, Math.floor(cr.right / 2), Math.floor(cr.bottom / 2));
@@ -329,7 +334,15 @@ export async function readContextMenuTree(hwnd: number): Promise<MenuItem[]> {
   const hmenu = getPopupMenuHandle(popup);
   const items = hmenu ? readMenuTree(hmenu) : [];
   postMessage(popup, WM_KEYDOWN, VK_ESCAPE, 0);
-  await sleep(150);
+  // poll until the popup window is actually gone; the observable readiness
+  // condition is `isWindow(popup) === false`. ceiling 3000 ms, poll 50 ms.
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline) {
+    if (!isWindow(popup)) {
+      return items;
+    }
+    await sleep(50);
+  }
   return items;
 }
 

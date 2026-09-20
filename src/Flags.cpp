@@ -43,7 +43,7 @@ enum class Arg {
     AllUsers = 72, AllUsers2 = 73, RunInstallNow = 74, Adobe = 75,
     DDE = 76, Pwd = 77, EngineDump = 78, SetColorRange = 79,
     UpgradeFrom = 80, ForTesting = 81, WindowPos = 82, DumpExif = 83,
-    DumpChm = 84, Control = 85, UnitTests = 86,
+    DumpChm = 84, Control = 85, UnitTests = 86, PagesAlike = 87,
 };
 
 static SeqStrings gArgNames =
@@ -68,7 +68,7 @@ static SeqStrings gArgNames =
     "all-users\0" "allusers\0" "run-install-now\0" "a\0"
     "dde\0" "pwd\0" "engine-dump\0" "set-color-range\0"
     "upgrade-from\0" "for-testing\0" "window-pos\0" "dump-exif\0"
-    "dump-chm\0" "dbg-control\0" "unit-tests\0";
+    "dump-chm\0" "dbg-control\0" "unit-tests\0" "pages-alike\0";
 // clang-format on
 // @gen-end flags
 
@@ -746,6 +746,16 @@ void ParseFlags(Arena* a, WStr cmdLine, Flags& i, Str toolNames) {
         if (arg == Arg::DumpChm) {
             i.fileNames.Append(str::Dup(a, param));
             i.dumpChm = true;
+            i.exitImmediately = true;
+            continue;
+        }
+        if (arg == Arg::PagesAlike) {
+            i.fileNames.Append(str::Dup(a, param));
+            Str other = args.EatParam();
+            if (other) {
+                i.fileNames.Append(str::Dup(a, other));
+            }
+            i.pagesAlike = true;
             i.exitImmediately = true;
             continue;
         }

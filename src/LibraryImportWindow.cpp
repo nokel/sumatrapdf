@@ -70,6 +70,13 @@ void FreeLibraryImportData(LibraryImportData* data) {
     str::Free(data->path);
     str::Free(data->bookId);
     str::Free(data->bookJson);
+    str::Free(data->mode);
+    str::Free(data->rejectRow);
+    str::Free(data->rejectName);
+    str::Free(data->currentRow);
+    str::Free(data->currentName);
+    str::Free(data->proposalRow);
+    str::Free(data->proposalName);
     str::Free(data->proposedKind);
     str::Free(data->chosenKind);
     str::Free(data->already);
@@ -168,11 +175,39 @@ static void AddFieldRow(Table* table, int row, PlatformFont* font, bool isRtl, S
     sc.alignV = CrossAxisAlign::CrossCenter;
 }
 
+static bool IsConfirmMode(const LibraryImportData* d) {
+    return str::Eq(d->mode, StrL("confirm"));
+}
+
+static bool IsReclassifyMode(const LibraryImportData* d) {
+    return str::Eq(d->mode, StrL("reclassify"));
+}
+
+static Str WindowTitleFor(const LibraryImportData* d) {
+    if (IsConfirmMode(d)) {
+        return StrL("Confirm classification");
+    }
+    if (IsReclassifyMode(d)) {
+        return StrL("Manually reclassify book");
+    }
+    return StrL("Manually add book to library");
+}
+
+static Str CommitLabelFor(const LibraryImportData* d) {
+    if (IsConfirmMode(d)) {
+        return StrL("Confirm");
+    }
+    if (IsReclassifyMode(d)) {
+        return StrL("Reclassify");
+    }
+    return StrL("Add to library");
+}
+
 bool LibraryImportWnd::Create(MainWindow* mainWin) {
     win = mainWin;
     {
         CreateCustomArgs args;
-        args.title = StrL("Manually add book to library");
+        args.title = WindowTitleFor(data);
         args.visible = false;
         args.style = WS_POPUPWINDOW | WS_CAPTION;
         args.font = GetFont();
@@ -219,6 +254,19 @@ bool LibraryImportWnd::Create(MainWindow* mainWin) {
         });
         vbox->AddChild(c);
         str::Free(line);
+    }
+    if (IsConfirmMode(data)) {
+        TempStr proposed = len(data->series.value) > 0 ? fmt("the Series %s", Str(data->series.value))
+                                                      : str::DupTemp(StrL("no Series"));
+        auto* c = NewVirtText({
+            .s = Str(fmt("You have removed this book from %s. The Library now proposes %s. Correct the "
+                         "classification below or confirm it; nothing changes until you do.",
+                         Str(data->rejectName), Str(proposed))),
+            .font = font,
+            .isRtl = isRtl,
+            .padding = DpiScaledInsets(0, 0, 6, 0),
+        });
+        vbox->AddChild(c);
     }
     if (data->excluded) {
         auto* c = NewVirtText({
@@ -302,7 +350,7 @@ bool LibraryImportWnd::Create(MainWindow* mainWin) {
         btnCancel = NewThemedButton(hwnd, StrL("Cancel"), font, false);
         btnCancel->onClick = MkMethod1<LibraryImportWnd, VirtMouseEvent*, &LibraryImportWnd::OnCancel>(this);
         hbox->AddChild(new Padding(btnCancel, pad));
-        btnAdd = NewThemedButton(hwnd, StrL("Add to library"), font, true);
+        btnAdd = NewThemedButton(hwnd, CommitLabelFor(data), font, true);
         btnAdd->onClick = MkMethod1<LibraryImportWnd, VirtMouseEvent*, &LibraryImportWnd::OnAdd>(this);
         hbox->AddChild(new Padding(btnAdd, pad));
         vbox->AddChild(hbox);
@@ -398,6 +446,7 @@ TempStr TestLibraryImportStateTemp() {
     LibraryImportData* d = w->data;
     str::Builder b;
     b.Append(StrL("open=1\n"));
+    b.Append(fmt("mode=%s\n", Str(d->mode)));
     b.Append(fmt("path=%s\n", Str(d->path)));
     b.Append(fmt("proposed_kind=%s\n", Str(d->proposedKind)));
     b.Append(fmt("excluded=%d\n", d->excluded ? 1 : 0));

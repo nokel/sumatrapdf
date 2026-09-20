@@ -10,6 +10,8 @@ constexpr int kBookRunningLineMinPages = 4;
 constexpr int kBookImageOnlyCharsPerPage = 40;
 constexpr int kBookPageHashSide = 8;
 constexpr int kBookPageHashScale = 4;
+constexpr int kBookPageHashAlikeMinPages = 8;
+constexpr double kBookPageHashAlikeShare = 0.75;
 constexpr const char* kBookStextTextOptions = "preserve-ligatures,preserve-whitespace,use-cid-for-unknown-unicode";
 
 constexpr int kBookOcrMinTokensForIdentity = 64;
@@ -64,3 +66,4 @@ bool BookIsImageOnly(const StrVec& pages);
 
 int BookPageHashDistance(u64 a, u64 b);
 bool BookPageHashesLookAlike(const Vec<u64>& a, const Vec<u64>& b, int perPage = 10);
+bool BookPageHashesOfFile(Str path, Vec<u64>& out);

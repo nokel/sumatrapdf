@@ -75,7 +75,9 @@ ext/*.cpp
 ext/*.cmake
 ext/ocr-test.pdf
 # test suites, probes and fixtures written for this fork; upstream's own tests/ files stay tracked
-/tests/
+/tests/*
+# harness modules the tracked suites import, so a clean checkout can run them
+!/tests/gui-watchdog.ts
 /build-check/
 # agent notes and dumps, not part of the program
 /.agents/

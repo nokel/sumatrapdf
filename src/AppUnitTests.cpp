@@ -411,6 +411,58 @@ static void BookFingerprint_UnitTests() {
     str::Free(listData);
 }
 
+static void BookPageHashesLookAlike_UnitTests() {
+    Vec<u64> pages;
+    for (int i = 0; i < 12; i++) {
+        pages.Append(0x0123456789abcdefull * (u64)(i + 1));
+    }
+    Vec<u64> interleaved;
+    for (int i = 0; i < pages.len; i++) {
+        interleaved.Append(0);
+        interleaved.Append(pages[i] ^ 0x3full);
+        interleaved.Append(0);
+    }
+    utassert(BookPageHashesLookAlike(pages, interleaved));
+    utassert(BookPageHashesLookAlike(interleaved, pages));
+
+    Vec<u64> nineClose;
+    for (int i = 0; i < pages.len; i++) {
+        nineClose.Append(i < 9 ? pages[i] : ~pages[i]);
+    }
+    utassert(BookPageHashesLookAlike(pages, nineClose));
+    Vec<u64> eightClose;
+    for (int i = 0; i < pages.len; i++) {
+        eightClose.Append(i < 8 ? pages[i] : ~pages[i]);
+    }
+    utassert(!BookPageHashesLookAlike(pages, eightClose));
+
+    Vec<u64> elevenBits;
+    for (int i = 0; i < pages.len; i++) {
+        elevenBits.Append(pages[i] ^ 0x7ffull);
+    }
+    utassert(!BookPageHashesLookAlike(pages, elevenBits));
+
+    Vec<u64> shorter;
+    for (int i = 0; i < pages.len - 1; i++) {
+        shorter.Append(pages[i]);
+    }
+    utassert(!BookPageHashesLookAlike(pages, shorter));
+
+    Vec<u64> sevenA;
+    Vec<u64> sevenB;
+    for (int i = 0; i < 7; i++) {
+        sevenA.Append(pages[i]);
+        sevenB.Append(pages[i]);
+    }
+    utassert(!BookPageHashesLookAlike(sevenA, sevenB));
+
+    Vec<u64> blank;
+    for (int i = 0; i < 12; i++) {
+        blank.Append(0);
+    }
+    utassert(!BookPageHashesLookAlike(blank, blank));
+}
+
 static void MobiCover_UnitTests() {
     TempStr listPath = EnvVarTemp("SUMATRA_MOBI_LIST");
     TempStr outPath = EnvVarTemp("SUMATRA_MOBI_OUT");
@@ -1481,6 +1533,7 @@ int RunAppUnitTests() {
     InteropBook_UnitTests();
     BookSubstanceHash_UnitTests();
     BookFingerprint_UnitTests();
+    BookPageHashesLookAlike_UnitTests();
     MobiCover_UnitTests();
     NativeCover_UnitTests();
     BuiltCover_UnitTests();

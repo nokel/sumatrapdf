@@ -14,6 +14,13 @@ struct LibraryImportData {
     Str path;
     Str bookId;
     Str bookJson;
+    Str mode;
+    Str rejectRow;
+    Str rejectName;
+    Str currentRow;
+    Str currentName;
+    Str proposalRow;
+    Str proposalName;
     LibraryImportField title;
     LibraryImportField author;
     LibraryImportField series;

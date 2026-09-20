@@ -101,6 +101,8 @@ struct InlineEdit;
 static void CommitInlineEdit(bool commit);
 static void StartInlineEdit(MainWindow* win, LibBook* book, InlineField field, Rect fieldRect);
 static void PostBookEdit(const char* path, Str body, Str bookId, int reverted = 0);
+struct LibBook;
+static void LibBookClearFieldSource(LibBook* b, InlineField f);
 struct LibSeries;
 static LibSeries* RowByKey(Str key);
 constexpr const char* kLinkOpen = "<Library,Open>";
@@ -141,6 +143,7 @@ constexpr int kMenuRenameSeries = 14;
 constexpr int kMenuEditBookMetadata = 15;
 constexpr int kMenuRestoreAutoSeries = 16;
 constexpr int kMenuRestoreAutoParent = 17;
+constexpr int kMenuReclassifyBook = 18;
 constexpr int kMenuRejoinFirst = 60;
 constexpr int kMenuPartitionFirst = 100;
 constexpr int kMenuSeriesFirst = 1000;
@@ -1886,6 +1889,8 @@ struct LibJob {
     // targeted PersistBookMetadata() call can find the right book
     // without re-walking the model.
     Str c;
+    Str d;
+    Str e;
     int cleared = 0;
     LoadMode loadMode = LoadMode::Full;
 };
@@ -1923,6 +1928,8 @@ static void FreeJob(LibJob* j) {
     str::Free(j->a);
     str::Free(j->b);
     str::Free(j->c);
+    str::Free(j->d);
+    str::Free(j->e);
     delete j;
 }
 
@@ -3597,6 +3604,11 @@ static int PortableYear(const CoverBookInfo& b) {
     return b.yearIsUser ? b.year : 0;
 }
 
+static bool CataloguePlacedBook(const CoverBookInfo& b) {
+    Str keys[8];
+    return SplitKeys(b.partitions, keys, dimofi(keys)) > 0;
+}
+
 static void FreeCoverBookInfo(CoverBookInfo& info) {
     str::Free(info.path);
     str::Free(info.title);
@@ -3622,6 +3634,7 @@ static void SyncEmbeddedRecords(LoadRecordCache* recordCache) {
     u64 startMs = GetTickCount64();
     int adoptedHits = 0;
     int writes = 0;
+    int unplaced = 0;
     for (int i = 0; i < count && !gLibShutdown; i++) {
         Str id;
         EnterLib();
@@ -3649,7 +3662,10 @@ static void SyncEmbeddedRecords(LoadRecordCache* recordCache) {
         bool carries = len(book.series) > 0 || len(book.seriesParent) > 0 || len(book.genre) > 0 ||
                        len(book.subgenre) > 0 || len(book.tags) > 0 || len(book.partitions) > 0 || statsPtr ||
                        LibrarySidecarHas(book.path);
-        if (len(book.path) > 0 && carries) {
+        if (len(book.path) > 0 && carries && !CataloguePlacedBook(book)) {
+            logf("SyncEmbeddedRecords: %s is not placed by the catalogue yet, leaving its record alone\n", book.path);
+            unplaced++;
+        } else if (len(book.path) > 0 && carries) {
             // chunk 30: if the adopt pass in this same LoadModelThread already
             // read this book's record, reuse it instead of opening the PDF /
             // parsing the LZMA2 blob again just to learn "nothing changed".
@@ -3686,10 +3702,10 @@ static void SyncEmbeddedRecords(LoadRecordCache* recordCache) {
     LibrarySidecarPerfCounters(&readCountAfter, &writeCountAfter);
     logf(
         "SyncEmbeddedRecords: %d books in %llu ms; PdfSidecar ctx +%d, opened +%d, blob decoded +%d, cover decoded "
-        "+%d; LibrarySidecar reads +%d, writes +%d (adopt hits %d, invalidations %d)\n",
+        "+%d; LibrarySidecar reads +%d, writes +%d (adopt hits %d, invalidations %d, unplaced %d)\n",
         count, (unsigned long long)(endMs - startMs), pdfSidecarCtxAfter - pdfSidecarCtxBefore,
         pdfSidecarOpenedAfter - pdfSidecarOpenedBefore, blobAfter - blobBefore, coverAfter - coverBefore,
-        readCountAfter - readCountBefore, writeCountAfter - writeCountBefore, adoptedHits, writes);
+        readCountAfter - readCountBefore, writeCountAfter - writeCountBefore, adoptedHits, writes, unplaced);
 }
 
 static Str BookPathById(Str id) {
@@ -4139,6 +4155,12 @@ static bool PersistBookMetadata(Str bookId) {
         FreeCoverBookInfo(book);
         return false;
     }
+    if (!CataloguePlacedBook(book)) {
+        logf("PersistBookMetadata: %s (%s) is not placed by the catalogue yet, leaving its record alone\n", bookId,
+             book.path);
+        FreeCoverBookInfo(book);
+        return false;
+    }
     FileState* fs = FileHistoryFindByPath(book.path);
     BlobStats stats;
     BlobStats* statsPtr = nullptr;
@@ -4487,6 +4509,20 @@ struct ImportPreviewParser : JsonVisitor {
             Take(d->subgenre, value);
         } else if (str::Eq(path, StrL("/fields/subgenre/source"))) {
             str::ReplaceWithCopy(&d->subgenre.source, value);
+        } else if (str::Eq(path, StrL("/classification/mode"))) {
+            str::ReplaceWithCopy(&d->mode, value);
+        } else if (str::Eq(path, StrL("/classification/reject/row"))) {
+            str::ReplaceWithCopy(&d->rejectRow, value);
+        } else if (str::Eq(path, StrL("/classification/reject/name"))) {
+            str::ReplaceWithCopy(&d->rejectName, value);
+        } else if (str::Eq(path, StrL("/classification/current/row"))) {
+            str::ReplaceWithCopy(&d->currentRow, value);
+        } else if (str::Eq(path, StrL("/classification/current/name"))) {
+            str::ReplaceWithCopy(&d->currentName, value);
+        } else if (str::Eq(path, StrL("/classification/proposal/key"))) {
+            str::ReplaceWithCopy(&d->proposalRow, value);
+        } else if (str::Eq(path, StrL("/classification/proposal/name"))) {
+            str::ReplaceWithCopy(&d->proposalName, value);
         } else if (str::EndsWith(path, StrL("/key")) && str::StartsWith(path, StrL("/partitions["))) {
             d->partitionKeys.Append(value);
         } else if (str::EndsWith(path, StrL("/name")) && str::StartsWith(path, StrL("/partitions["))) {
@@ -4513,10 +4549,26 @@ static void AppendImportField(str::Builder& b, const char* name, const LibraryIm
 }
 
 static void ImportCommitThread(LibJob* job) {
+    Str fresh{};
+    if (len(job->e) > 0 && LibrarySidecarBrandIfUnbranded(job->e, nullptr, nullptr, false) > 0) {
+        fresh = LibraryScanOneFileToJson(job->e);
+        logf("LibraryImport: branded the book the user added as a Book: %s\n", job->e);
+    }
+    str::Builder payload;
+    payload.Append(job->a);
+    payload.Append(len(fresh) > 0 ? fresh : job->b);
+    payload.Append(job->d);
+    str::Free(fresh);
     LibraryEnsureService();
-    bool ok = ServicePost("/import/commit", job->a);
+    bool ok = ServicePost("/import/commit", ToStr(payload));
     logf("LibraryImport: commit posted=%d\n", (int)ok);
+    Str bookId = str::Dup(job->c);
     FreeJob(job);
+    if (ok && len(bookId) > 0) {
+        bool persisted = PersistBookMetadata(bookId);
+        logf("LibraryImport: classification persisted to the book file=%d\n", (int)persisted);
+    }
+    str::Free(bookId);
     EnterLib();
     gModel.loading = true;
     gModel.loaded = false;
@@ -4540,9 +4592,18 @@ static void LibraryImportCommit(MainWindow* win, LibraryImportData* d) {
         body.Append(JsonStrTemp(roots.At(i)));
     }
     body.Append("],\"book\":");
-    body.Append(d->bookJson);
+    Str prefix = body.TakeStr();
     body.Append(fmt(",\"kind\":%s", JsonStrTemp(d->chosenKind)));
     body.Append(fmt(",\"proposed_kind\":%s", JsonStrTemp(d->proposedKind)));
+    bool classifying = len(d->mode) > 0;
+    if (classifying) {
+        body.Append(fmt(",\"mode\":%s", JsonStrTemp(d->mode)));
+        body.Append(fmt(",\"reject\":{\"row\":%s,\"name\":%s}", JsonStrTemp(d->rejectRow), JsonStrTemp(d->rejectName)));
+        body.Append(fmt(",\"current\":{\"row\":%s,\"name\":%s}", JsonStrTemp(d->currentRow),
+                        JsonStrTemp(d->currentName)));
+        body.Append(fmt(",\"proposal\":{\"row\":%s,\"name\":%s}", JsonStrTemp(d->proposalRow),
+                        JsonStrTemp(d->proposalName)));
+    }
     if (len(d->partitionKey) > 0) {
         body.Append(fmt(",\"partition\":%s", JsonStrTemp(d->partitionKey)));
     }
@@ -4558,23 +4619,59 @@ static void LibraryImportCommit(MainWindow* win, LibraryImportData* d) {
     body.Append("}}");
     Str payload = body.TakeStr();
     logf("LibraryImport: committing %s as %s\n", d->path, d->chosenKind);
-    RunLibJob(ImportCommitThread, NewJob(payload), "libImportCommit");
+    Str persistId{};
+    LibBook* book = classifying ? BookById(d->bookId) : nullptr;
+    if (book) {
+        bool leaving = str::Eq(d->mode, StrL("confirm")) || d->series.overridden;
+        if (leaving && str::EqI(book->seriesSource, StrL("user"))) {
+            LibBookClearFieldSource(book, InlineField::Series);
+        }
+        persistId = d->bookId;
+    }
+    LibJob* job = NewJob3(prefix, d->bookJson, persistId);
+    job->d = str::Dup(payload);
+    if (str::Eq(d->chosenKind, StrL("book"))) {
+        job->e = str::Dup(d->path);
+    }
+    RunLibJob(ImportCommitThread, job, "libImportCommit");
+    str::Free(prefix);
     str::Free(payload);
 }
+
+enum class ImportPreviewFailure {
+    None,
+    ReadFile,
+    Request,
+    HttpStatus,
+};
 
 struct ImportPreviewJob {
     MainWindow* win = nullptr;
     Str path;
     Str reply;
     Str bookJson;
+    Str mode;
+    ImportPreviewFailure failure = ImportPreviewFailure::None;
+    DWORD requestError = ERROR_SUCCESS;
+    DWORD httpStatusCode = 0;
 };
 
 static void ShowImportPreview(ImportPreviewJob* job) {
     if (!job) {
         return;
     }
-    if (len(job->reply) == 0) {
-        logf("LibraryImport: could not read the picked file\n");
+    if (job->failure != ImportPreviewFailure::None) {
+        HWND hwnd = job->win ? job->win->hwndFrame : nullptr;
+        Str msg = StrL("Manual Import could not prepare a preview. No changes were made. Close this message and try "
+                       "again.");
+        if (job->failure == ImportPreviewFailure::ReadFile) {
+            logf("LibraryImport: could not read the picked file\n");
+        } else if (job->failure == ImportPreviewFailure::HttpStatus) {
+            logf("LibraryImport: preview request returned HTTP %lu\n", job->httpStatusCode);
+        } else {
+            logf("LibraryImport: preview request failed, error=%lu\n", job->requestError);
+        }
+        MessageBoxWarning(hwnd, msg, StrL("Manual Import"));
     } else {
         auto* d = new LibraryImportData();
         str::ReplaceWithCopy(&d->path, job->path);
@@ -4582,12 +4679,14 @@ static void ShowImportPreview(ImportPreviewJob* job) {
         str::ReplaceWithCopy(&d->proposedKind, StrL("book"));
         ImportPreviewParser parser(d);
         JsonParseWithVisitor(job->reply, &parser);
+        str::ReplaceWithCopy(&d->mode, job->mode);
         str::ReplaceWithCopy(&d->chosenKind, StrL("book"));
         ShowLibraryImportWindow(job->win, d, LibraryImportCommit);
     }
     str::Free(job->path);
     str::Free(job->reply);
     str::Free(job->bookJson);
+    str::Free(job->mode);
     delete job;
 }
 
@@ -4595,9 +4694,13 @@ static void ImportPreviewThread(LibJob* job) {
     auto* out = new ImportPreviewJob();
     out->win = (len(gWindows) == 0) ? nullptr : gWindows[0];
     out->path = str::Dup(job->a);
+    out->mode = str::Dup(job->b);
+    Str classify = str::Dup(job->c);
     FreeJob(job);
     Str bookJson = LibraryScanOneFileToJson(out->path);
     if (len(bookJson) == 0) {
+        out->failure = ImportPreviewFailure::ReadFile;
+        str::Free(classify);
         uitask::Post(MkFunc0<ImportPreviewJob>(ShowImportPreview, out), "libImportPreview");
         return;
     }
@@ -4613,13 +4716,27 @@ static void ImportPreviewThread(LibJob* job) {
     }
     body.Append("],\"book\":");
     body.Append(bookJson);
+    if (len(out->mode) > 0) {
+        body.Append(fmt(",\"mode\":%s", JsonStrTemp(out->mode)));
+        if (len(classify) > 0) {
+            body.Append(",\"reject\":");
+            body.Append(classify);
+        }
+    }
+    str::Free(classify);
     body.Append("}");
     Str payload = body.TakeStr();
     LibraryEnsureService();
     HttpRsp rsp;
     TempStr url = fmt("http://127.0.0.1:%d/import/preview", LibraryServicePort());
-    if (HttpPostUrl(Str(url), StrL("application/json"), Str(), payload, &rsp) && IsHttpRspOk(&rsp)) {
+    if (HttpPostUrl(Str(url), StrL("application/json"), Str(), payload, &rsp)) {
         out->reply = str::Dup(ToStr(rsp.data));
+    } else if (rsp.httpStatusCode != (DWORD)-1) {
+        out->failure = ImportPreviewFailure::HttpStatus;
+        out->httpStatusCode = rsp.httpStatusCode;
+    } else {
+        out->failure = ImportPreviewFailure::Request;
+        out->requestError = rsp.error;
     }
     str::Free(payload);
     uitask::Post(MkFunc0<ImportPreviewJob>(ShowImportPreview, out), "libImportPreview");
@@ -4636,6 +4753,70 @@ void LibraryImportBook(MainWindow* win) {
     }
     logf("LibraryImport: picked %s\n", picked);
     RunLibJob(ImportPreviewThread, NewJob(Str(picked)), "libImportPreview");
+}
+
+struct RemoveFromSeriesAnswer {
+    Str bookId;
+    Str row;
+    Str name;
+    bool answered = false;
+    bool confirm = false;
+};
+
+static void RemoveFromSeriesDecided(RemoveFromSeriesAnswer* answer) {
+    LibBook* book = BookById(answer->bookId);
+    if (!answer->answered || !book) {
+        logf("RemoveFromSeries: no answer from the library service for %s\n", answer->bookId);
+    } else if (answer->confirm) {
+        TempStr reject = fmt("{\"row\":%s,\"name\":%s}", JsonStrTemp(answer->row), JsonStrTemp(answer->name));
+        logf("RemoveFromSeries: %s asks for confirmation of the next classification\n", answer->bookId);
+        RunLibJob(ImportPreviewThread, NewJob3(book->path, StrL("confirm"), Str(reject)), "libImportPreview");
+    } else {
+        if (str::EqI(book->seriesSource, StrL("user"))) {
+            LibBookClearFieldSource(book, InlineField::Series);
+        }
+        TempStr body = fmt("{\"books\":[%s],\"row\":%s,\"name\":%s}", JsonStrTemp(answer->bookId),
+                           JsonStrTemp(answer->row), JsonStrTemp(answer->name));
+        PostBookEdit("/series/pull", Str(body), answer->bookId, kRevertedSeries);
+    }
+    str::Free(answer->bookId);
+    str::Free(answer->row);
+    str::Free(answer->name);
+    delete answer;
+}
+
+struct RemoveFromSeriesParser : JsonVisitor {
+    RemoveFromSeriesAnswer* answer;
+
+    explicit RemoveFromSeriesParser(RemoveFromSeriesAnswer* a) : answer(a) {
+    }
+
+    bool Visit(Str path, Str value, json::Type type) override {
+        if (str::Eq(path, StrL("/ok"))) {
+            answer->answered = IsTrue(value);
+        } else if (str::Eq(path, StrL("/confirm"))) {
+            answer->confirm = IsTrue(value);
+        }
+        return true;
+    }
+};
+
+static void RemoveFromSeriesThread(LibJob* job) {
+    auto* answer = new RemoveFromSeriesAnswer();
+    answer->bookId = str::Dup(job->a);
+    answer->row = str::Dup(job->b);
+    answer->name = str::Dup(job->c);
+    FreeJob(job);
+    TempStr body = fmt("{\"books\":[%s],\"row\":%s,\"name\":%s,\"preview\":true}", JsonStrTemp(answer->bookId),
+                       JsonStrTemp(answer->row), JsonStrTemp(answer->name));
+    LibraryEnsureService();
+    HttpRsp rsp;
+    TempStr url = fmt("http://127.0.0.1:%d/series/pull", LibraryServicePort());
+    if (HttpPostUrl(Str(url), StrL("application/json"), Str(), Str(body), &rsp) && IsHttpRspOk(&rsp)) {
+        RemoveFromSeriesParser parser(answer);
+        JsonParseWithVisitor(ToStr(rsp.data), &parser);
+    }
+    uitask::Post(MkFunc0<RemoveFromSeriesAnswer>(RemoveFromSeriesDecided, answer), "libRemoveFromSeries");
 }
 
 int LibraryIgnoreDays() {
@@ -7448,6 +7629,34 @@ TempStr TestLibDeskRenderedTemp() {
     return res;
 }
 
+TempStr TestLibRenderedTemp() {
+    MainWindow* win = len(gWindows) > 0 ? gWindows[0] : nullptr;
+    str::Builder b;
+    EnterLib();
+    b.Append(fmt("{\"loaded\":%d,\"loading\":%d,\"books\":%d,\"deskOpen\":%d,\"detailOpen\":%d,\"scrollY\":%d,",
+                 gModel.loaded ? 1 : 0, gModel.loading ? 1 : 0, gModel.nBooks, gDeskOpen ? 1 : 0,
+                 gDetailOpen ? 1 : 0, win ? win->homePageScrollY : -1));
+    LeaveLib();
+    b.Append("\"links\":[");
+    int n = 0;
+    for (int i = 0; win && i < len(win->staticLinks); i++) {
+        StaticLink* l = win->staticLinks[i];
+        if (!str::StartsWith(l->target, Str(kLinkLibraryPrefix))) {
+            continue;
+        }
+        if (n++ > 0) {
+            b.AppendChar(',');
+        }
+        b.Append(fmt("{\"x\":%d,\"y\":%d,\"dx\":%d,\"dy\":%d,\"url\":%s}", l->rect.x, l->rect.y, l->rect.dx,
+                     l->rect.dy, JsonStrTemp(l->target)));
+    }
+    b.Append("]}");
+    Str out = b.TakeStr();
+    TempStr res = str::DupTemp(out);
+    str::Free(out);
+    return res;
+}
+
 TempStr TestLibDeskActsTemp() {
     EnterLib();
     str::Builder b;
@@ -7944,8 +8153,7 @@ bool LibraryOnRightClick(MainWindow* win, int x, int y) {
         AppendMenuW(popup, MF_STRING, kMenuPlayAudiobook, ToWStrTemp(_TRA("Play as Audio Book")).s);
         AppendMenuW(popup, MF_SEPARATOR, 0, nullptr);
         if (CanLeaveSeries(book)) {
-            Str out = Str(fmt("Take out of %s", book->series));
-            AppendMenuW(popup, MF_STRING, kMenuLeaveSeries, ToWStrTemp(out).s);
+            AppendMenuW(popup, MF_STRING, kMenuLeaveSeries, ToWStrTemp(StrL("Remove from series")).s);
         }
         for (int i = 0; book && i < book->nOutOf; i++) {
             if (len(book->outOf[i].key) == 0) {
@@ -7955,6 +8163,9 @@ bool LibraryOnRightClick(MainWindow* win, int x, int y) {
             AppendMenuW(popup, MF_STRING, kMenuRejoinFirst + i, ToWStrTemp(back).s);
         }
         AddSeriesMenu(popup, book);
+        if (book) {
+            AppendMenuW(popup, MF_STRING, kMenuReclassifyBook, ToWStrTemp(StrL("Manually reclassify book")).s);
+        }
         AppendMenuW(popup, MF_STRING, kMenuEditBookMetadata, ToWStrTemp(_TRA("Edit metadata...")).s);
         AppendMenuW(popup, MF_STRING, kMenuRemoveFromLibrary, ToWStrTemp(StrL("Remove from library")).s);
         AppendMenuW(popup, MF_STRING, kMenuIgnoreFile, ToWStrTemp(StrL("Ignore file")).s);
@@ -7982,9 +8193,11 @@ bool LibraryOnRightClick(MainWindow* win, int x, int y) {
     } else if (cmd == kMenuIgnoreFile) {
         MoveOneFile(path, kKindIgnored);
     } else if (cmd == kMenuLeaveSeries && CanLeaveSeries(book)) {
-        TempStr body = fmt("{\"books\":[%s],\"row\":%s,\"name\":%s}", JsonStrTemp(book->id),
-                           JsonStrTemp(book->seriesKey), JsonStrTemp(book->series));
-        PostPartition("/series/pull", Str(body));
+        LibSeries* row = RowByKey(book->seriesKey);
+        Str name = row && len(row->name) > 0 ? row->name : book->series;
+        RunLibJob(RemoveFromSeriesThread, NewJob3(book->id, book->seriesKey, name), "libRemoveFromSeries");
+    } else if (cmd == kMenuReclassifyBook && book) {
+        RunLibJob(ImportPreviewThread, NewJob3(book->path, StrL("reclassify"), Str()), "libImportPreview");
     } else if (book && cmd >= kMenuRejoinFirst && cmd < kMenuRejoinFirst + book->nOutOf) {
         Str was = book->outOf[cmd - kMenuRejoinFirst].key;
         TempStr body = fmt("{\"books\":[%s],\"row\":%s}", JsonStrTemp(book->id), JsonStrTemp(was));

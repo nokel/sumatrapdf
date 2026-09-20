@@ -34,12 +34,14 @@ const user32 = dlopen("user32.dll", {
   GetClientRect: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.bool },
   GetScrollInfo: { args: [FFIType.ptr, FFIType.i32, FFIType.ptr], returns: FFIType.bool },
   SetCursorPos: { args: [FFIType.i32, FFIType.i32], returns: FFIType.bool },
+  RedrawWindow: { args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.u32], returns: FFIType.bool },
   ClientToScreen: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.bool },
   GetWindowTextW: { args: [FFIType.ptr, FFIType.ptr, FFIType.i32], returns: FFIType.i32 },
   GetParent: { args: [FFIType.ptr], returns: FFIType.i64 },
   IsWindow: { args: [FFIType.ptr], returns: FFIType.bool },
   GetWindowRect: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.bool },
   IsWindowVisible: { args: [FFIType.ptr], returns: FFIType.bool },
+  IsWindowEnabled: { args: [FFIType.ptr], returns: FFIType.bool },
   WindowFromPoint: { args: [FFIType.i64], returns: FFIType.u64 },
   GetAncestor: { args: [FFIType.ptr, FFIType.u32], returns: FFIType.u64 },
   SetForegroundWindow: { args: [FFIType.ptr], returns: FFIType.bool },
@@ -52,6 +54,8 @@ const user32 = dlopen("user32.dll", {
   SetProcessDpiAwarenessContext: { args: [FFIType.i64], returns: FFIType.bool },
   GetGUIThreadInfo: { args: [FFIType.u32, FFIType.ptr], returns: FFIType.bool },
   GetCursorInfo: { args: [FFIType.ptr], returns: FFIType.bool },
+  LoadCursorW: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.u64 },
+  GetDpiForWindow: { args: [FFIType.ptr], returns: FFIType.u32 },
   GetIconInfo: { args: [FFIType.u64, FFIType.ptr], returns: FFIType.bool },
   DrawIconEx: {
     args: [
@@ -755,6 +759,10 @@ export function isWindowVisible(hwnd: number): boolean {
   return user32.symbols.IsWindowVisible(hwnd);
 }
 
+export function isWindowEnabled(hwnd: number): boolean {
+  return user32.symbols.IsWindowEnabled(hwnd);
+}
+
 // The top-level window that owns whatever is drawn at this screen point, i.e.
 // what a click there would hit. Use it to check that the window you are about
 // to read pixels from is really the one on screen at that spot -- another
@@ -1062,6 +1070,23 @@ export function captureWindowDCRegionToPng(
 // The cursor shape currently displayed on the desktop, as an HCURSOR (0 when
 // the cursor is hidden). It is a per-desktop global, so this sees the shape the
 // app under test asked for with SetCursor() even from another process.
+export const IDC_ARROW = 32512;
+export const IDC_HAND = 32649;
+
+export function loadSystemCursor(id: number): bigint {
+  return user32.symbols.LoadCursorW(0, id) as bigint;
+}
+
+export function getDpiForWindow(hwnd: number): number {
+  const dpi = Number(user32.symbols.GetDpiForWindow(hwnd));
+  return dpi > 0 ? dpi : 96;
+}
+
+export function dpiScale(hwnd: number, value: number): number {
+  const dpi = getDpiForWindow(hwnd);
+  return Math.floor((value * dpi + 48) / 96);
+}
+
 export function getCurrentCursor(): bigint {
   // CURSORINFO { DWORD cbSize; DWORD flags; HCURSOR hCursor; POINT ptScreenPos; }
   const ci = new BigUint64Array(4);
@@ -1557,16 +1582,12 @@ function sendInputs(buf: Uint8Array, n: number): number {
   return user32.symbols.SendInput(n, ptr(buf), INPUT_SIZE);
 }
 
-// Move the real pointer to a screen pixel with injected hardware-level input.
-// SetCursorPos runs as well: the two agree because both take physical pixels,
-// and the second one makes the position stick if the injected move is coalesced.
+// Move the real pointer to a screen pixel with one injected input event.
 export function realMouseMove(x: number, y: number): boolean {
   const n = normalizeToVirtualDesk(x, y);
   const buf = new Uint8Array(INPUT_SIZE);
   writeMouseInput(buf, 0, n.nx, n.ny, MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
-  const sent = sendInputs(buf, 1);
-  user32.symbols.SetCursorPos(x, y);
-  return sent === 1;
+  return sendInputs(buf, 1) === 1;
 }
 
 // A real button press at the current pointer position. Down and up go in one
@@ -1578,6 +1599,109 @@ export function realMouseClick(button: string): boolean {
   writeMouseInput(buf, 0, 0, 0, down);
   writeMouseInput(buf, 1, 0, 0, up);
   return sendInputs(buf, 2) === 2;
+}
+
+// Move and click in ONE SendInput call: the move cannot be separated from the
+// press, so a click can never land where the pointer used to be.
+export function realMouseDrag(from: { x: number; y: number }, to: { x: number; y: number }): boolean {
+  const a = normalizeToVirtualDesk(from.x, from.y);
+  const b = normalizeToVirtualDesk(to.x, to.y);
+  const absolute = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK;
+  const buf = new Uint8Array(INPUT_SIZE * 4);
+  writeMouseInput(buf, 0, a.nx, a.ny, MOUSEEVENTF_MOVE | absolute);
+  writeMouseInput(buf, 1, a.nx, a.ny, MOUSEEVENTF_LEFTDOWN | absolute);
+  writeMouseInput(buf, 2, b.nx, b.ny, MOUSEEVENTF_MOVE | absolute);
+  writeMouseInput(buf, 3, b.nx, b.ny, MOUSEEVENTF_LEFTUP | absolute);
+  return sendInputs(buf, 4) === 4;
+}
+
+export function realMouseClickSequence(points: { x: number; y: number }[]): boolean {
+  const buf = new Uint8Array(INPUT_SIZE * points.length * 3);
+  points.forEach((p, i) => {
+    const n = normalizeToVirtualDesk(p.x, p.y);
+    writeMouseInput(buf, i * 3, n.nx, n.ny, MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+    writeMouseInput(buf, i * 3 + 1, n.nx, n.ny, MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+    writeMouseInput(buf, i * 3 + 2, n.nx, n.ny, MOUSEEVENTF_LEFTUP | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+  });
+  return sendInputs(buf, points.length * 3) === points.length * 3;
+}
+
+export function realMouseClickAt(x: number, y: number, button: string): boolean {
+  const n = normalizeToVirtualDesk(x, y);
+  const down = button === "left" ? MOUSEEVENTF_LEFTDOWN : MOUSEEVENTF_RIGHTDOWN;
+  const up = button === "left" ? MOUSEEVENTF_LEFTUP : MOUSEEVENTF_RIGHTUP;
+  const buf = new Uint8Array(INPUT_SIZE * 3);
+  writeMouseInput(buf, 0, n.nx, n.ny, MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+  writeMouseInput(buf, 1, n.nx, n.ny, down | MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+  writeMouseInput(buf, 2, n.nx, n.ny, up | MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_VIRTUALDESK);
+  return sendInputs(buf, 3) === 3;
+}
+
+// Make the window repaint right now, synchronously, on its own UI thread: the
+// only way to observe the frame the application draws between two of its own
+// state changes without waiting for it to go idle.
+export function redrawNow(hwnd: number): boolean {
+  const RDW_INVALIDATE = 0x0001;
+  const RDW_UPDATENOW = 0x0100;
+  const RDW_ALLCHILDREN = 0x0080;
+  return user32.symbols.RedrawWindow(hwnd, null, null, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
+}
+
+export const MOUSEEVENTF_WHEEL = 0x0800;
+
+// A real mouse wheel notch at the current pointer position: WM_MOUSEWHEEL goes
+// to the window under the cursor, the same way a person turning the wheel does.
+export function realMouseWheel(notches: number): boolean {
+  const buf = new Uint8Array(INPUT_SIZE);
+  const dv = new DataView(buf.buffer, 0, INPUT_SIZE);
+  dv.setUint32(0, INPUT_MOUSE, true);
+  dv.setInt32(8, 0, true);
+  dv.setInt32(12, 0, true);
+  dv.setInt32(16, notches * 120, true);
+  dv.setUint32(20, MOUSEEVENTF_WHEEL, true);
+  dv.setUint32(24, 0, true);
+  dv.setBigUint64(32, 0n, true);
+  return sendInputs(buf, 1) === 1;
+}
+
+export const KEYEVENTF_UNICODE = 0x0004;
+
+function writeUnicodeInput(buf: Uint8Array, i: number, ch: number, flags: number): void {
+  const dv = new DataView(buf.buffer, i * INPUT_SIZE, INPUT_SIZE);
+  dv.setUint32(0, INPUT_KEYBOARD, true);
+  dv.setUint16(8, 0, true);
+  dv.setUint16(10, ch, true);
+  dv.setUint32(12, flags, true);
+  dv.setUint32(16, 0, true);
+  dv.setBigUint64(24, 0n, true);
+}
+
+// Type text into whatever has the keyboard focus with real injected input,
+// the way a person typing at the keyboard reaches a control that ignores
+// cross-process WM_SETTEXT (the common file dialog folder box).
+export function realTypeText(text: string): boolean {
+  const count = text.length * 2;
+  if (count === 0) {
+    return true;
+  }
+  const buf = new Uint8Array(INPUT_SIZE * count);
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charCodeAt(i);
+    writeUnicodeInput(buf, i * 2, ch, KEYEVENTF_UNICODE);
+    writeUnicodeInput(buf, i * 2 + 1, ch, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP);
+  }
+  return sendInputs(buf, count) === count;
+}
+
+export const VK_CONTROL = 0x11;
+
+export function realKeyChord(modVk: number, vk: number): boolean {
+  const buf = new Uint8Array(INPUT_SIZE * 4);
+  writeKeyInput(buf, 0, modVk, 0);
+  writeKeyInput(buf, 1, vk, 0);
+  writeKeyInput(buf, 2, vk, KEYEVENTF_KEYUP);
+  writeKeyInput(buf, 3, modVk, KEYEVENTF_KEYUP);
+  return sendInputs(buf, 4) === 4;
 }
 
 export function realKeyPress(vk: number): boolean {
